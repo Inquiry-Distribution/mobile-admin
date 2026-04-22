@@ -99,6 +99,14 @@ export default function InquiryListScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* FAB — Add new inquiry */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreateInquiry')}
+        activeOpacity={0.85}
+      >
+        <Icon name="plus" size={26} color={COLORS.white} />
+      </TouchableOpacity>
 
       {/* ── Search bar ───────────────────────────────── */}
       <View style={styles.searchWrap}>
@@ -295,7 +303,7 @@ function InquiryRow({ inquiry, onPress }) {
 
 // ─── Styles ───────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background },
 
   // Search
   searchWrap: {
@@ -334,6 +342,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth:     1,
     borderColor:     COLORS.border,
+    marginVertical: SPACING.xs,
+    height: 32,
   },
   chipActive: {
     backgroundColor: COLORS.primary,
@@ -385,7 +395,7 @@ const styles = StyleSheet.create({
     ...SHADOW.sm,
   },
   rowStrip: { width: 4, alignSelf: 'stretch' },
-  rowBody: { flex: 1, padding: SPACING.sm, paddingVertical: 12 },
+  rowBody: { flex: 1, padding: SPACING.md, paddingVertical: 20 },
 
   rowTop: {
     flexDirection:  'row',
@@ -398,6 +408,8 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMedium,
     color:  COLORS.textPrimary,
     flex:   1,
+    fontWeight: '700',
+    
   },
   rowMeta: {
     flexDirection:  'row',
@@ -451,6 +463,25 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     alignItems:      'center',
   },
-  listContent:  { paddingBottom: SPACING.xxl },
+  listContent:  { paddingBottom: SPACING.xxl + 64 },  // extra room for FAB
   emptyContent: { flexGrow: 1 },
+
+  // FAB
+  fab: {
+    position:        'absolute',
+    bottom:          SPACING.xl,
+    right:           SPACING.md,
+    width:           54,
+    height:          54,
+    borderRadius:    27,
+    backgroundColor: COLORS.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
+    zIndex:          10,
+    shadowColor:     COLORS.primary,
+    shadowOffset:    { width: 0, height: 4 },
+    shadowOpacity:   0.35,
+    shadowRadius:    8,
+    elevation:       8,
+  },
 });

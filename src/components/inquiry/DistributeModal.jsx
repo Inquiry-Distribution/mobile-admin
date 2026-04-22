@@ -216,7 +216,7 @@ function SalespersonRow({ sp, isSelected, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background },
 
   // Header
   header: {

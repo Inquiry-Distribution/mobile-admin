@@ -33,8 +33,9 @@ import useAuthStore         from '@store/auth.store';
 
 // ── Screens ───────────────────────────────────────────────────
 import DashboardScreen     from '@screens/dashboard/DashboardScreen';
-import InquiryListScreen   from '@screens/inquiry/InquiryListScreen';
-import InquiryDetailScreen from '@screens/inquiry/InquiryDetailScreen';
+import InquiryListScreen    from '@screens/inquiry/InquiryListScreen';
+import InquiryDetailScreen  from '@screens/inquiry/InquiryDetailScreen';
+import CreateInquiryScreen  from '@screens/inquiry/CreateInquiryScreen';
 import LiveMapScreen       from '@screens/map/LiveMapScreen';
 import UserListScreen      from '@screens/team/UserListScreen';
 import UserDetailScreen    from '@screens/team/UserDetailScreen';
@@ -125,6 +126,14 @@ function InquiryNavigator() {
         component={InquiryDetailScreen}
         options={{
           headerTitle: () => <HeaderTitle icon="clipboard-text-outline" title="Inquiry Detail" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <InquiryStack.Screen
+        name="CreateInquiry"
+        component={CreateInquiryScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="clipboard-plus-outline" title="Add Inquiry" />,
           headerLeft:  () => <BackButton />,
         }}
       />

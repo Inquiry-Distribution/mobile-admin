@@ -11,12 +11,12 @@ import { buildQuery } from '@utils/helpers';
 export const reportApi = {
   /**
    * Summary / KPI card data for the Dashboard screen.
-   * Returns: {
-   *   totalInquiries, unassigned, assigned, inProgress, closed,
-   *   conversionRate, totalSalespersons, presentToday, ...
-   * }
+   * @param {{ from?, to? }} params  — ISO date strings (YYYY-MM-DD) for date-range filter.
+   *   Omit both for all-time counts.
+   * Returns: { totalInquiries, unassigned, inProgress, closed, totalSales, totalDevices, blockedDevices }
    */
-  getSummary: () => client.get('/reports/summary'),
+  getSummary: (params = {}) =>
+    client.get(`/reports/summary${buildQuery(params)}`),
 
   /**
    * Inquiry distribution report (filterable by date range).

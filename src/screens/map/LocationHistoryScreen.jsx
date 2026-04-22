@@ -331,7 +331,7 @@ export default function LocationHistoryScreen({ route }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background },
 
   // ── Date bar ───────────────────────────────────────────────────
   dateBar: {

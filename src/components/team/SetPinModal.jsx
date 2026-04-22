@@ -213,7 +213,7 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background },
 
   header: {
     flexDirection:     'row',

@@ -12,7 +12,16 @@
  * the server to the admin's user record directly via Firebase Admin SDK.
  * Token syncing can be added later if the backend requires it.
  */
-import messaging from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  getToken,
+  requestPermission,
+  onMessage,
+  onTokenRefresh,
+  onNotificationOpenedApp,
+  getInitialNotification as fcmGetInitialNotification,
+  AuthorizationStatus,
+} from '@react-native-firebase/messaging';
 import { handleNotificationNavigation } from '@navigation/navigationRef';
 
 let notificationStore = null;
@@ -25,10 +34,10 @@ export const setNotificationStore = (store) => {
 // ─── iOS permission request ───────────────────────────────────
 export const requestFCMPermission = async () => {
   try {
-    const status = await messaging().requestPermission();
+    const status = await requestPermission(getMessaging());
     return (
-      status === messaging.AuthorizationStatus.AUTHORIZED ||
-      status === messaging.AuthorizationStatus.PROVISIONAL
+      status === AuthorizationStatus.AUTHORIZED ||
+      status === AuthorizationStatus.PROVISIONAL
     );
   } catch (_) {
     return false;
@@ -38,7 +47,7 @@ export const requestFCMPermission = async () => {
 // ─── Get FCM token (for debugging / manual send) ──────────────
 export const getFCMToken = async () => {
   try {
-    return await messaging().getToken();
+    return await getToken(getMessaging());
   } catch (_) {
     return null;
   }
@@ -64,26 +73,27 @@ function handleIncomingMessage(remoteMessage) {
     createdAt: new Date().toISOString(),
   });
 
-  console.warn('[Admin FCM] received:', type, inquiryId ?? '');
+  console.log('[Admin FCM] received:', type, inquiryId ?? '');
 }
 
 // ─── Setup all FCM listeners ──────────────────────────────────
 export const setupNotificationListeners = () => {
+  const m = getMessaging();
+
   // 1. Foreground message (app is open)
-  const unsubForeground = messaging().onMessage(async (remoteMessage) => {
+  const unsubForeground = onMessage(m, async (remoteMessage) => {
     handleIncomingMessage(remoteMessage);
   });
 
   // 2. Background tap (app backgrounded, user taps notification)
-  const unsubBackgroundTap = messaging().onNotificationOpenedApp((remoteMessage) => {
-    console.warn('[Admin FCM] background tap:', remoteMessage?.data);
+  const unsubBackgroundTap = onNotificationOpenedApp(m, (remoteMessage) => {
+    console.log('[Admin FCM] background tap:', remoteMessage?.data);
     handleNotificationNavigation(remoteMessage);
   });
 
   // 3. Token refresh
-  const unsubTokenRefresh = messaging().onTokenRefresh((newToken) => {
-    // Token refresh handler — extend here if backend needs admin FCM token
-    console.warn('[Admin FCM] token refreshed:', newToken?.slice(0, 20));
+  const unsubTokenRefresh = onTokenRefresh(m, (newToken) => {
+    console.log('[Admin FCM] token refreshed:', newToken?.slice(0, 20));
   });
 
   return () => {
@@ -96,7 +106,7 @@ export const setupNotificationListeners = () => {
 // ─── Cold-start: app opened from killed state via notification ─
 export const getInitialNotification = async () => {
   try {
-    return await messaging().getInitialNotification();
+    return await fcmGetInitialNotification(getMessaging());
   } catch (_) {
     return null;
   }

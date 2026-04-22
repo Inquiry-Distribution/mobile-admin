@@ -1,0 +1,868 @@
+/**
+ * CreateInquiryScreen — Admin & Superuser
+ *
+ * Fields: images, description, mobile, time, priority, source, distribute
+ * Flow:   create → uploadImages (if any) → distribute (if salesperson selected)
+ */
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+} from 'react-native';
+import { SafeAreaView }    from 'react-native-safe-area-context';
+import Icon                from 'react-native-vector-icons/MaterialCommunityIcons';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { Menu, Modal, Portal } from 'react-native-paper';
+import Toast               from 'react-native-toast-message';
+
+import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
+import { TYPOGRAPHY }                             from '@constants/typography';
+import { SPACING, BORDER_RADIUS, SHADOW, PRIORITY_LABELS } from '@constants/config';
+import { getInitials }                            from '@utils/helpers';
+
+import { inquiryApi }   from '@api/inquiry.api';
+import useUserStore     from '@store/user.store';
+import useInquiryStore  from '@store/inquiry.store';
+
+// ─── Constants ────────────────────────────────────────────────
+const PRIORITIES = [
+  { label: 'High',   value: 'high' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'Low',    value: 'low' },
+];
+
+const MAX_IMAGES   = 8;
+const MAX_FILE_MB  = 5;
+const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+
+const AVATAR_COLORS = [
+  '#7C3AED', '#059669', '#EA580C', '#2563EB',
+  '#D97706', '#DB2777', '#0891B2', '#65A30D',
+  '#9333EA', '#DC2626',
+];
+
+// ─── Helpers ──────────────────────────────────────────────────
+function avatarColor(index) {
+  return AVATAR_COLORS[index % AVATAR_COLORS.length];
+}
+
+function formatTime12(time24) {
+  if (!time24) return '';
+  const [h, m] = time24.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12  = h % 12 || 12;
+  return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+// ─── Screen ───────────────────────────────────────────────────
+export default function CreateInquiryScreen({ navigation }) {
+  const { salespersons, isLoadingSalespersons, fetchSalespersons } = useUserStore();
+  const { refreshInquiries } = useInquiryStore();
+
+  // Form fields
+  const [description, setDescription] = useState('');
+  const [mobile,      setMobile]      = useState('');
+  const [inquiryTime, setInquiryTime] = useState('');   // "HH:MM" 24h
+  const [priority,    setPriority]    = useState('medium');
+  const [source,      setSource]      = useState('');
+  const [images,      setImages]      = useState([]);
+  const [selectedSp,  setSelectedSp]  = useState(null);
+  const [spSearch,    setSpSearch]    = useState('');
+
+  // UI state
+  const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
+  const [timePickerOpen,   setTimePickerOpen]   = useState(false);
+  const [isSubmitting,     setIsSubmitting]      = useState(false);
+
+  useEffect(() => {
+    fetchSalespersons();
+  }, []);
+
+  // ─── Image picker ────────────────────────────────────────────
+  const handlePickImages = async () => {
+    if (images.length >= MAX_IMAGES) {
+      Alert.alert('Limit Reached', `You can upload up to ${MAX_IMAGES} images.`);
+      return;
+    }
+    const result = await launchImageLibrary({
+      mediaType:      'photo',
+      quality:        0.85,
+      selectionLimit: MAX_IMAGES - images.length,
+    });
+    if (!result.assets) return;
+
+    const valid    = result.assets.filter((a) => (a.fileSize ?? 0) <= MAX_FILE_BYTES);
+    const skipped  = result.assets.length - valid.length;
+    if (skipped > 0) {
+      Alert.alert('File Too Large', `${skipped} image(s) exceed ${MAX_FILE_MB} MB and were skipped.`);
+    }
+    setImages((prev) => [...prev, ...valid].slice(0, MAX_IMAGES));
+  };
+
+  const removeImage = (index) =>
+    setImages((prev) => prev.filter((_, i) => i !== index));
+
+  // ─── Time picker (custom modal) ───────────────────────────────
+  const [tempHour, setTempHour]     = useState('');
+  const [tempMinute, setTempMinute] = useState('');
+
+  const openTimePicker = () => {
+    const [h = '', m = ''] = inquiryTime ? inquiryTime.split(':') : [];
+    setTempHour(h);
+    setTempMinute(m);
+    setTimePickerOpen(true);
+  };
+
+  const confirmTime = () => {
+    const h = Math.min(23, Math.max(0, parseInt(tempHour) || 0));
+    const m = Math.min(59, Math.max(0, parseInt(tempMinute) || 0));
+    setInquiryTime(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    setTimePickerOpen(false);
+  };
+
+  // ─── Filtered salespersons ───────────────────────────────────
+  const filteredSp = salespersons.filter(
+    (sp) =>
+      !spSearch ||
+      sp.name?.toLowerCase().includes(spSearch.toLowerCase()) ||
+      sp.employeeId?.toLowerCase().includes(spSearch.toLowerCase()),
+  );
+
+  // ─── Submit ──────────────────────────────────────────────────
+  const handleSubmit = async () => {
+    if (!description.trim() && !mobile.trim()) {
+      Alert.alert('Required', 'Please enter a description or mobile number.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 1. Determine type
+      const hasText   = description.trim().length > 0;
+      const hasImages = images.length > 0;
+      const type = hasImages && hasText ? 'text_image' : hasImages ? 'image' : 'text';
+
+      // 2. Create inquiry
+      const res     = await inquiryApi.create({
+        description:  description.trim() || undefined,
+        mobile:       mobile.trim()       || undefined,
+        inquiryTime:  inquiryTime         || undefined,
+        priority,
+        source:       source.trim()       || undefined,
+        type,
+      });
+      const inquiry   = res.data ?? res;
+      const inquiryId = inquiry.id;
+
+      // 3. Upload images
+      if (hasImages) {
+        await inquiryApi.uploadImages(inquiryId, images);
+      }
+
+      // 4. Distribute to salesperson
+      if (selectedSp) {
+        await inquiryApi.distribute(inquiryId, { salesPersonId: selectedSp.id });
+      }
+
+      // 5. Refresh list & go back
+      refreshInquiries();
+      Toast.show({
+        type:  'success',
+        text1: 'Inquiry Created',
+        text2: selectedSp
+          ? `Distributed to ${selectedSp.name}`
+          : 'Added as unassigned',
+      });
+      navigation.goBack();
+    } catch (err) {
+      Alert.alert('Error', err.message ?? 'Failed to create inquiry. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ─── Render ──────────────────────────────────────────────────
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+
+          {/* ── Upload Images ────────────────────────────── */}
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>UPLOAD INQUIRY</Text>
+            {images.length === 0 ? (
+              <TouchableOpacity
+                style={styles.uploadEmpty}
+                onPress={handlePickImages}
+                activeOpacity={0.7}
+              >
+                <View style={styles.uploadIconBox}>
+                  <Icon name="cloud-upload-outline" size={28} color={COLORS.primary} />
+                </View>
+                <Text style={styles.uploadText}>Tap to browse photos</Text>
+                <Text style={styles.uploadHint}>
+                  .jpg, .jpeg, .png · Max {MAX_FILE_MB} MB · Up to {MAX_IMAGES} files
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.thumbRow}
+                >
+                  {images.map((img, i) => (
+                    <View key={i} style={styles.thumbWrap}>
+                      <Image source={{ uri: img.uri }} style={styles.thumb} />
+                      <TouchableOpacity
+                        style={styles.thumbRemove}
+                        onPress={() => removeImage(i)}
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                      >
+                        <Icon name="close-circle" size={20} color={COLORS.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+
+                  {images.length < MAX_IMAGES && (
+                    <TouchableOpacity
+                      style={styles.thumbAdd}
+                      onPress={handlePickImages}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="plus" size={24} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
+                <Text style={[styles.uploadHint, { marginTop: SPACING.xs }]}>
+                  {images.length}/{MAX_IMAGES} images selected
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* ── Inquiry Description ──────────────────────── */}
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>INQUIRY DESCRIPTION</Text>
+            <TextInput
+              style={styles.descInput}
+              placeholder="Description"
+              placeholderTextColor={COLORS.textMuted}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* ── Mobile & Time ────────────────────────────── */}
+          <View style={[styles.card, styles.row]}>
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>MOBILE</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="9876543210"
+                placeholderTextColor={COLORS.textMuted}
+                value={mobile}
+                onChangeText={setMobile}
+                keyboardType="phone-pad"
+                maxLength={15}
+              />
+            </View>
+
+            <View style={styles.fieldDivider} />
+
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>TIME</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.timeInput]}
+                onPress={openTimePicker}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.timeText, !inquiryTime && styles.placeholderText]}>
+                  {inquiryTime ? formatTime12(inquiryTime) : '--:-- --'}
+                </Text>
+                <Icon name="clock-outline" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ── Priority & Source ────────────────────────── */}
+          <View style={[styles.card, styles.row]}>
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>PRIORITY</Text>
+              <Menu
+                visible={priorityMenuOpen}
+                onDismiss={() => setPriorityMenuOpen(false)}
+                contentStyle={styles.menuContent}
+                anchor={
+                  <TouchableOpacity
+                    style={[styles.input, styles.dropdownInput]}
+                    onPress={() => setPriorityMenuOpen(true)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.priorityDot,
+                        { backgroundColor: PRIORITY_COLORS[priority]?.text ?? COLORS.textMuted },
+                      ]}
+                    />
+                    <Text style={styles.dropdownText}>{PRIORITY_LABELS[priority]}</Text>
+                    <Icon name="chevron-down" size={18} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                }
+              >
+                {PRIORITIES.map((p) => (
+                  <Menu.Item
+                    key={p.value}
+                    onPress={() => { setPriority(p.value); setPriorityMenuOpen(false); }}
+                    title={p.label}
+                    leadingIcon={() => (
+                      <View style={[styles.priorityDot, { backgroundColor: PRIORITY_COLORS[p.value]?.text, marginTop: 2 }]} />
+                    )}
+                  />
+                ))}
+              </Menu>
+            </View>
+
+            <View style={styles.fieldDivider} />
+
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>SOURCE</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Walk-in, Phone, Website..."
+                placeholderTextColor={COLORS.textMuted}
+                value={source}
+                onChangeText={setSource}
+              />
+            </View>
+          </View>
+
+          {/* ── Distribute Inquiry ───────────────────────── */}
+          <View style={styles.card}>
+            <View style={styles.distributeHeader}>
+              <Text style={styles.distributeTitle}>Distribute Inquiry</Text>
+              <View style={styles.spSearchWrap}>
+                <Icon name="magnify" size={15} color={COLORS.textMuted} />
+                <TextInput
+                  style={styles.spSearchInput}
+                  placeholder="Search sales person..."
+                  placeholderTextColor={COLORS.textMuted}
+                  value={spSearch}
+                  onChangeText={setSpSearch}
+                />
+                {spSearch ? (
+                  <TouchableOpacity onPress={() => setSpSearch('')}>
+                    <Icon name="close-circle" size={14} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+
+            {isLoadingSalespersons ? (
+              <ActivityIndicator color={COLORS.primary} style={styles.spLoader} />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.avatarRow}
+              >
+                {filteredSp.map((sp, index) => {
+                  const isSelected = selectedSp?.id === sp.id;
+                  const color      = avatarColor(index);
+                  return (
+                    <TouchableOpacity
+                      key={sp.id}
+                      style={styles.avatarItem}
+                      onPress={() => setSelectedSp(isSelected ? null : sp)}
+                      activeOpacity={0.78}
+                    >
+                      <View
+                        style={[
+                          styles.avatar,
+                          {
+                            backgroundColor: isSelected ? color : `${color}22`,
+                            borderColor:     isSelected ? color  : 'transparent',
+                          },
+                        ]}
+                      >
+                        {isSelected && (
+                          <View style={styles.avatarCheck}>
+                            <Icon name="check" size={9} color={COLORS.white} />
+                          </View>
+                        )}
+                        <Text style={[styles.avatarInitials, { color: isSelected ? COLORS.white : color }]}>
+                          {getInitials(sp.name)}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.avatarName,
+                          isSelected && { color: COLORS.primary, fontWeight: '700' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {sp.name?.split(' ')[0]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {filteredSp.length === 0 && (
+                  <Text style={styles.noSpText}>No salespersons found</Text>
+                )}
+              </ScrollView>
+            )}
+
+            {selectedSp && (
+              <View style={styles.selectedBanner}>
+                <Icon name="account-check-outline" size={14} color={COLORS.primary} />
+                <Text style={styles.selectedBannerText}>
+                  Will be distributed to{' '}
+                  <Text style={{ fontWeight: '700' }}>{selectedSp.name}</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setSelectedSp(null)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Icon name="close" size={14} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+        </ScrollView>
+
+        {/* ── Share Inquiry Button ─────────────────────── */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+            activeOpacity={0.85}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <>
+                <Icon name="share-variant-outline" size={18} color={COLORS.white} />
+                <Text style={styles.submitBtnText}>Share Inquiry</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* ── Custom Time Picker Modal ─────────────────── */}
+      <Portal>
+        <Modal
+          visible={timePickerOpen}
+          onDismiss={() => setTimePickerOpen(false)}
+          contentContainerStyle={styles.timeModal}
+        >
+          <Text style={styles.timeModalTitle}>Select Time</Text>
+          <View style={styles.timeModalRow}>
+            <View style={styles.timeModalField}>
+              <Text style={styles.timeModalLabel}>Hour (0–23)</Text>
+              <TextInput
+                style={styles.timeModalInput}
+                keyboardType="number-pad"
+                maxLength={2}
+                placeholder="HH"
+                placeholderTextColor={COLORS.textMuted}
+                value={tempHour}
+                onChangeText={setTempHour}
+              />
+            </View>
+            <Text style={styles.timeModalColon}>:</Text>
+            <View style={styles.timeModalField}>
+              <Text style={styles.timeModalLabel}>Minute (0–59)</Text>
+              <TextInput
+                style={styles.timeModalInput}
+                keyboardType="number-pad"
+                maxLength={2}
+                placeholder="MM"
+                placeholderTextColor={COLORS.textMuted}
+                value={tempMinute}
+                onChangeText={setTempMinute}
+              />
+            </View>
+          </View>
+          <View style={styles.timeModalActions}>
+            <TouchableOpacity
+              style={styles.timeModalCancel}
+              onPress={() => setTimePickerOpen(false)}
+            >
+              <Text style={styles.timeModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.timeModalConfirm} onPress={confirmTime}>
+              <Text style={styles.timeModalConfirmText}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      </Portal>
+    </SafeAreaView>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  safe:  { flex: 1, backgroundColor: COLORS.background },
+  flex:  { flex: 1 },
+  scroll: { padding: SPACING.md, paddingBottom: SPACING.xxl },
+
+  // Card (each section)
+  card: {
+    backgroundColor: COLORS.surface,
+    borderRadius:    BORDER_RADIUS.lg,
+    padding:         SPACING.md,
+    marginBottom:    SPACING.sm,
+    ...SHADOW.sm,
+  },
+  sectionLabel: {
+    ...TYPOGRAPHY.captionMedium,
+    color:          COLORS.textMuted,
+    fontWeight:     '700',
+    letterSpacing:  0.6,
+    marginBottom:   SPACING.sm,
+  },
+  fieldLabel: {
+    ...TYPOGRAPHY.captionMedium,
+    color:         COLORS.textMuted,
+    fontWeight:    '700',
+    letterSpacing: 0.5,
+    marginBottom:  SPACING.xs,
+  },
+
+  // Upload
+  uploadEmpty: {
+    borderWidth:     1.5,
+    borderColor:     COLORS.border,
+    borderStyle:     'dashed',
+    borderRadius:    BORDER_RADIUS.md,
+    paddingVertical: SPACING.xl,
+    alignItems:      'center',
+    gap:             SPACING.xs,
+  },
+  uploadIconBox: {
+    width:           52,
+    height:          52,
+    borderRadius:    16,
+    backgroundColor: COLORS.primaryLight,
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    SPACING.xs,
+  },
+  uploadText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.textPrimary,
+    fontWeight: '600',
+  },
+  uploadHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+  },
+  thumbRow: { paddingVertical: SPACING.xs },
+  thumbWrap: {
+    position:    'relative',
+    marginRight: SPACING.sm,
+  },
+  thumb: {
+    width:        72,
+    height:       72,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  thumbRemove: {
+    position:        'absolute',
+    top:             -6,
+    right:           -6,
+    backgroundColor: COLORS.white,
+    borderRadius:    10,
+  },
+  thumbAdd: {
+    width:           72,
+    height:          72,
+    borderRadius:    BORDER_RADIUS.md,
+    borderWidth:     1.5,
+    borderStyle:     'dashed',
+    borderColor:     COLORS.primaryMid,
+    alignItems:      'center',
+    justifyContent:  'center',
+    backgroundColor: COLORS.primaryLight,
+  },
+
+  // Description
+  descInput: {
+    borderWidth:   1,
+    borderColor:   COLORS.border,
+    borderRadius:  BORDER_RADIUS.md,
+    padding:       SPACING.sm,
+    ...TYPOGRAPHY.body,
+    color:         COLORS.textPrimary,
+    minHeight:     100,
+  },
+
+  // Row layout (mobile+time, priority+source)
+  row: {
+    flexDirection: 'row',
+    alignItems:    'flex-start',
+    gap:           0,
+  },
+  halfField: { flex: 1 },
+  fieldDivider: { width: SPACING.sm },
+
+  // Generic input
+  input: {
+    borderWidth:     1,
+    borderColor:     COLORS.border,
+    borderRadius:    BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.sm,
+    height:          44,
+    ...TYPOGRAPHY.body,
+    color:           COLORS.textPrimary,
+    justifyContent:  'center',
+  },
+
+  // Time
+  timeInput: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+  },
+  timeText:       { ...TYPOGRAPHY.body, color: COLORS.textPrimary },
+  placeholderText: { color: COLORS.textMuted },
+
+  // Priority dropdown
+  dropdownInput: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            SPACING.xs,
+  },
+  dropdownText: {
+    ...TYPOGRAPHY.body,
+    color:  COLORS.textPrimary,
+    flex:   1,
+  },
+  priorityDot: {
+    width:        8,
+    height:       8,
+    borderRadius: 4,
+  },
+  menuContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius:    BORDER_RADIUS.md,
+  },
+
+  // Distribute section
+  distributeHeader: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginBottom:   SPACING.md,
+    gap:            SPACING.sm,
+  },
+  distributeTitle: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.textPrimary,
+    fontWeight: '700',
+  },
+  spSearchWrap: {
+    flex:            1,
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             SPACING.xs,
+    backgroundColor: COLORS.background,
+    borderRadius:    BORDER_RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:  6,
+    borderWidth:     1,
+    borderColor:     COLORS.border,
+  },
+  spSearchInput: {
+    flex:   1,
+    height: 24,
+    ...TYPOGRAPHY.small,
+    color:  COLORS.textPrimary,
+    padding: 0,
+  },
+  spLoader:   { marginVertical: SPACING.lg },
+  avatarRow:  { paddingVertical: SPACING.xs, gap: SPACING.md },
+  avatarItem: { alignItems: 'center', width: 56 },
+  avatar: {
+    width:        48,
+    height:       48,
+    borderRadius: 24,
+    alignItems:   'center',
+    justifyContent: 'center',
+    borderWidth:  2,
+    marginBottom: 4,
+    position:     'relative',
+  },
+  avatarInitials: {
+    ...TYPOGRAPHY.smallBold,
+    fontWeight: '700',
+  },
+  avatarCheck: {
+    position:        'absolute',
+    top:             0,
+    right:           0,
+    width:           16,
+    height:          16,
+    borderRadius:    8,
+    backgroundColor: COLORS.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderWidth:     1.5,
+    borderColor:     COLORS.white,
+  },
+  avatarName: {
+    ...TYPOGRAPHY.caption,
+    color:     COLORS.textSecondary,
+    textAlign: 'center',
+    maxWidth:  52,
+  },
+  noSpText: {
+    ...TYPOGRAPHY.small,
+    color:         COLORS.textMuted,
+    marginVertical: SPACING.md,
+  },
+  selectedBanner: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             SPACING.xs,
+    backgroundColor: COLORS.primaryLight,
+    borderRadius:    BORDER_RADIUS.md,
+    padding:         SPACING.sm,
+    marginTop:       SPACING.sm,
+    borderWidth:     1,
+    borderColor:     COLORS.primaryMid,
+  },
+  selectedBannerText: {
+    flex:       1,
+    ...TYPOGRAPHY.small,
+    color:      COLORS.primary,
+  },
+
+  // Footer
+  footer: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.sm,
+    paddingBottom:     Platform.OS === 'ios' ? SPACING.sm : SPACING.md,
+    backgroundColor:   COLORS.surface,
+    borderTopWidth:    1,
+    borderTopColor:    COLORS.divider,
+  },
+  submitBtn: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderRadius:    BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm + 2,
+    ...SHADOW.md,
+  },
+  submitBtnDisabled: {
+    backgroundColor: COLORS.primaryMid,
+    elevation:       0,
+    shadowOpacity:   0,
+  },
+  submitBtnText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.white,
+    fontWeight: '700',
+  },
+
+  // Time picker modal
+  timeModal: {
+    backgroundColor:   COLORS.surface,
+    borderRadius:      BORDER_RADIUS.xl,
+    marginHorizontal:  SPACING.xl,
+    padding:           SPACING.lg,
+  },
+  timeModalTitle: {
+    ...TYPOGRAPHY.h4,
+    color:        COLORS.textPrimary,
+    fontWeight:   '700',
+    marginBottom: SPACING.lg,
+    textAlign:    'center',
+  },
+  timeModalRow: {
+    flexDirection:  'row',
+    alignItems:     'flex-end',
+    justifyContent: 'center',
+    gap:            SPACING.sm,
+    marginBottom:   SPACING.lg,
+  },
+  timeModalField:  { alignItems: 'center', flex: 1 },
+  timeModalLabel: {
+    ...TYPOGRAPHY.caption,
+    color:        COLORS.textMuted,
+    marginBottom: SPACING.xs,
+  },
+  timeModalInput: {
+    borderWidth:     1.5,
+    borderColor:     COLORS.border,
+    borderRadius:    BORDER_RADIUS.md,
+    paddingVertical: SPACING.sm,
+    textAlign:       'center',
+    width:           '100%',
+    ...TYPOGRAPHY.h3,
+    color:           COLORS.textPrimary,
+    fontWeight:      '700',
+  },
+  timeModalColon: {
+    ...TYPOGRAPHY.h3,
+    color:        COLORS.textSecondary,
+    fontWeight:   '700',
+    paddingBottom: SPACING.sm,
+  },
+  timeModalActions: {
+    flexDirection: 'row',
+    gap:           SPACING.sm,
+  },
+  timeModalCancel: {
+    flex:              1,
+    paddingVertical:   SPACING.sm,
+    borderRadius:      BORDER_RADIUS.md,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+    alignItems:        'center',
+  },
+  timeModalCancelText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  timeModalConfirm: {
+    flex:            1,
+    paddingVertical: SPACING.sm,
+    borderRadius:    BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+    alignItems:      'center',
+  },
+  timeModalConfirmText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.white,
+    fontWeight: '700',
+  },
+});

@@ -59,7 +59,6 @@ export default function UserListScreen({ navigation }) {
     setFilters,
     clearFilters,
   } = useUserStore();
-  console.log("users : ", users);
 
   useEffect(() => {
     fetchUsers();
@@ -78,7 +77,7 @@ export default function UserListScreen({ navigation }) {
   if (isLoading && users.length === 0) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       {/* ── Search ──────────────────────────────────────── */}
       <View style={styles.searchWrap}>
         <Icon
@@ -115,6 +114,7 @@ export default function UserListScreen({ navigation }) {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chips}
+        style={{ flexGrow: 0 }}
       >
         {ROLE_CHIPS.map((c) => (
           <TouchableOpacity
@@ -322,7 +322,7 @@ function UserRow({ user, onPress }) {
 
 // ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background, flex: 1 },
 
   searchWrap: {
     flexDirection: "row",
@@ -354,16 +354,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
+    marginTop: SPACING.sm,
+    height: 36,
   },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText: {
     ...TYPOGRAPHY.small,
     color: COLORS.textSecondary,
+    includeFontPadding: false,
     fontWeight: "600",
   },
   chipTextActive: { color: COLORS.white },

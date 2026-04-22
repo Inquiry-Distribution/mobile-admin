@@ -13,18 +13,18 @@ import { attendanceApi } from '@api/attendance.api';
 
 const useAttendanceStore = create((set, get) => ({
   // ─── State ────────────────────────────────────────────────────
-  records:      [],
-  total:        0,
+  records: [],
+  total: 0,
 
   // Filters
-  date:         dayjs().format('YYYY-MM-DD'),   // current date
-  status:       '',                             // '' | 'present' | 'absent' | 'half_day'
+  date: dayjs().format('YYYY-MM-DD'),   // current date
+  status: '',                             // '' | 'present' | 'absent' | 'half_day'
   salespersonId: null,                          // null = all, string = specific salesperson
 
   // Loading
-  isLoading:    false,
+  isLoading: false,
   isRefreshing: false,
-  error:        null,
+  error: null,
 
   // ─── Fetch records ────────────────────────────────────────────
   fetchRecords: async () => {
@@ -41,13 +41,13 @@ const useAttendanceStore = create((set, get) => ({
         res = await attendanceApi.getAll(params);
       }
 
-      const records = Array.isArray(res.data) ? res.data
-                    : Array.isArray(res)       ? res
-                    : [];
+      const records = Array.isArray(res.data.records) ? res.data.records
+        : Array.isArray(res) ? res
+          : [];
 
       set({
         records,
-        total:     res.total ?? res.pagination?.total ?? records.length,
+        total: res.total ?? res.pagination?.total ?? records.length,
         isLoading: false,
       });
     } catch (err) {
@@ -70,9 +70,9 @@ const useAttendanceStore = create((set, get) => ({
         res = await attendanceApi.getAll(params);
       }
 
-      const records = Array.isArray(res.data) ? res.data
-                    : Array.isArray(res)       ? res
-                    : [];
+      const records = Array.isArray(res.data.records) ? res.data.records
+        : Array.isArray(res) ? res
+          : [];
 
       set({ records, total: res.total ?? records.length, isRefreshing: false });
     } catch (_) {
@@ -114,11 +114,11 @@ const useAttendanceStore = create((set, get) => ({
 
   clearFilters: () => {
     set({
-      status:        '',
+      status: '',
       salespersonId: null,
-      date:          dayjs().format('YYYY-MM-DD'),
-      records:       [],
-      total:         0,
+      date: dayjs().format('YYYY-MM-DD'),
+      records: [],
+      total: 0,
     });
   },
 }));

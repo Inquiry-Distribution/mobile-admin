@@ -277,7 +277,7 @@ function KpiCard({ label, value, icon, color }) {
 
 // ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background },
   loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   // Presets

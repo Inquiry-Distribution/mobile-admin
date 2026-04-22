@@ -230,7 +230,7 @@ function SpRow({ sp, isSelected, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background },
 
   header: {
     flexDirection:   'row',

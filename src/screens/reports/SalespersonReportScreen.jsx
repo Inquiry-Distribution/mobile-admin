@@ -11,7 +11,7 @@
  *  • Attendance summary
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,33 +20,36 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
-import dayjs from 'dayjs';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import dayjs from "dayjs";
 
-import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
-import { reportApi }  from '@api/report.api';
-import { formatPercent, formatNumber } from '@utils/helpers';
+import { COLORS } from "@constants/colors";
+import { TYPOGRAPHY } from "@constants/typography";
+import { reportApi } from "@api/report.api";
+import { formatPercent, formatNumber } from "@utils/helpers";
 
 // ─── Date presets ──────────────────────────────────────────────────────────────
 const PRESETS = [
-  { label: 'Today',      days: 0 },
-  { label: 'This Week',  days: 7 },
-  { label: 'This Month', month: true },
-  { label: 'Last 30d',   days: 30 },
+  { label: "Today", days: 0 },
+  { label: "This Week", days: 7 },
+  { label: "This Month", month: true },
+  { label: "Last 30d", days: 30 },
 ];
 
 function getRange(preset) {
-  const to   = dayjs().format('YYYY-MM-DD');
+  const to = dayjs().format("YYYY-MM-DD");
   if (preset.month) {
-    return { from: dayjs().startOf('month').format('YYYY-MM-DD'), to };
+    return { from: dayjs().startOf("month").format("YYYY-MM-DD"), to };
   }
   if (preset.days === 0) {
     return { from: to, to };
   }
-  return { from: dayjs().subtract(preset.days, 'day').format('YYYY-MM-DD'), to };
+  return {
+    from: dayjs().subtract(preset.days, "day").format("YYYY-MM-DD"),
+    to,
+  };
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -58,7 +61,9 @@ function PresetChip({ label, selected, onPress }) {
       onPress={onPress}
       activeOpacity={0.75}
     >
-      <Text style={[styles.chipText, selected && styles.chipTextActive]}>{label}</Text>
+      <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -66,10 +71,10 @@ function PresetChip({ label, selected, onPress }) {
 function KpiCard({ icon, label, value, color, sub }) {
   return (
     <View style={[styles.kpiCard, { borderTopColor: color }]}>
-      <View style={[styles.kpiIconBox, { backgroundColor: color + '20' }]}>
+      <View style={[styles.kpiIconBox, { backgroundColor: color + "20" }]}>
         <Icon name={icon} size={20} color={color} />
       </View>
-      <Text style={styles.kpiValue}>{value ?? '—'}</Text>
+      <Text style={styles.kpiValue}>{value ?? "—"}</Text>
       <Text style={styles.kpiLabel}>{label}</Text>
       {sub ? <Text style={styles.kpiSub}>{sub}</Text> : null}
     </View>
@@ -85,10 +90,14 @@ function StatusBar({ label, count, total, color }) {
           <View style={[styles.statusDot, { backgroundColor: color }]} />
           <Text style={styles.statusLabel}>{label}</Text>
         </View>
-        <Text style={styles.statusCount}>{count}  <Text style={styles.statusPct}>({pct}%)</Text></Text>
+        <Text style={styles.statusCount}>
+          {count} <Text style={styles.statusPct}>({pct}%)</Text>
+        </Text>
       </View>
       <View style={styles.barTrack}>
-        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: color }]} />
+        <View
+          style={[styles.barFill, { width: `${pct}%`, backgroundColor: color }]}
+        />
       </View>
     </View>
   );
@@ -96,7 +105,12 @@ function StatusBar({ label, count, total, color }) {
 
 function AttendancePill({ label, count, color }) {
   return (
-    <View style={[styles.attPill, { backgroundColor: color + '18', borderColor: color + '40' }]}>
+    <View
+      style={[
+        styles.attPill,
+        { backgroundColor: color + "18", borderColor: color + "40" },
+      ]}
+    >
       <Text style={[styles.attCount, { color }]}>{count ?? 0}</Text>
       <Text style={[styles.attLabel, { color }]}>{label}</Text>
     </View>
@@ -120,53 +134,61 @@ function SectionCard({ title, icon, children }) {
 export default function SalespersonReportScreen({ route }) {
   const { salespersonId, name } = route.params ?? {};
 
-  const [preset,      setPreset]      = useState(1);         // default: This Week
-  const [report,      setReport]      = useState(null);
-  const [isLoading,   setIsLoading]   = useState(true);
-  const [isRefreshing,setIsRefreshing]= useState(false);
-  const [error,       setError]       = useState(null);
+  const [preset, setPreset] = useState(1); // default: This Week
+  const [report, setReport] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  const load = useCallback(async (presetIdx, refreshing = false) => {
-    if (refreshing) setIsRefreshing(true);
-    else            setIsLoading(true);
-    setError(null);
-    try {
-      const range = getRange(PRESETS[presetIdx]);
-      const res   = await reportApi.getSalesperson(salespersonId, range);
-      setReport(res.data ?? res);
-    } catch (err) {
-      setError(err.message ?? 'Failed to load report');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [salespersonId]);
+  const load = useCallback(
+    async (presetIdx, refreshing = false) => {
+      if (refreshing) setIsRefreshing(true);
+      else setIsLoading(true);
+      setError(null);
+      try {
+        const range = getRange(PRESETS[presetIdx]);
+        const res = await reportApi.getSalesperson(salespersonId, range);
+        console.log("res 11  :", res);
+        console.log("res  :", res.data);
 
-  useEffect(() => { load(preset); }, [preset]);
+        setReport(res.data ?? res);
+      } catch (err) {
+        setError(err.message ?? "Failed to load report");
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [salespersonId],
+  );
+
+  useEffect(() => {
+    load(preset);
+  }, [preset]);
 
   const handlePreset = (idx) => {
     setPreset(idx);
   };
 
   // ── Derived values ─────────────────────────────────────────────
-  const inq        = report?.inquiries ?? {};
-  const att        = report?.attendance ?? {};
-  const total      = inq.total      ?? 0;
-  const closed     = inq.closed     ?? 0;
-  const assigned   = inq.assigned   ?? 0;
+  const inq = report?.inquiries ?? {};
+  const att = report?.attendance ?? {};
+  const total = inq.total ?? 0;
+  const closed = inq.closed ?? 0;
+  const assigned = inq.assigned ?? 0;
   const inProgress = inq.in_progress ?? inq.inProgress ?? 0;
-  const followUp   = inq.follow_up  ?? inq.followUp   ?? 0;
+  const followUp = inq.follow_up ?? inq.followUp ?? 0;
   const unassigned = inq.unassigned ?? 0;
-  const convRate   = report?.conversionRate ?? (total > 0 ? closed / total : 0);
+  const convRate = report?.conversionRate ?? (total > 0 ? closed / total : 0);
 
-  const present    = att.present  ?? 0;
-  const absent     = att.absent   ?? 0;
-  const halfDay    = att.half_day ?? att.halfDay ?? 0;
+  const present = att.present ?? 0;
+  const absent = att.absent ?? 0;
+  const halfDay = att.half_day ?? att.halfDay ?? 0;
   const workingDays = present + absent + halfDay;
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
+    <SafeAreaView style={styles.safe} edges={["bottom"]}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -183,11 +205,16 @@ export default function SalespersonReportScreen({ route }) {
         <View style={styles.banner}>
           <View style={styles.bannerAvatar}>
             <Text style={styles.bannerInitials}>
-              {(name ?? 'U').split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+              {(name ?? "U")
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()
+                .slice(0, 2)}
             </Text>
           </View>
           <View>
-            <Text style={styles.bannerName}>{name ?? 'Salesperson'}</Text>
+            <Text style={styles.bannerName}>{name ?? "Salesperson"}</Text>
             <Text style={styles.bannerSub}>Performance Report</Text>
           </View>
         </View>
@@ -217,7 +244,10 @@ export default function SalespersonReportScreen({ route }) {
           <View style={styles.errorBox}>
             <Icon name="alert-circle-outline" size={40} color={COLORS.error} />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={() => load(preset)}>
+            <TouchableOpacity
+              style={styles.retryBtn}
+              onPress={() => load(preset)}
+            >
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           </View>
@@ -254,16 +284,46 @@ export default function SalespersonReportScreen({ route }) {
             </View>
 
             {/* ── Inquiry breakdown ─────────────────────── */}
-            <SectionCard title="Inquiry Breakdown" icon="clipboard-text-outline">
+            <SectionCard
+              title="Inquiry Breakdown"
+              icon="clipboard-text-outline"
+            >
               {total === 0 ? (
-                <Text style={styles.emptyCardText}>No inquiries in this period.</Text>
+                <Text style={styles.emptyCardText}>
+                  No inquiries in this period.
+                </Text>
               ) : (
                 <>
-                  <StatusBar label="Closed"      count={closed}     total={total} color={COLORS.closed} />
-                  <StatusBar label="In Progress"  count={inProgress} total={total} color={COLORS.inProgress} />
-                  <StatusBar label="Follow Up"    count={followUp}   total={total} color={COLORS.followUp} />
-                  <StatusBar label="Assigned"     count={assigned}   total={total} color={COLORS.assigned} />
-                  <StatusBar label="Unassigned"   count={unassigned} total={total} color={COLORS.unassigned} />
+                  <StatusBar
+                    label="Closed"
+                    count={closed}
+                    total={total}
+                    color={COLORS.closed}
+                  />
+                  <StatusBar
+                    label="In Progress"
+                    count={inProgress}
+                    total={total}
+                    color={COLORS.inProgress}
+                  />
+                  <StatusBar
+                    label="Follow Up"
+                    count={followUp}
+                    total={total}
+                    color={COLORS.followUp}
+                  />
+                  <StatusBar
+                    label="Assigned"
+                    count={assigned}
+                    total={total}
+                    color={COLORS.assigned}
+                  />
+                  <StatusBar
+                    label="Unassigned"
+                    count={unassigned}
+                    total={total}
+                    color={COLORS.unassigned}
+                  />
                 </>
               )}
             </SectionCard>
@@ -271,23 +331,39 @@ export default function SalespersonReportScreen({ route }) {
             {/* ── Attendance ────────────────────────────── */}
             <SectionCard title="Attendance" icon="calendar-month-outline">
               {workingDays === 0 ? (
-                <Text style={styles.emptyCardText}>No attendance data for this period.</Text>
+                <Text style={styles.emptyCardText}>
+                  No attendance data for this period.
+                </Text>
               ) : (
                 <View style={styles.attRow}>
-                  <AttendancePill label="Present"  count={present}  color={COLORS.present} />
-                  <AttendancePill label="Half Day" count={halfDay}  color={COLORS.halfDay} />
-                  <AttendancePill label="Absent"   count={absent}   color={COLORS.absent}  />
+                  <AttendancePill
+                    label="Present"
+                    count={present}
+                    color={COLORS.present}
+                  />
+                  <AttendancePill
+                    label="Half Day"
+                    count={halfDay}
+                    color={COLORS.halfDay}
+                  />
+                  <AttendancePill
+                    label="Absent"
+                    count={absent}
+                    color={COLORS.absent}
+                  />
                 </View>
               )}
             </SectionCard>
 
             {/* ── Extra stats (if available) ────────────── */}
-            {(report?.avgResponseTime || report?.avgCloseTime) ? (
+            {report?.avgResponseTime || report?.avgCloseTime ? (
               <SectionCard title="Performance" icon="speedometer-outline">
                 {report.avgResponseTime != null && (
                   <View style={styles.perfRow}>
                     <Text style={styles.perfLabel}>Avg. First Response</Text>
-                    <Text style={styles.perfValue}>{report.avgResponseTime}h</Text>
+                    <Text style={styles.perfValue}>
+                      {report.avgResponseTime}h
+                    </Text>
                   </View>
                 )}
                 {report.avgCloseTime != null && (
@@ -309,148 +385,184 @@ export default function SalespersonReportScreen({ route }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.background },
   container: { padding: 16, gap: 12 },
 
   // ── Banner ─────────────────────────────────────────────────────
   banner: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     backgroundColor: COLORS.primary,
-    borderRadius:    14,
-    padding:         16,
+    borderRadius: 14,
+    padding: 16,
   },
   bannerAvatar: {
-    width:           48,
-    height:          48,
-    borderRadius:    24,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems:      'center',
-    justifyContent:  'center',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  bannerInitials: { ...TYPOGRAPHY.h4, color: COLORS.white, fontWeight: '800' },
-  bannerName:     { ...TYPOGRAPHY.h4, color: COLORS.white, fontWeight: '700' },
-  bannerSub:      { ...TYPOGRAPHY.caption, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  bannerInitials: { ...TYPOGRAPHY.h4, color: COLORS.white, fontWeight: "800" },
+  bannerName: { ...TYPOGRAPHY.h4, color: COLORS.white, fontWeight: "700" },
+  bannerSub: {
+    ...TYPOGRAPHY.caption,
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 2,
+  },
 
   // ── Preset chips ───────────────────────────────────────────────
-  chips: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+  chips: { flexDirection: "row", gap: 8, paddingVertical: 2 },
   chip: {
     paddingHorizontal: 14,
-    paddingVertical:   7,
-    borderRadius:      20,
-    backgroundColor:   COLORS.surface,
-    borderWidth:       1,
-    borderColor:       COLORS.border,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    height: 36,
   },
-  chipActive:     { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
-  chipText:       { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontWeight: '600' },
+  chipActive: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
+  },
+  chipText: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
+  },
   chipTextActive: { color: COLORS.primary },
 
   // ── KPI ────────────────────────────────────────────────────────
   kpiGrid: {
-    flexDirection: 'row',
-    flexWrap:      'wrap',
-    gap:           10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
   },
   kpiCard: {
-    flex:             1,
-    minWidth:         '45%',
-    backgroundColor:  COLORS.surface,
-    borderRadius:     12,
-    padding:          14,
-    borderWidth:      1,
-    borderColor:      COLORS.border,
-    borderTopWidth:   3,
-    gap:              4,
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderTopWidth: 3,
+    gap: 4,
   },
   kpiIconBox: {
-    width:         36,
-    height:        36,
-    borderRadius:  10,
-    alignItems:    'center',
-    justifyContent:'center',
-    marginBottom:  4,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
   },
-  kpiValue: { ...TYPOGRAPHY.h3, color: COLORS.textPrimary, fontWeight: '800' },
-  kpiLabel: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontWeight: '600' },
-  kpiSub:   { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: 10 },
+  kpiValue: { ...TYPOGRAPHY.h3, color: COLORS.textPrimary, fontWeight: "800" },
+  kpiLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
+  },
+  kpiSub: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: 10 },
 
   // ── Card ───────────────────────────────────────────────────────
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius:    12,
-    padding:         16,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-    gap:             12,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    gap: 12,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardTitle: {
     ...TYPOGRAPHY.body,
-    fontWeight: '700',
-    color:      COLORS.textPrimary,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
   },
   emptyCardText: {
     ...TYPOGRAPHY.caption,
-    color:     COLORS.textMuted,
-    textAlign: 'center',
+    color: COLORS.textMuted,
+    textAlign: "center",
     paddingVertical: 12,
   },
 
   // ── Status bars ────────────────────────────────────────────────
-  statusBarWrap:   { gap: 6 },
-  statusBarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  statusBarLeft:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statusDot:       { width: 8, height: 8, borderRadius: 4 },
-  statusLabel:     { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontWeight: '600' },
-  statusCount:     { ...TYPOGRAPHY.caption, color: COLORS.textPrimary,   fontWeight: '700' },
-  statusPct:       { color: COLORS.textMuted, fontWeight: '400' },
-  barTrack: {
-    height:          6,
-    backgroundColor: COLORS.background,
-    borderRadius:    3,
-    overflow:        'hidden',
+  statusBarWrap: { gap: 6 },
+  statusBarHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  barFill: { height: '100%', borderRadius: 3 },
+  statusBarLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+    fontWeight: "600",
+  },
+  statusCount: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textPrimary,
+    fontWeight: "700",
+  },
+  statusPct: { color: COLORS.textMuted, fontWeight: "400" },
+  barTrack: {
+    height: 6,
+    backgroundColor: COLORS.background,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  barFill: { height: "100%", borderRadius: 3 },
 
   // ── Attendance pills ───────────────────────────────────────────
-  attRow:   { flexDirection: 'row', gap: 10 },
+  attRow: { flexDirection: "row", gap: 10 },
   attPill: {
-    flex:            1,
-    alignItems:      'center',
+    flex: 1,
+    alignItems: "center",
     paddingVertical: 12,
-    borderRadius:    10,
-    borderWidth:     1,
-    gap:             4,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 4,
   },
-  attCount: { ...TYPOGRAPHY.h3, fontWeight: '800' },
-  attLabel: { ...TYPOGRAPHY.caption, fontWeight: '600' },
+  attCount: { ...TYPOGRAPHY.h3, fontWeight: "800" },
+  attLabel: { ...TYPOGRAPHY.caption, fontWeight: "600" },
 
   // ── Performance rows ───────────────────────────────────────────
   perfRow: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   perfLabel: { ...TYPOGRAPHY.body, color: COLORS.textSecondary },
-  perfValue: { ...TYPOGRAPHY.body, fontWeight: '700', color: COLORS.textPrimary },
+  perfValue: {
+    ...TYPOGRAPHY.body,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
+  },
 
   // ── Loading / error ────────────────────────────────────────────
-  loadingBox: { alignItems: 'center', paddingVertical: 60, gap: 12 },
+  loadingBox: { alignItems: "center", paddingVertical: 60, gap: 12 },
   loadingText: { ...TYPOGRAPHY.body, color: COLORS.textMuted },
-  errorBox: { alignItems: 'center', paddingVertical: 48, gap: 12 },
-  errorText: { ...TYPOGRAPHY.body, color: COLORS.textSecondary, textAlign: 'center' },
+  errorBox: { alignItems: "center", paddingVertical: 48, gap: 12 },
+  errorText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+  },
   retryBtn: {
     paddingHorizontal: 24,
-    paddingVertical:   10,
-    backgroundColor:   COLORS.primary,
-    borderRadius:      8,
+    paddingVertical: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
   },
-  retryText: { ...TYPOGRAPHY.body, color: COLORS.white, fontWeight: '700' },
+  retryText: { ...TYPOGRAPHY.body, color: COLORS.white, fontWeight: "700" },
 
   bottomPad: { height: 24 },
 });

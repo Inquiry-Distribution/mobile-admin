@@ -418,7 +418,7 @@ function DeviceRow({ device, isMutating, onBlock, onUnblock, onReset }) {
 
 // ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
+  safe: { backgroundColor: COLORS.background },
 
   searchWrap: {
     flexDirection:     'row',
@@ -450,6 +450,7 @@ const styles = StyleSheet.create({
     backgroundColor:   COLORS.surface,
     borderWidth:       1,
     borderColor:       COLORS.border,
+    height: 36,
   },
   chipActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontWeight: '600' },

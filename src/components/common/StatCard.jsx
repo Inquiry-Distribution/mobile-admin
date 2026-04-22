@@ -5,20 +5,20 @@ import { COLORS } from '@constants/colors';
 import { TYPOGRAPHY } from '@constants/typography';
 import { BORDER_RADIUS, SHADOW, SPACING } from '@constants/config';
 
-export default function StatCard({ label, value, icon, color, onPress, sub }) {
+export default function StatCard({ label, value, icon, color, onPress, sub, compact = false }) {
   const Wrapper = onPress ? TouchableOpacity : View;
 
   return (
     <Wrapper
-      style={styles.card}
+      style={[styles.card, compact && styles.cardCompact]}
       onPress={onPress}
       activeOpacity={0.82}
     >
-      <View style={[styles.iconBox, { backgroundColor: color + '18' }]}>
-        <Icon name={icon} size={22} color={color} />
+      <View style={[styles.iconBox, compact && styles.iconBoxCompact, { backgroundColor: color + '18' }]}>
+        <Icon name={icon} size={compact ? 16 : 22} color={color} />
       </View>
-      <Text style={styles.value}>{value ?? '—'}</Text>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.value, compact && styles.valueCompact]}>{value ?? '—'}</Text>
+      <Text style={[styles.label, compact && styles.labelCompact]}>{label}</Text>
       {sub ? <Text style={styles.sub}>{sub}</Text> : null}
     </Wrapper>
   );
@@ -35,6 +35,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     ...SHADOW.sm,
   },
+  cardCompact: {
+    minWidth: '30%',
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+  },
   iconBox: {
     width: 40,
     height: 40,
@@ -43,17 +48,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SPACING.sm,
   },
+  iconBoxCompact: {
+    width: 28,
+    height: 28,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: 6,
+  },
   value: {
     fontSize: 26,
     fontWeight: '800',
     color: COLORS.textPrimary,
     lineHeight: 30,
   },
+  valueCompact: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
   label: {
     ...TYPOGRAPHY.smallMedium,
     color: COLORS.textSecondary,
     marginTop: 2,
     fontWeight: '600',
+  },
+  labelCompact: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: '600',
+    marginTop: 1,
   },
   sub: {
     ...TYPOGRAPHY.caption,

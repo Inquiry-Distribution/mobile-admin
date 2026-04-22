@@ -366,6 +366,7 @@ const styles = StyleSheet.create({
     borderWidth:       1.5,
     borderColor:       COLORS.border,
     backgroundColor:   COLORS.background,
+    height: 36,
   },
   chipSelected: {
     borderColor:     COLORS.primary,
