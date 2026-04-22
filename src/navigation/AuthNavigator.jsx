@@ -1,0 +1,20 @@
+/**
+ * AuthNavigator — Admin App
+ *
+ * Shown when the user has no valid token.
+ * Admin only has one auth screen: email + password Login.
+ * No device registration, no PIN setup.
+ */
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+import LoginScreen from '@screens/auth/LoginScreen';
+
+const Stack = createStackNavigator();
+
+export default function AuthNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Login" component={LoginScreen} />
+    </Stack.Navigator>
+  );
+}

@@ -1,0 +1,110 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+// ── react-native-config (.env → BuildConfig fields + manifestPlaceholders) ────
+apply from: "../../node_modules/react-native-config/android/dotenv.gradle"
+
+// ── react-native-vector-icons (copies .ttf font files into assets) ─────────────
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+
+// ── Firebase Google Services ───────────────────────────────────────────────────
+// Reads android/app/google-services.json  (download from Firebase Console)
+apply plugin: "com.google.gms.google-services"
+
+react {
+    /* autolinkLibrariesWithApp() scans node_modules and links all RN libraries */
+    autolinkLibrariesWithApp()
+}
+
+// Proguard on release builds
+def enableProguardInReleaseBuilds = true
+
+android {
+    ndkVersion        rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk        rootProject.ext.compileSdkVersion
+
+    // ── Package name ─────────────────────────────────────────────────────────
+    namespace    "com.inquirydeskadmin"
+
+    defaultConfig {
+        applicationId   "com.evytechno.inquirydeskadmin"
+        minSdk          rootProject.ext.minSdkVersion
+        targetSdk       rootProject.ext.targetSdkVersion
+        versionCode     1
+        versionName     "1.0.0"
+
+        // Inject GOOGLE_MAPS_API_KEY from .env into AndroidManifest.xml
+        manifestPlaceholders = [
+            GOOGLE_MAPS_API_KEY     : project.env.get("GOOGLE_MAPS_API_KEY") ?: "",
+            usesCleartextTraffic    : "true"
+        ]
+    }
+
+    signingConfigs {
+        debug {
+            storeFile     file('debug.keystore')
+            storePassword 'android'
+            keyAlias      'androiddebugkey'
+            keyPassword   'android'
+        }
+        release {
+            // Set these four properties in ~/.gradle/gradle.properties (never in git):
+            //   INQUIRYADMIN_STORE_FILE=/path/to/your.keystore
+            //   INQUIRYADMIN_STORE_PASSWORD=yourPassword
+            //   INQUIRYADMIN_KEY_ALIAS=yourAlias
+            //   INQUIRYADMIN_KEY_PASSWORD=yourKeyPassword
+            if (project.hasProperty('INQUIRYADMIN_STORE_FILE')) {
+                storeFile     file(INQUIRYADMIN_STORE_FILE)
+                storePassword INQUIRYADMIN_STORE_PASSWORD
+                keyAlias      INQUIRYADMIN_KEY_ALIAS
+                keyPassword   INQUIRYADMIN_KEY_PASSWORD
+            } else {
+                // Fallback to debug key for local release builds
+                storeFile     file('debug.keystore')
+                storePassword 'android'
+                keyAlias      'androiddebugkey'
+                keyPassword   'android'
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled   enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
+            proguardFiles   getDefaultProguardFile("proguard-android-optimize.txt"),
+                            "proguard-rules.pro"
+            signingConfig   signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    // React Native core (version managed by RN Gradle Plugin)
+    implementation("com.facebook.react:react-android")
+    implementation("com.facebook.soloader:soloader:0.10.5")
+
+    // react-native-config — manually included because autolinking reports android:null
+    implementation project(':react-native-config')
+
+    // JS engine — Hermes (recommended) or JSC fallback
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+        implementation jscFlavor
+    }
+
+    // Splash screen — required by react-native-bootsplash v6 (Theme.SplashScreen)
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+    // Firebase BoM — manages all Firebase library versions in one place
+    implementation platform("com.google.firebase:firebase-bom:33.5.1")
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics")
+}

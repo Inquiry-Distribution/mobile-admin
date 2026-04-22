@@ -1,0 +1,11 @@
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'InquiryDeskAdmin'
+include ':app'
+// react-native-config autolinking android:null — include manually
+include ':react-native-config'
+project(':react-native-config').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-config/android')
+// Second includeBuild (outside pluginManagement) enables buildscript.classpath substitution for
+// com.facebook.react:react-native-gradle-plugin — required on Gradle 8.x
+includeBuild("../node_modules/@react-native/gradle-plugin")

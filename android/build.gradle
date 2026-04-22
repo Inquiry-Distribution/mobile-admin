@@ -1,0 +1,28 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion     = 24
+        compileSdkVersion = 35
+        targetSdkVersion  = 34
+        ndkVersion        = "27.1.12297006"
+        // Must match @react-native/gradle-plugin's internal Kotlin (1.9.24).
+        // Kotlin 2.x breaks the composite-build compilation of the RN settings plugin.
+        // 2.0.21 can read Kotlin 2.1.0 metadata emitted by play-services-measurement 22.x.
+        // The RN gradle plugin uses its own Kotlin (1.9.24) from its version catalog
+        // and is NOT affected by this setting.
+        kotlinVersion     = "2.0.21"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // AGP 8.6.1 required for androidx.core:core 1.16.0 (pulled by bootsplash/splashscreen)
+        classpath("com.android.tools.build:gradle:8.6.1")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
