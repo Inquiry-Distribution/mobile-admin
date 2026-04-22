@@ -530,9 +530,10 @@ function UnassignedRow({ inquiry, onPress, onDistribute }) {
               styles.unassignedMetaText,
               isUrgent && { color: COLORS.error, fontWeight: '700' },
             ]}>
-              {ageMinutes < 60
+              {dayjs(inquiry.createdAt).format('DD MMM · hh:mm A')}
+              {/* {ageMinutes < 60
                 ? `${ageMinutes}m ago`
-                : `${Math.floor(ageMinutes / 60)}h ${ageMinutes % 60}m ago`}
+                : `${Math.floor(ageMinutes / 60)}h ${ageMinutes % 60}m ago`} */}
             </Text>
           </View>
         </View>

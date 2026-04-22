@@ -29,6 +29,7 @@ import { getInitials } from '@utils/helpers';
 
 import useUserStore    from '@store/user.store';
 import useInquiryStore from '@store/inquiry.store';
+import { Dimensions } from "react-native";
 
 export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) {
   const { salespersons, isLoadingSalespersons, fetchSalespersons } = useUserStore();
@@ -38,6 +39,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
   const [reason,   setReason]   = useState('');
   const [search,   setSearch]   = useState('');
 
+  const Screen = Dimensions.get("window");
   useEffect(() => {
     if (visible) {
       fetchSalespersons();
@@ -64,7 +66,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
       Alert.alert('Select Salesperson', 'Choose the new salesperson to reassign to.');
       return;
     }
-    const payload = { salespersonId: selected.id };
+    const payload = { salesPersonId: selected.id };
     if (reason.trim()) payload.reason = reason.trim();
 
     const result = await reassign(inquiry.id, payload);
@@ -142,6 +144,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
             <ActivityIndicator color={COLORS.primary} />
           </View>
         ) : (
+          <View style={{  height: Screen.height * 0.58 }}>
           <FlatList
             data={filtered}
             keyExtractor={(item) => item.id}
@@ -162,6 +165,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
+          </View>
         )}
 
         {/* ── Footer ───────────────────────────────────── */}

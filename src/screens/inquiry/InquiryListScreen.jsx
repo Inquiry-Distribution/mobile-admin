@@ -290,7 +290,8 @@ function InquiryRow({ inquiry, onPress }) {
               </View>
             ) : null}
             <Text style={[styles.rowTime, isOld && { color: COLORS.error }]}>
-              {dayjs(createdAt).fromNow()}
+              {/* {dayjs(createdAt).fromNow()} */}
+              {dayjs(createdAt).format('DD MMM · hh:mm A')}
             </Text>
           </View>
         </View>

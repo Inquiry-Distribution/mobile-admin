@@ -29,6 +29,7 @@ import { getInitials } from '@utils/helpers';
 
 import useUserStore    from '@store/user.store';
 import useInquiryStore from '@store/inquiry.store';
+import { Dimensions } from "react-native";
 
 export default function DistributeModal({ visible, inquiry, onClose, onSuccess }) {
   const { salespersons, isLoadingSalespersons, fetchSalespersons } = useUserStore();
@@ -37,6 +38,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
   const [selected, setSelected] = useState(null);
   const [search,   setSearch]   = useState('');
 
+  const Screen = Dimensions.get("window");
   useEffect(() => {
     if (visible) {
       fetchSalespersons();
@@ -57,7 +59,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
       Alert.alert('Select Salesperson', 'Please select a salesperson to assign this inquiry.');
       return;
     }
-    const result = await distribute(inquiry.id, { salespersonId: selected.id });
+    const result = await distribute(inquiry.id, { salesPersonId: selected.id });
     if (result.success) {
       onSuccess?.();
       onClose();
@@ -121,6 +123,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
             <ActivityIndicator color={COLORS.primary} />
           </View>
         ) : (
+        <View style={{  height: Screen.height * 0.6 }}>
           <FlatList
             data={filtered}
             keyExtractor={(item) => item.id}
@@ -139,6 +142,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
+          </View>
         )}
 
         {/* ── Confirm button ────────────────────────────── */}
