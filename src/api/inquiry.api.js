@@ -93,6 +93,14 @@ export const inquiryApi = {
   reassign: (id, payload) =>
     client.post(`/inquiries/${id}/reassign`, payload),
 
+  // ─── Update (superuser only) ────────────────────────────────
+
+  /**
+   * Update inquiry fields (superuser only).
+   * Payload: { description?, mobile?, inquiryTime?, priority?, source? }
+   */
+  update: (id, payload) => client.patch(`/inquiries/${id}`, payload),
+
   // ─── Deletion ───────────────────────────────────────────────
 
   /**

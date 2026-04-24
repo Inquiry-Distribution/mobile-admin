@@ -9,6 +9,7 @@
  * `loadMore()` increments page and appends results.
  */
 import { create } from 'zustand';
+import dayjs from 'dayjs';
 import { inquiryApi } from '@api/inquiry.api';
 import { CONFIG } from '@constants/config';
 
@@ -18,6 +19,30 @@ const DEFAULT_FILTERS = {
   search:       '',
   assignedToId: '',
 };
+
+// ─── Build date params from period key ────────────────────────
+function buildPeriodParams(period) {
+  const today = dayjs().format('YYYY-MM-DD');
+  switch (period) {
+    case 'today':
+      return { from: today, to: today };
+    case 'week': {
+      const day    = dayjs().day();           // 0 = Sun
+      const monday = day === 0
+        ? dayjs().subtract(6, 'day')
+        : dayjs().subtract(day - 1, 'day');
+      return { from: monday.format('YYYY-MM-DD'), to: today };
+    }
+    case 'month':
+      return { from: dayjs().startOf('month').format('YYYY-MM-DD'), to: today };
+    case 'all':
+      return {};                              // no date restriction
+    case 'today_and_before':
+      return { to: today };
+    default:                                  // 'all' or unknown → no restriction
+      return {};
+  }
+}
 
 const useInquiryStore = create((set, get) => ({
   // ─── State ────────────────────────────────────────────────────
@@ -31,7 +56,8 @@ const useInquiryStore = create((set, get) => ({
   total:   0,
 
   // Active filters
-  filters: { ...DEFAULT_FILTERS },
+  filters:       { ...DEFAULT_FILTERS },
+  activePeriod:  'all',   // 'today' | 'week' | 'month' | 'all'
 
   // Loading flags
   isLoading:     false,
@@ -44,8 +70,9 @@ const useInquiryStore = create((set, get) => ({
   fetchInquiries: async (extraParams = {}) => {
     set({ isLoading: true, error: null, page: 1 });
     try {
-      const { filters } = get();
-      const params = buildParams(filters, 1, extraParams);
+      const { filters, activePeriod } = get();
+      const periodParams = buildPeriodParams(activePeriod);
+      const params = buildParams(filters, 1, { ...periodParams, ...extraParams });
       const res    = await inquiryApi.getAll(params);
       const { data, pagination } = normalise(res);
 
@@ -65,8 +92,8 @@ const useInquiryStore = create((set, get) => ({
   refreshInquiries: async () => {
     set({ isRefreshing: true, page: 1 });
     try {
-      const { filters } = get();
-      const params = buildParams(filters, 1);
+      const { filters, activePeriod } = get();
+      const params = buildParams(filters, 1, buildPeriodParams(activePeriod));
       const res    = await inquiryApi.getAll(params);
       const { data, pagination } = normalise(res);
 
@@ -84,13 +111,13 @@ const useInquiryStore = create((set, get) => ({
 
   // ─── Infinite scroll ─────────────────────────────────────────
   loadMore: async () => {
-    const { isLoadingMore, hasMore, page, filters } = get();
+    const { isLoadingMore, hasMore, page, filters, activePeriod } = get();
     if (isLoadingMore || !hasMore) return;
 
     set({ isLoadingMore: true });
     try {
       const nextPage = page + 1;
-      const params   = buildParams(filters, nextPage);
+      const params   = buildParams(filters, nextPage, buildPeriodParams(activePeriod));
       const res      = await inquiryApi.getAll(params);
       const { data, pagination } = normalise(res);
 
@@ -178,11 +205,17 @@ const useInquiryStore = create((set, get) => ({
       selectedInquiry: state.selectedInquiry?.id === updated.id ? updated : state.selectedInquiry,
     })),
 
+  // ─── Period (date range) ─────────────────────────────────────
+  setPeriod: (period) => {
+    set({ activePeriod: period });
+    get().fetchInquiries();
+  },
+
   // ─── Filter helpers ───────────────────────────────────────────
   setFilters: (partial) =>
     set((state) => ({ filters: { ...state.filters, ...partial } })),
 
-  clearFilters: () => set({ filters: { ...DEFAULT_FILTERS } }),
+  clearFilters: () => set({ filters: { ...DEFAULT_FILTERS }, activePeriod: 'all' }),
 
   clearSelected:  () => set({ selectedInquiry: null }),
   clearError:     () => set({ error: null }),

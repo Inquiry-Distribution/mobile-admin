@@ -331,7 +331,7 @@ function SendTab() {
 
 // ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.background },
 
   // Tabs
   tabs: {

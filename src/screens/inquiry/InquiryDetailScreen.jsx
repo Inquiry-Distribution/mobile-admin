@@ -13,7 +13,7 @@
  *  • Notes (read-only — sales adds notes)
  *  • Status timeline
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,6 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,6 +40,8 @@ import { inquiryApi }  from '@api/inquiry.api';
 import Loader          from '@components/common/Loader';
 import StatusBadge     from '@components/common/StatusBadge';
 import PriorityBadge   from '@components/common/PriorityBadge';
+import { Menu } from 'react-native-paper';
+
 import DistributeModal from '@components/inquiry/DistributeModal';
 import ReassignModal   from '@components/inquiry/ReassignModal';
 
@@ -59,12 +60,80 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const [showDistribute, setShowDistribute] = useState(false);
   const [showReassign,   setShowReassign]   = useState(false);
   const [deleteLoading,  setDeleteLoading]  = useState(false);
+  const [menuVisible,    setMenuVisible]    = useState(false);
 
   useEffect(() => {
     selectInquiry(id);
   }, [id]);
 
   const refetch = useCallback(() => selectInquiry(id), [id]);
+
+  // ── Delete (superuser only) ───────────────────────────────────
+  const handleDelete = useCallback(() => {
+    if (!selectedInquiry) return;
+    Alert.alert(
+      'Delete Inquiry',
+      'This action is permanent and cannot be undone. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleteLoading(true);
+            try {
+              await inquiryApi.remove(selectedInquiry.id);
+              navigation.goBack();
+            } catch (err) {
+              Alert.alert('Error', err.message ?? 'Failed to delete.');
+            }
+            setDeleteLoading(false);
+          },
+        },
+      ],
+    );
+  }, [selectedInquiry, navigation]);
+
+  // ── Header right: three-dot overflow menu (superuser only) ───
+  useLayoutEffect(() => {
+    if (!selectedInquiry || !isSuperuser()) return;
+    navigation.setOptions({
+      headerRight: () => (
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          contentStyle={styles.menuContent}
+          anchor={
+            <TouchableOpacity
+              onPress={() => setMenuVisible(true)}
+              style={styles.headerActionBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="dots-vertical" size={22} color={COLORS.white} />
+            </TouchableOpacity>
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(false);
+              navigation.navigate('EditInquiry', { inquiry: selectedInquiry });
+            }}
+            title="Edit Inquiry"
+            leadingIcon="pencil-outline"
+          />
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(false);
+              handleDelete();
+            }}
+            title="Delete Inquiry"
+            leadingIcon="trash-can-outline"
+            titleStyle={{ color: COLORS.error }}
+          />
+        </Menu>
+      ),
+    });
+  }, [selectedInquiry, handleDelete, menuVisible]);
 
   if (isLoading || !selectedInquiry) return <Loader message="Loading inquiry…" />;
 
@@ -90,31 +159,6 @@ export default function InquiryDetailScreen({ route, navigation }) {
       if (ok) Linking.openURL(url);
       else Alert.alert('Cannot Call', 'Device does not support calls.');
     });
-  };
-
-  // ── Delete (superuser only) ───────────────────────────────────
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Inquiry',
-      'This action is permanent and cannot be undone. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleteLoading(true);
-            try {
-              await inquiryApi.remove(inquiry.id);
-              navigation.goBack();
-            } catch (err) {
-              Alert.alert('Error', err.message ?? 'Failed to delete.');
-            }
-            setDeleteLoading(false);
-          },
-        },
-      ],
-    );
   };
 
   return (
@@ -220,19 +264,6 @@ export default function InquiryDetailScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
 
-            {isSuperuser() && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.deleteBtn]}
-                onPress={handleDelete}
-                disabled={deleteLoading}
-                activeOpacity={0.85}
-              >
-                {deleteLoading
-                  ? <ActivityIndicator size="small" color={COLORS.error} />
-                  : <Icon name="trash-can-outline" size={16} color={COLORS.error} />
-                }
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* ── Assignment info ──────────────────────────── */}
@@ -485,12 +516,19 @@ const styles = StyleSheet.create({
     borderWidth:     1.5,
     borderColor:     COLORS.primary,
   },
-  deleteBtn: {
-    flex:            0,
-    paddingHorizontal: 14,
-    backgroundColor: '#FEE2E2',
-    borderWidth:     1.5,
-    borderColor:     COLORS.error + '60',
+  // Header three-dot button
+  headerActionBtn: {
+    width:           36,
+    height:          36,
+    borderRadius:    10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginRight:     8,
+  },
+  menuContent: {
+    backgroundColor: COLORS.surface,
+    borderRadius:    BORDER_RADIUS.md,
   },
   actionBtnText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontWeight: '700' },
 

@@ -9,7 +9,7 @@
  *  • Badge showing total count
  *  • Tap row → InquiryDetail
  */
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView }   from 'react-native-safe-area-context';
 import Icon               from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -29,10 +31,19 @@ import { TYPOGRAPHY }              from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW }  from '@constants/config';
 
 import useInquiryStore from '@store/inquiry.store';
+import useUserStore    from '@store/user.store';
 import Loader          from '@components/common/Loader';
 import EmptyState      from '@components/common/EmptyState';
 import StatusBadge     from '@components/common/StatusBadge';
 import PriorityBadge   from '@components/common/PriorityBadge';
+
+// ─── Date period chips ────────────────────────────────────────
+const DATE_PERIODS = [
+  { key: 'today', label: 'Today',      icon: 'calendar-today' },
+  { key: 'week',  label: 'This Week',  icon: 'calendar-week' },
+  { key: 'month', label: 'This Month', icon: 'calendar-month' },
+  { key: 'all',   label: 'All Time',   icon: 'calendar-blank-multiple' },
+];
 
 // ─── Filter config ────────────────────────────────────────────
 const STATUS_CHIPS = [
@@ -56,6 +67,7 @@ export default function InquiryListScreen({ navigation, route }) {
     inquiries,
     total,
     filters,
+    activePeriod,
     isLoading,
     isRefreshing,
     isLoadingMore,
@@ -64,24 +76,40 @@ export default function InquiryListScreen({ navigation, route }) {
     loadMore,
     setFilters,
     clearFilters,
+    setPeriod,
   } = useInquiryStore();
+
+  const { salespersons, fetchSalespersons } = useUserStore();
+
+  const [userPickerVisible, setUserPickerVisible] = useState(false);
+  const [userSearch,        setUserSearch]        = useState('');
+
+  const selectedSp = salespersons.find((sp) => sp.id === filters.assignedToId) ?? null;
+
+  const filteredSp = salespersons.filter((sp) =>
+    !userSearch || sp.name?.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
+  const handleSelectUser = (sp) => {
+    setFilters({ assignedToId: sp ? sp.id : '' });
+    setUserPickerVisible(false);
+    setUserSearch('');
+    fetchInquiries();
+  };
 
   // Route params: pre-select filters (from Dashboard alert or UserDetail)
   const presetStatus       = route?.params?.filterStatus;
   const presetAssignedToId = route?.params?.filterAssignedToId;
-  const didApplyPreset     = useRef(false);
 
   useEffect(() => {
-    if (!didApplyPreset.current) {
-      didApplyPreset.current = true;
-      const patch = {};
-      if (presetStatus)       patch.status       = presetStatus;
-      if (presetAssignedToId) patch.assignedToId = presetAssignedToId;
-      if (Object.keys(patch).length) setFilters(patch);
-    }
+    const patch = {};
+    if (presetStatus)       patch.status       = presetStatus;
+    if (presetAssignedToId) patch.assignedToId = presetAssignedToId;
+    if (Object.keys(patch).length) setFilters(patch);
     fetchInquiries();
+    fetchSalespersons();
     return () => clearFilters();
-  }, []);
+  }, [presetAssignedToId, presetStatus]);
 
   // Re-fetch whenever filters change
   const onChipPress = (key, value) => {
@@ -98,7 +126,7 @@ export default function InquiryListScreen({ navigation, route }) {
   if (isLoading && inquiries.length === 0) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       {/* FAB — Add new inquiry */}
       <TouchableOpacity
         style={styles.fab}
@@ -108,78 +136,252 @@ export default function InquiryListScreen({ navigation, route }) {
         <Icon name="plus" size={26} color={COLORS.white} />
       </TouchableOpacity>
 
-      {/* ── Search bar ───────────────────────────────── */}
-      <View style={styles.searchWrap}>
-        <Icon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search description, mobile, source…"
-          placeholderTextColor={COLORS.textMuted}
-          value={filters.search}
-          onChangeText={(v) => setFilters({ search: v })}
-          returnKeyType="search"
-          onSubmitEditing={onSearchSubmit}
-        />
-        {filters.search.length > 0 && (
-          <TouchableOpacity
-            onPress={() => { setFilters({ search: '' }); fetchInquiries(); }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Icon name="close-circle" size={18} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* ── Filter panel ─────────────────────────────── */}
+      <View style={styles.filterPanel}>
 
-      {/* ── Status chips ─────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
+        {/* Search bar */}
+        <View style={styles.searchWrap}>
+          <Icon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search description, mobile, source…"
+            placeholderTextColor={COLORS.textMuted}
+            value={filters.search}
+            onChangeText={(v) => setFilters({ search: v })}
+            returnKeyType="search"
+            onSubmitEditing={onSearchSubmit}
+          />
+          {filters.search.length > 0 && (
+            <TouchableOpacity
+              onPress={() => { setFilters({ search: '' }); fetchInquiries(); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="close-circle" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Date period chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.periodScroll}
+          contentContainerStyle={styles.periodRow}
+        >
+          {DATE_PERIODS.map((p) => {
+            const isActive = activePeriod === p.key;
+            return (
+              <TouchableOpacity
+                key={p.key}
+                style={[styles.periodChip, isActive && styles.periodChipActive]}
+                onPress={() => setPeriod(p.key)}
+                activeOpacity={0.75}
+              >
+                {isActive && isLoading ? (
+                  <ActivityIndicator size={10} color={COLORS.white} style={{ marginRight: 4 }} />
+                ) : (
+                  <Icon
+                    name={p.icon}
+                    size={12}
+                    color={isActive ? COLORS.white : COLORS.textSecondary}
+                    style={{ marginRight: 4 }}
+                  />
+                )}
+                <Text style={[styles.periodChipText, isActive && styles.periodChipTextActive]}>
+                  {p.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* User (salesperson) select */}
+        <View style={styles.userSelectWrap}>
+          <TouchableOpacity
+            style={[styles.userSelectBtn, selectedSp && styles.userSelectBtnActive]}
+            onPress={() => setUserPickerVisible(true)}
+            activeOpacity={0.75}
+          >
+            <Icon
+              name="account-outline"
+              size={15}
+              color={selectedSp ? COLORS.primary : COLORS.textMuted}
+            />
+            <Text
+              style={[styles.userSelectText, selectedSp && styles.userSelectTextActive]}
+              numberOfLines={1}
+            >
+              {selectedSp ? selectedSp.name : 'All Salespersons'}
+            </Text>
+            {selectedSp ? (
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => handleSelectUser(null)}
+              >
+                <Icon name="close-circle" size={15} color={COLORS.primary} />
+              </TouchableOpacity>
+            ) : (
+              <Icon name="chevron-down" size={15} color={COLORS.textMuted} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Status + priority chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
+          contentContainerStyle={styles.chips}
+        >
+          {STATUS_CHIPS.map((c) => (
+            <TouchableOpacity
+              key={c.value}
+              style={[styles.chip, filters.status === c.value && styles.chipActive]}
+              onPress={() => onChipPress('status', c.value)}
+            >
+              <Text style={[styles.chipText, filters.status === c.value && styles.chipTextActive]}>
+                {c.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Divider */}
+          <View style={styles.chipDivider} />
+
+          {/* Priority chips */}
+          {PRIORITY_CHIPS.map((c) => (
+            <TouchableOpacity
+              key={`p-${c.value}`}
+              style={[
+                styles.chip,
+                filters.priority === c.value && c.value !== '' && styles.chipActive,
+                filters.priority === '' && c.value === '' && styles.chipActive,
+              ]}
+              onPress={() => onChipPress('priority', c.value)}
+            >
+              {c.value ? (
+                <View
+                  style={[
+                    styles.priorityDot,
+                    { backgroundColor: PRIORITY_COLORS[c.value]?.text ?? COLORS.textMuted },
+                  ]}
+                />
+              ) : null}
+              <Text style={[
+                styles.chipText,
+                (filters.priority === c.value || (filters.priority === '' && c.value === '')) &&
+                  styles.chipTextActive,
+              ]}>
+                {c.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+      </View>{/* end filterPanel */}
+
+      {/* ── User picker modal ────────────────────────── */}
+      <Modal
+        visible={userPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setUserPickerVisible(false)}
       >
-        {STATUS_CHIPS.map((c) => (
-          <TouchableOpacity
-            key={c.value}
-            style={[styles.chip, filters.status === c.value && styles.chipActive]}
-            onPress={() => onChipPress('status', c.value)}
-          >
-            <Text style={[styles.chipText, filters.status === c.value && styles.chipTextActive]}>
-              {c.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => { setUserPickerVisible(false); setUserSearch(''); }}
+        />
+        <View style={styles.modalSheet}>
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter by Salesperson</Text>
+            <TouchableOpacity onPress={() => { setUserPickerVisible(false); setUserSearch(''); }}>
+              <Icon name="close" size={22} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
-        {/* Divider */}
-        <View style={styles.chipDivider} />
+          {/* Search */}
+          <View style={styles.modalSearch}>
+            <Icon name="magnify" size={18} color={COLORS.textMuted} style={{ marginRight: 6 }} />
+            <TextInput
+              style={styles.modalSearchInput}
+              placeholder="Search salesperson…"
+              placeholderTextColor={COLORS.textMuted}
+              value={userSearch}
+              onChangeText={setUserSearch}
+              autoFocus
+            />
+            {userSearch.length > 0 && (
+              <TouchableOpacity onPress={() => setUserSearch('')}>
+                <Icon name="close-circle" size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-        {/* Priority chips */}
-        {PRIORITY_CHIPS.map((c) => (
+          {/* All option */}
           <TouchableOpacity
-            key={`p-${c.value}`}
-            style={[
-              styles.chip,
-              filters.priority === c.value && c.value !== '' && styles.chipActive,
-              filters.priority === '' && c.value === '' && styles.chipActive,
-            ]}
-            onPress={() => onChipPress('priority', c.value)}
+            style={[styles.modalItem, !filters.assignedToId && styles.modalItemActive]}
+            onPress={() => handleSelectUser(null)}
           >
-            {c.value ? (
-              <View
-                style={[
-                  styles.priorityDot,
-                  { backgroundColor: PRIORITY_COLORS[c.value]?.text ?? COLORS.textMuted },
-                ]}
-              />
-            ) : null}
-            <Text style={[
-              styles.chipText,
-              (filters.priority === c.value || (filters.priority === '' && c.value === '')) &&
-                styles.chipTextActive,
-            ]}>
-              {c.label}
-            </Text>
+            <View style={styles.modalAvatar}>
+              <Icon name="account-group-outline" size={14} color={COLORS.textSecondary} />
+            </View>
+            <View style={styles.modalItemInfo}>
+              <Text style={[styles.modalItemName, !filters.assignedToId && styles.modalItemNameActive]}>
+                All Salespersons
+              </Text>
+            </View>
+            {!filters.assignedToId && (
+              <Icon name="check-circle" size={18} color={COLORS.primary} />
+            )}
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+
+          <View style={styles.modalDivider} />
+
+          {/* List */}
+          <FlatList
+            data={filteredSp}
+            keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => {
+              const isActive  = filters.assignedToId === item.id;
+              const initials  = item.name
+                ? item.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+                : '?';
+              return (
+                <TouchableOpacity
+                  style={[styles.modalItem, isActive && styles.modalItemActive]}
+                  onPress={() => handleSelectUser(item)}
+                >
+                  <View style={[styles.modalAvatar, isActive && styles.modalAvatarActive]}>
+                    <Text style={[styles.modalAvatarText, isActive && { color: COLORS.white }]}>
+                      {initials}
+                    </Text>
+                  </View>
+                  <View style={styles.modalItemInfo}>
+                    <Text style={[styles.modalItemName, isActive && styles.modalItemNameActive]}>
+                      {item.name}
+                    </Text>
+                    {item.email ? (
+                      <Text style={styles.modalItemSub} numberOfLines={1}>{item.email}</Text>
+                    ) : null}
+                  </View>
+                  {isActive && (
+                    <Icon name="check-circle" size={18} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={styles.modalEmpty}>
+                <Text style={styles.modalEmptyText}>No salesperson found</Text>
+              </View>
+            }
+            contentContainerStyle={{ paddingBottom: 32 }}
+          />
+        </View>
+      </Modal>
 
       {/* ── List ─────────────────────────────────────── */}
       <FlatList
@@ -200,7 +402,7 @@ export default function InquiryListScreen({ navigation, route }) {
             <Text style={styles.countText}>
               {total > 0 ? `${total} inquir${total === 1 ? 'y' : 'ies'}` : `${inquiries.length} result${inquiries.length !== 1 ? 's' : ''}`}
             </Text>
-            {(filters.status || filters.priority || filters.search) && (
+            {(filters.status || filters.priority || filters.search || filters.assignedToId || activePeriod !== 'all') && (
               <TouchableOpacity onPress={() => { clearFilters(); fetchInquiries(); }}>
                 <Text style={styles.clearFilters}>Clear filters</Text>
               </TouchableOpacity>
@@ -304,18 +506,27 @@ function InquiryRow({ inquiry, onPress }) {
 
 // ─── Styles ───────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.background },
+
+  // Filter panel — unified surface container for all filters
+  filterPanel: {
+    backgroundColor:   COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    paddingBottom:     SPACING.xs,
+  },
 
   // Search
   searchWrap: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: COLORS.surface,
-    borderRadius:    BORDER_RADIUS.md,
-    margin:          SPACING.md,
-    marginBottom:    SPACING.sm,
+    flexDirection:     'row',
+    alignItems:        'center',
+    backgroundColor:   COLORS.background,
+    borderRadius:      BORDER_RADIUS.md,
+    margin:            SPACING.md,
+    marginBottom:      SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    ...SHADOW.sm,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
   },
   searchIcon:  { marginRight: 6 },
   searchInput: {
@@ -325,7 +536,167 @@ const styles = StyleSheet.create({
     color:          COLORS.textPrimary,
   },
 
-  // Chips
+  // Period chips
+  periodScroll: { flexShrink: 0, flexGrow: 0 },
+  periodRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.xs,
+    gap:               SPACING.xs,
+  },
+  periodChip: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    alignSelf:       'center',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+    borderRadius:    BORDER_RADIUS.full,
+    backgroundColor: COLORS.surface,
+    borderWidth:     1,
+    borderColor:     COLORS.border,
+    height:          30,
+  },
+  periodChipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor:     COLORS.primary,
+  },
+  periodChipText: {
+    fontSize:   11,
+    color:      COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  periodChipTextActive: { color: COLORS.white },
+
+  // User select button
+  userSelectWrap: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom:     SPACING.sm,
+  },
+  userSelectBtn: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               8,
+    height:            40,
+    paddingHorizontal: SPACING.md,
+    borderRadius:      BORDER_RADIUS.md,
+    backgroundColor:   COLORS.surface,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+  },
+  userSelectBtnActive: {
+    borderColor:     COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  userSelectText: {
+    flex:       1,
+    fontSize:   13,
+    fontWeight: '500',
+    color:      COLORS.textMuted,
+  },
+  userSelectTextActive: {
+    color:      COLORS.primary,
+    fontWeight: '600',
+  },
+
+  // User picker modal
+  modalOverlay: {
+    flex:            1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalSheet: {
+    backgroundColor:  COLORS.surface,
+    borderTopLeftRadius:  20,
+    borderTopRightRadius: 20,
+    maxHeight:        Dimensions.get('window').height * 0.75,
+    paddingTop:       4,
+  },
+  modalHeader: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical:   SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  modalTitle: {
+    ...TYPOGRAPHY.bodyMedium,
+    fontWeight: '700',
+    color:      COLORS.textPrimary,
+  },
+  modalSearch: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    margin:            SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    height:            40,
+    borderRadius:      BORDER_RADIUS.md,
+    backgroundColor:   COLORS.background,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+  },
+  modalSearchInput: {
+    flex:   1,
+    height: 40,
+    ...TYPOGRAPHY.body,
+    color:  COLORS.textPrimary,
+  },
+  modalItem: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               12,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical:   SPACING.sm,
+  },
+  modalItemActive: {
+    backgroundColor: COLORS.primaryLight,
+  },
+  modalAvatar: {
+    width:           38,
+    height:          38,
+    borderRadius:    19,
+    backgroundColor: COLORS.border,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  modalAvatarActive: {
+    backgroundColor: COLORS.primary,
+  },
+  modalAvatarText: {
+    fontSize:   13,
+    fontWeight: '700',
+    color:      COLORS.textSecondary,
+  },
+  modalItemInfo: { flex: 1 },
+  modalItemName: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '600',
+    color:      COLORS.textPrimary,
+  },
+  modalItemNameActive: { color: COLORS.primary },
+  modalItemSub: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  modalDivider: {
+    height:          1,
+    backgroundColor: COLORS.border,
+    marginHorizontal: SPACING.lg,
+    marginBottom:    SPACING.xs,
+  },
+  modalEmpty: {
+    paddingVertical:   SPACING.xl,
+    alignItems:        'center',
+  },
+  modalEmptyText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textMuted,
+  },
+
+  // Status / priority chips
+  chipsScroll: { flexShrink: 0, flexGrow: 0 },
   chips: {
     paddingHorizontal: SPACING.md,
     paddingBottom:     SPACING.sm,
@@ -334,17 +705,16 @@ const styles = StyleSheet.create({
     alignItems:        'center',
   },
   chip: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             4,
+    flexDirection:     'row',
+    alignItems:        'center',
+    alignSelf:         'center',
+    gap:               4,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius:    BORDER_RADIUS.full,
-    backgroundColor: COLORS.surface,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-    marginVertical: SPACING.xs,
-    height: 32,
+    borderRadius:      BORDER_RADIUS.full,
+    backgroundColor:   COLORS.surface,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+    height:            32,
   },
   chipActive: {
     backgroundColor: COLORS.primary,

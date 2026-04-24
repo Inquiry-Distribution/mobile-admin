@@ -3,12 +3,12 @@
  *
  * Tab structure (5 tabs):
  * ┌──────────────────────────────────────────────────────────┐
- * │  Dashboard │ Inquiries │  Map  │  Team  │  More          │
+ * │  Dashboard │ Inquiries │ Groups │  Team  │  More          │
  * └──────────────────────────────────────────────────────────┘
  *
  * Inquiries tab  → InquiryNavigator  (List → Detail)
  * Team tab       → TeamNavigator     (UserList → UserDetail → Devices → Attendance)
- * More tab       → MoreNavigator     (Menu → Reports → Notifications → Audit → Profile)
+ * More tab       → MoreNavigator     (Menu → LiveMap → Reports → Notifications → Audit → Profile)
  *
  * All stacks share the same header style (primary purple background).
  */
@@ -29,6 +29,7 @@ import { COLORS }     from '@constants/colors';
 import { TYPOGRAPHY } from '@constants/typography';
 
 import useNotificationStore from '@store/notification.store';
+import useGroupStore        from '@store/group.store';
 import useAuthStore         from '@store/auth.store';
 
 // ── Screens ───────────────────────────────────────────────────
@@ -36,6 +37,7 @@ import DashboardScreen     from '@screens/dashboard/DashboardScreen';
 import InquiryListScreen    from '@screens/inquiry/InquiryListScreen';
 import InquiryDetailScreen  from '@screens/inquiry/InquiryDetailScreen';
 import CreateInquiryScreen  from '@screens/inquiry/CreateInquiryScreen';
+import EditInquiryScreen    from '@screens/inquiry/EditInquiryScreen';
 import LiveMapScreen       from '@screens/map/LiveMapScreen';
 import UserListScreen      from '@screens/team/UserListScreen';
 import UserDetailScreen    from '@screens/team/UserDetailScreen';
@@ -50,10 +52,15 @@ import ReportsScreen       from '@screens/reports/ReportsScreen';
 import NotificationsScreen from '@screens/notifications/NotificationsScreen';
 import AuditLogScreen      from '@screens/audit/AuditLogScreen';
 import ProfileScreen       from '@screens/profile/ProfileScreen';
+import GroupListScreen     from '@screens/groups/GroupListScreen';
+import GroupChatScreen     from '@screens/groups/GroupChatScreen';
+import CreateGroupScreen   from '@screens/groups/CreateGroupScreen';
+import GroupMembersScreen  from '@screens/groups/GroupMembersScreen';
 
 const Tab           = createBottomTabNavigator();
 const InquiryStack  = createStackNavigator();
 const TeamStack     = createStackNavigator();
+const GroupStack    = createStackNavigator();
 const MoreStack     = createStackNavigator();
 const RootStack     = createStackNavigator();
 
@@ -137,6 +144,14 @@ function InquiryNavigator() {
           headerLeft:  () => <BackButton />,
         }}
       />
+      <InquiryStack.Screen
+        name="EditInquiry"
+        component={EditInquiryScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="clipboard-edit-outline" title="Edit Inquiry" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
     </InquiryStack.Navigator>
   );
 }
@@ -213,6 +228,46 @@ function TeamNavigator() {
   );
 }
 
+// ─── Group stack ──────────────────────────────────────────────
+function GroupNavigator() {
+  return (
+    <GroupStack.Navigator screenOptions={HEADER_STYLE}>
+      <GroupStack.Screen
+        name="GroupList"
+        component={GroupListScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="forum-outline" title="Groups" />,
+          headerLeft:  () => null,
+        }}
+      />
+      <GroupStack.Screen
+        name="GroupChat"
+        component={GroupChatScreen}
+        options={({ route }) => ({
+          headerTitle: () => <HeaderTitle icon="chat-outline" title={route.params?.groupName ?? 'Chat'} />,
+          headerLeft:  () => <BackButton />,
+        })}
+      />
+      <GroupStack.Screen
+        name="CreateGroup"
+        component={CreateGroupScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="plus-circle-outline" title="New Group" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <GroupStack.Screen
+        name="GroupMembers"
+        component={GroupMembersScreen}
+        options={({ route }) => ({
+          headerTitle: () => <HeaderTitle icon="account-multiple-outline" title={route.params?.groupName ?? 'Members'} />,
+          headerLeft:  () => <BackButton />,
+        })}
+      />
+    </GroupStack.Navigator>
+  );
+}
+
 // ─── More stack (Reports → Notifications → Audit → Profile) ───
 function MoreNavigator() {
   const isSuperuser = useAuthStore((s) => s.isSuperuser());
@@ -225,6 +280,14 @@ function MoreNavigator() {
         options={{
           headerTitle: () => <HeaderTitle icon="dots-horizontal-circle-outline" title="More" />,
           headerLeft:  () => null,
+        }}
+      />
+      <MoreStack.Screen
+        name="LiveMap"
+        component={LiveMapScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="map-marker-multiple-outline" title="Live Map" />,
+          headerLeft:  () => <BackButton />,
         }}
       />
       <MoreStack.Screen
@@ -269,13 +332,16 @@ function MoreNavigator() {
 const TAB_ICONS = {
   Dashboard: 'view-dashboard-outline',
   Inquiries: 'clipboard-list-outline',
-  Map:       'map-marker-multiple-outline',
+  Groups:    'forum-outline',
   Team:      'account-group-outline',
   More:      'dots-horizontal-circle-outline',
 };
 
 function TabNavigator({ navigation }) {
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const unreadCount      = useNotificationStore((s) => s.unreadCount);
+  const groupUnreadTotal = useGroupStore((s) =>
+    s.groups.reduce((sum, g) => sum + (g.unreadCount ?? 0), 0)
+  );
   const headerRight = () => <AvatarButton navigation={navigation} />;
 
   return (
@@ -287,6 +353,7 @@ function TabNavigator({ navigation }) {
         tabBarInactiveTintColor: COLORS.tabInactive,
         tabBarStyle:             { paddingBottom: 4, height: 60 },
         tabBarLabelStyle:        { ...TYPOGRAPHY.caption, marginBottom: 4 },
+        tabBarHideOnKeyboard:    true,
         tabBarIcon: ({ color, size }) => (
           <Icon name={TAB_ICONS[route.name]} size={size} color={color} />
         ),
@@ -315,13 +382,19 @@ function TabNavigator({ navigation }) {
         })}
       />
 
-      {/* 3 — Live Map */}
+      {/* 3 — Groups */}
       <Tab.Screen
-        name="Map"
-        component={LiveMapScreen}
+        name="Groups"
+        component={GroupNavigator}
         options={{
-          headerTitle: () => <HeaderTitle icon="map-marker-multiple-outline" title="Live Map" />,
+          headerShown:      false,
+          tabBarBadge:      groupUnreadTotal > 0 ? groupUnreadTotal : undefined,
+          tabBarBadgeStyle: { backgroundColor: COLORS.error },
         }}
+        listeners={({ navigation: nav }) => ({
+          tabPress: () =>
+            nav.reset({ index: 0, routes: [{ name: 'Groups', state: { routes: [{ name: 'GroupList' }] } }] }),
+        })}
       />
 
       {/* 4 — Team */}
@@ -335,7 +408,7 @@ function TabNavigator({ navigation }) {
         })}
       />
 
-      {/* 5 — More (Reports, Notifications, Audit, Profile) */}
+      {/* 5 — More (LiveMap, Reports, Notifications, Audit, Profile) */}
       <Tab.Screen
         name="More"
         component={MoreNavigator}

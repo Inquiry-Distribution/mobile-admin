@@ -2,6 +2,7 @@
  * MoreMenuScreen — landing page for the "More" tab
  *
  * Menu items:
+ *  • Live Map       → LiveMapScreen
  *  • Reports        → ReportsScreen
  *  • Notifications  → NotificationsScreen  (with unread badge)
  *  • Audit Log      → AuditLogScreen       (superuser only)
@@ -63,6 +64,14 @@ export default function MoreMenuScreen({ navigation }) {
 
         {/* ── Menu items ────────────────────────────── */}
         <View style={styles.menu}>
+
+          <MenuItem
+            icon="map-marker-multiple-outline"
+            label="Live Map"
+            subtitle="Salesperson locations in real-time"
+            color="#059669"
+            onPress={() => navigation.navigate('LiveMap')}
+          />
 
           <MenuItem
             icon="chart-bar"

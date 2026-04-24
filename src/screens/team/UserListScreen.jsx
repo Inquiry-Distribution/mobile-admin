@@ -77,97 +77,102 @@ export default function UserListScreen({ navigation }) {
   if (isLoading && users.length === 0) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      {/* ── Search ──────────────────────────────────────── */}
-      <View style={styles.searchWrap}>
-        <Icon
-          name="magnify"
-          size={20}
-          color={COLORS.textMuted}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search name, email, employee ID…"
-          placeholderTextColor={COLORS.textMuted}
-          value={filters.search}
-          onChangeText={(v) => setFilters({ search: v })}
-          returnKeyType="search"
-          onSubmitEditing={fetchUsers}
-          autoCapitalize="none"
-        />
-        {filters.search.length > 0 && (
-          <TouchableOpacity
-            onPress={() => {
-              setFilters({ search: "" });
-              fetchUsers();
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Icon name="close-circle" size={18} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
+    <SafeAreaView style={styles.safe} edges={["bottom"]}>
+      {/* ── Filter panel ─────────────────────────────────── */}
+      <View style={styles.filterPanel}>
 
-      {/* ── Filter chips ─────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        style={{ flexGrow: 0 }}
-      >
-        {ROLE_CHIPS.map((c) => (
-          <TouchableOpacity
-            key={c.value}
-            style={[styles.chip, filters.role === c.value && styles.chipActive]}
-            onPress={() => onChipPress("role", c.value)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                filters.role === c.value && styles.chipTextActive,
-              ]}
+        {/* Search */}
+        <View style={styles.searchWrap}>
+          <Icon
+            name="magnify"
+            size={20}
+            color={COLORS.textMuted}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search name, email, employee ID…"
+            placeholderTextColor={COLORS.textMuted}
+            value={filters.search}
+            onChangeText={(v) => setFilters({ search: v })}
+            returnKeyType="search"
+            onSubmitEditing={fetchUsers}
+            autoCapitalize="none"
+          />
+          {filters.search.length > 0 && (
+            <TouchableOpacity
+              onPress={() => {
+                setFilters({ search: "" });
+                fetchUsers();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              {c.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Icon name="close-circle" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
 
-        <View style={styles.chipDivider} />
-
-        {ACTIVE_CHIPS.map((c) => (
-          <TouchableOpacity
-            key={`a-${c.value}`}
-            style={[
-              styles.chip,
-              filters.isActive === c.value && styles.chipActive,
-            ]}
-            onPress={() => onChipPress("isActive", c.value)}
-          >
-            {c.value === "true" && (
-              <View
-                style={[styles.statusDot, { backgroundColor: COLORS.success }]}
-              />
-            )}
-            {c.value === "false" && (
-              <View
+        {/* Filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
+          contentContainerStyle={styles.chips}
+        >
+          {ROLE_CHIPS.map((c) => (
+            <TouchableOpacity
+              key={c.value}
+              style={[styles.chip, filters.role === c.value && styles.chipActive]}
+              onPress={() => onChipPress("role", c.value)}
+            >
+              <Text
                 style={[
-                  styles.statusDot,
-                  { backgroundColor: COLORS.textMuted },
+                  styles.chipText,
+                  filters.role === c.value && styles.chipTextActive,
                 ]}
-              />
-            )}
-            <Text
+              >
+                {c.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          <View style={styles.chipDivider} />
+
+          {ACTIVE_CHIPS.map((c) => (
+            <TouchableOpacity
+              key={`a-${c.value}`}
               style={[
-                styles.chipText,
-                filters.isActive === c.value && styles.chipTextActive,
+                styles.chip,
+                filters.isActive === c.value && styles.chipActive,
               ]}
+              onPress={() => onChipPress("isActive", c.value)}
             >
-              {c.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              {c.value === "true" && (
+                <View
+                  style={[styles.statusDot, { backgroundColor: COLORS.success }]}
+                />
+              )}
+              {c.value === "false" && (
+                <View
+                  style={[
+                    styles.statusDot,
+                    { backgroundColor: COLORS.textMuted },
+                  ]}
+                />
+              )}
+              <Text
+                style={[
+                  styles.chipText,
+                  filters.isActive === c.value && styles.chipTextActive,
+                ]}
+              >
+                {c.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+      </View>{/* end filterPanel */}
 
       {/* ── List ──────────────────────────────────────────── */}
       <FlatList
@@ -324,15 +329,24 @@ function UserRow({ user, onPress }) {
 const styles = StyleSheet.create({
   safe: { backgroundColor: COLORS.background, flex: 1 },
 
+  // Filter panel — unified surface container
+  filterPanel: {
+    backgroundColor:   COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    paddingBottom:     SPACING.xs,
+  },
+
   searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-    margin: SPACING.md,
-    marginBottom: SPACING.sm,
+    flexDirection:     "row",
+    alignItems:        "center",
+    backgroundColor:   COLORS.background,
+    borderRadius:      BORDER_RADIUS.md,
+    margin:            SPACING.md,
+    marginBottom:      SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    ...SHADOW.sm,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
   },
   searchIcon: { marginRight: 6 },
   searchInput: {
@@ -342,25 +356,24 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
 
+  chipsScroll: { flexShrink: 0, flexGrow: 0 },
   chips: {
     paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    gap: SPACING.xs,
-    flexDirection: "row",
-    alignItems: "center",
+    paddingBottom:     SPACING.sm,
+    gap:               SPACING.xs,
+    flexDirection:     "row",
+    alignItems:        "center",
   },
   chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    flexDirection:     "row",
+    alignItems:        "center",
+    gap:               4,
     paddingHorizontal: SPACING.md,
-    paddingVertical: 8,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginTop: SPACING.sm,
-    height: 36,
+    borderRadius:      BORDER_RADIUS.full,
+    backgroundColor:   COLORS.background,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+    height:            32,
   },
   chipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText: {

@@ -3,12 +3,12 @@
  *
  * Sections:
  *  • Hero card — avatar, name, role badge, active/inactive status
+ *  • Action buttons — Toggle Active, View Attendance, View Inquiries
+ *  • Superuser: Delete user
  *  • Contact info — email, phone
  *  • Employment info — employeeId, assignedArea, createdAt, createdBy
  *  • PIN section — status + Set/Reset PIN button (opens SetPinModal)
  *  • Device card — platform, lastSeen, isBlocked (if device exists)
- *  • Action buttons — Toggle Active, View Attendance, View Inquiries
- *  • Superuser: Delete user
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -158,32 +158,98 @@ export default function UserDetailScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* ── Actions ───────────────────────────────────── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Actions</Text>
+          <View style={styles.actionGrid}>
+            <ActionTile
+              icon="account-edit-outline"
+              label="Edit User"
+              color={COLORS.primary}
+              onPress={() => navigation.navigate('EditUser', { userId: user.id })}
+            />
+            <ActionTile
+              icon={user.isActive ? 'account-cancel-outline' : 'account-check-outline'}
+              label={user.isActive ? 'Deactivate' : 'Activate'}
+              color={user.isActive ? COLORS.warning : COLORS.success}
+              onPress={handleToggleActive}
+            />
+            <ActionTile
+              icon="chart-bar"
+              label="Report"
+              color={COLORS.info}
+              onPress={() =>
+                navigation.navigate('SalespersonReport', { salespersonId: user.id, name: user.name })
+              }
+            />
+            <ActionTile
+              icon="map-marker-path"
+              label="Location"
+              color={COLORS.secondary}
+              onPress={() =>
+                navigation.navigate('LocationHistory', { salespersonId: user.id, name: user.name })
+              }
+            />
+            <ActionTile
+              icon="calendar-clock-outline"
+              label="Attendance"
+              color={COLORS.primary}
+              onPress={() =>
+                navigation.navigate('Attendance', { salespersonId: user.id, name: user.name })
+              }
+            />
+            <ActionTile
+              icon="clipboard-text-outline"
+              label="Inquiries"
+              color={COLORS.primary}
+              onPress={() =>
+                navigation.navigate('Inquiries', {
+                  screen: 'InquiryList',
+                  params: { filterAssignedToId: user.id },
+                })
+              }
+            />
+            {isSuperuser() && (
+              <ActionTile
+                icon="delete-outline"
+                label="Delete"
+                color={COLORS.error}
+                onPress={handleDelete}
+              />
+            )}
+          </View>
+        </View>
+
         {/* ── Contact info ──────────────────────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact</Text>
-          <InfoRow icon="email-outline"    label="Email"  value={user.email} />
-          {user.phone ? (
-            <InfoRow icon="phone-outline"  label="Phone"  value={user.phone} />
-          ) : null}
+          <SectionRows>
+            <InfoRow icon="email-outline"   label="Email" value={user.email} />
+            {user.phone ? (
+              <InfoRow icon="phone-outline" label="Phone" value={user.phone} />
+            ) : null}
+          </SectionRows>
         </View>
 
         {/* ── Employment info ───────────────────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Employment</Text>
-          {user.employeeId ? (
-            <InfoRow icon="badge-account-outline" label="Employee ID"   value={user.employeeId} />
-          ) : null}
-          {user.assignedArea ? (
-            <InfoRow icon="map-marker-outline"    label="Assigned Area" value={user.assignedArea} />
-          ) : null}
-          <InfoRow
-            icon="calendar-outline"
-            label="Joined"
-            value={formatDateTime(user.createdAt)}
-          />
-          {user.createdBy ? (
-            <InfoRow icon="account-plus-outline" label="Created by" value={user.createdBy.name} />
-          ) : null}
+          <SectionRows>
+            {user.employeeId ? (
+              <InfoRow icon="badge-account-outline" label="Employee ID"   value={user.employeeId} />
+            ) : null}
+            {user.assignedArea ? (
+              <InfoRow icon="map-marker-outline"    label="Assigned Area" value={user.assignedArea} />
+            ) : null}
+            <InfoRow
+              icon="calendar-outline"
+              label="Joined"
+              value={formatDateTime(user.createdAt)}
+            />
+            {user.createdBy ? (
+              <InfoRow icon="account-plus-outline" label="Created by" value={user.createdBy.name} />
+            ) : null}
+          </SectionRows>
         </View>
 
         {/* ── PIN section ───────────────────────────────── */}
@@ -278,74 +344,6 @@ export default function UserDetailScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* ── Actions ───────────────────────────────────── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Actions</Text>
-
-          <ActionButton
-            icon="account-edit-outline"
-            label="Edit User"
-            color={COLORS.primary}
-            onPress={() => navigation.navigate('EditUser', { userId: user.id })}
-          />
-
-          <ActionButton
-            icon={user.isActive ? 'account-cancel-outline' : 'account-check-outline'}
-            label={user.isActive ? 'Deactivate User' : 'Activate User'}
-            color={user.isActive ? COLORS.warning : COLORS.success}
-            onPress={handleToggleActive}
-          />
-
-          <ActionButton
-            icon="chart-bar"
-            label="Performance Report"
-            color={COLORS.info}
-            onPress={() =>
-              navigation.navigate('SalespersonReport', { salespersonId: user.id, name: user.name })
-            }
-          />
-
-          <ActionButton
-            icon="map-marker-path"
-            label="Location History"
-            color={COLORS.secondary}
-            onPress={() =>
-              navigation.navigate('LocationHistory', { salespersonId: user.id, name: user.name })
-            }
-          />
-
-          <ActionButton
-            icon="calendar-clock-outline"
-            label="View Attendance"
-            color={COLORS.primary}
-            onPress={() =>
-              navigation.navigate('Attendance', { salespersonId: user.id, name: user.name })
-            }
-          />
-
-          <ActionButton
-            icon="clipboard-text-outline"
-            label="View Inquiries"
-            color={COLORS.primary}
-            onPress={() =>
-              navigation.navigate('Inquiries', {
-                screen: 'InquiryList',
-                params: { filterAssignedToId: user.id },
-              })
-            }
-          />
-
-          {isSuperuser() && (
-            <ActionButton
-              icon="delete-outline"
-              label="Delete User"
-              color={COLORS.error}
-              onPress={handleDelete}
-            />
-          )}
-        </View>
-
-        <View style={{ height: SPACING.xxl }} />
       </ScrollView>
 
       {/* ── SetPinModal ───────────────────────────────── */}
@@ -363,6 +361,21 @@ export default function UserDetailScreen({ navigation, route }) {
   );
 }
 
+// ── Section with inset dividers between rows ─────────────────
+function SectionRows({ children }) {
+  const rows = React.Children.toArray(children);
+  return (
+    <>
+      {rows.map((child, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <View style={styles.rowDivider} />}
+          {child}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
 // ── Info row sub-component ────────────────────────────────────
 function InfoRow({ icon, label, value }) {
   return (
@@ -376,15 +389,14 @@ function InfoRow({ icon, label, value }) {
   );
 }
 
-// ── Action button sub-component ───────────────────────────────
-function ActionButton({ icon, label, color, onPress }) {
+// ── Action tile sub-component (icon grid) ────────────────────
+function ActionTile({ icon, label, color, onPress }) {
   return (
-    <TouchableOpacity style={styles.actionBtn} onPress={onPress} activeOpacity={0.78}>
-      <View style={[styles.actionIcon, { backgroundColor: color + '18' }]}>
-        <Icon name={icon} size={18} color={color} />
+    <TouchableOpacity style={styles.actionTile} onPress={onPress} activeOpacity={0.75}>
+      <View style={[styles.actionTileIcon, { backgroundColor: color + '18' }]}>
+        <Icon name={icon} size={22} color={color} />
       </View>
-      <Text style={[styles.actionLabel, { color }]}>{label}</Text>
-      <Icon name="chevron-right" size={18} color={COLORS.border} />
+      <Text style={[styles.actionTileLabel, { color }]} numberOfLines={2}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -467,11 +479,14 @@ const styles = StyleSheet.create({
 
   // InfoRow
   infoRow: {
-    flexDirection: 'row',
-    alignItems:    'flex-start',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    flexDirection:  'row',
+    alignItems:     'flex-start',
+    paddingVertical: 10,
+  },
+  rowDivider: {
+    height:          1,
+    backgroundColor: COLORS.divider,
+    marginLeft:      SPACING.md + 16 + SPACING.sm, // icon offset
   },
   infoIcon:  { marginRight: SPACING.sm, marginTop: 2 },
   infoTexts: { flex: 1 },
@@ -531,21 +546,35 @@ const styles = StyleSheet.create({
   },
   noDeviceText: { ...TYPOGRAPHY.small, color: COLORS.textMuted },
 
-  // Action button
-  actionBtn: {
+  // Action grid
+  actionGrid: {
     flexDirection: 'row',
-    alignItems:    'center',
+    flexWrap:      'wrap',
     gap:           SPACING.sm,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    marginTop:     SPACING.xs,
   },
-  actionIcon: {
-    width:          36,
-    height:         36,
-    borderRadius:   18,
+  actionTile: {
+    width:          '30%',
+    alignItems:     'center',
+    backgroundColor: COLORS.background,
+    borderRadius:   BORDER_RADIUS.lg,
+    borderWidth:    1,
+    borderColor:    COLORS.border,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+  },
+  actionTileIcon: {
+    width:          48,
+    height:         48,
+    borderRadius:   BORDER_RADIUS.md,
     alignItems:     'center',
     justifyContent: 'center',
+    marginBottom:   SPACING.xs,
   },
-  actionLabel: { ...TYPOGRAPHY.body, fontWeight: '600', flex: 1 },
+  actionTileLabel: {
+    ...TYPOGRAPHY.small,
+    fontWeight:  '600',
+    textAlign:   'center',
+    lineHeight:  16,
+  },
 });

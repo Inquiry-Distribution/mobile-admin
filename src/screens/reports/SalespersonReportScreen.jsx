@@ -28,7 +28,7 @@ import dayjs from "dayjs";
 import { COLORS } from "@constants/colors";
 import { TYPOGRAPHY } from "@constants/typography";
 import { reportApi } from "@api/report.api";
-import { formatPercent, formatNumber } from "@utils/helpers";
+import { formatPercent, formatNumber, getInitials } from "@utils/helpers";
 
 // ─── Date presets ──────────────────────────────────────────────────────────────
 const PRESETS = [
@@ -148,9 +148,6 @@ export default function SalespersonReportScreen({ route }) {
       try {
         const range = getRange(PRESETS[presetIdx]);
         const res = await reportApi.getSalesperson(salespersonId, range);
-        console.log("res 11  :", res);
-        console.log("res  :", res.data);
-
         setReport(res.data ?? res);
       } catch (err) {
         setError(err.message ?? "Failed to load report");
@@ -166,24 +163,22 @@ export default function SalespersonReportScreen({ route }) {
     load(preset);
   }, [preset]);
 
-  const handlePreset = (idx) => {
-    setPreset(idx);
-  };
-
   // ── Derived values ─────────────────────────────────────────────
-  const inq = report?.inquiries ?? {};
-  const att = report?.attendance ?? {};
-  const total = inq.total ?? 0;
-  const closed = inq.closed ?? 0;
-  const assigned = inq.assigned ?? 0;
-  const inProgress = inq.in_progress ?? inq.inProgress ?? 0;
-  const followUp = inq.follow_up ?? inq.followUp ?? 0;
-  const unassigned = inq.unassigned ?? 0;
-  const convRate = report?.conversionRate ?? (total > 0 ? closed / total : 0);
+  // API returns fields flat: { total, closed, inProgress, followUp, converted, conversionRate }
+  const total      = report?.total      ?? 0;
+  const closed     = report?.closed     ?? 0;
+  const inProgress = report?.inProgress ?? 0;
+  const followUp   = report?.followUp   ?? 0;
+  const assigned   = Math.max(0, total - closed - inProgress - followUp);
+  // conversionRate arrives as "30.00%" string — parse to 0-1 float for formatPercent
+  const convRate   = report?.conversionRate
+    ? parseFloat(report.conversionRate) / 100
+    : total > 0 ? closed / total : 0;
 
-  const present = att.present ?? 0;
-  const absent = att.absent ?? 0;
-  const halfDay = att.half_day ?? att.halfDay ?? 0;
+  const att         = report?.attendance ?? {};
+  const present     = att.present  ?? 0;
+  const absent      = att.absent   ?? 0;
+  const halfDay     = att.halfDay  ?? att.half_day ?? 0;
   const workingDays = present + absent + halfDay;
 
   // ── Render ─────────────────────────────────────────────────────
@@ -205,12 +200,7 @@ export default function SalespersonReportScreen({ route }) {
         <View style={styles.banner}>
           <View style={styles.bannerAvatar}>
             <Text style={styles.bannerInitials}>
-              {(name ?? "U")
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()
-                .slice(0, 2)}
+              {getInitials(name ?? "U")}
             </Text>
           </View>
           <View>
@@ -230,7 +220,7 @@ export default function SalespersonReportScreen({ route }) {
               key={p.label}
               label={p.label}
               selected={preset === i}
-              onPress={() => handlePreset(i)}
+              onPress={() => setPreset(i)}
             />
           ))}
         </ScrollView>
@@ -317,12 +307,6 @@ export default function SalespersonReportScreen({ route }) {
                     count={assigned}
                     total={total}
                     color={COLORS.assigned}
-                  />
-                  <StatusBar
-                    label="Unassigned"
-                    count={unassigned}
-                    total={total}
-                    color={COLORS.unassigned}
                   />
                 </>
               )}

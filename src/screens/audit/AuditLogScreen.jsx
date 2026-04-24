@@ -44,10 +44,10 @@ if (
 
 // ── Date range presets ────────────────────────────────────────
 const DATE_PRESETS = [
-  { label: "Today", days: 0 },
-  { label: "7d", days: 7 },
-  { label: "30d", days: 30 },
-  { label: "All", days: null },
+  { label: "Today",   days: 0,    icon: "calendar-today"         },
+  { label: "7 Days",  days: 7,    icon: "calendar-week"          },
+  { label: "30 Days", days: 30,   icon: "calendar-month-outline" },
+  { label: "All",     days: null, icon: "calendar-blank-outline" },
 ];
 
 function getRange(preset) {
@@ -95,18 +95,17 @@ export default function AuditLogScreen() {
   const searchRef = useRef(null);
 
   // ── Fetch page 1 ───────────────────────────────────────────
-  const fetchPage1 = async (refreshing = false) => {
+  const fetchPage1 = async (refreshing = false, searchOverride) => {
     if (refreshing) setIsRefreshing(true);
     else setIsLoading(true);
 
     try {
-      const range = getRange(DATE_PRESETS[presetIndex]);
+      const activeSearch = searchOverride !== undefined ? searchOverride : search;
+      const range  = getRange(DATE_PRESETS[presetIndex]);
       const params = { page: 1, limit: CONFIG.PAGE_SIZE, ...range };
-      if (search.trim()) params.action = search.trim();
+      if (activeSearch.trim()) params.action = activeSearch.trim();
 
-      const res = await auditApi.getAll(params);
-      console.log("res  : ", res);
-
+      const res  = await auditApi.getAll(params);
       const data = Array.isArray(res?.data?.logs) ? res.data.logs : [];
 
       setLogs(data);
@@ -127,8 +126,8 @@ export default function AuditLogScreen() {
     setIsLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const range = getRange(DATE_PRESETS[presetIndex]);
-      const params = { page: nextPage, limit: CONFIG.PAGE_SIZE, ...range };
+      const range    = getRange(DATE_PRESETS[presetIndex]);
+      const params   = { page: nextPage, limit: CONFIG.PAGE_SIZE, ...range };
       if (search.trim()) params.action = search.trim();
 
       const res = await auditApi.getAll(params);
@@ -150,7 +149,7 @@ export default function AuditLogScreen() {
   if (isLoading && logs.length === 0) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={["bottom"]}>
       {/* ── Search ──────────────────────────────────────── */}
       <View style={styles.searchWrap}>
         <Icon
@@ -174,7 +173,7 @@ export default function AuditLogScreen() {
           <TouchableOpacity
             onPress={() => {
               setSearch("");
-              fetchPage1();
+              fetchPage1(false, "");
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
@@ -187,24 +186,30 @@ export default function AuditLogScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.presetScroll}
         contentContainerStyle={styles.presets}
       >
-        {DATE_PRESETS.map((p, i) => (
-          <TouchableOpacity
-            key={p.label}
-            style={[styles.preset, presetIndex === i && styles.presetActive]}
-            onPress={() => setPresetIndex(i)}
-          >
-            <Text
-              style={[
-                styles.presetText,
-                presetIndex === i && styles.presetTextActive,
-              ]}
+        {DATE_PRESETS.map((p, i) => {
+          const active = presetIndex === i;
+          return (
+            <TouchableOpacity
+              key={p.label}
+              style={[styles.preset, active && styles.presetActive]}
+              onPress={() => setPresetIndex(i)}
+              activeOpacity={0.75}
             >
-              {p.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Icon
+                name={p.icon}
+                size={12}
+                color={active ? COLORS.white : COLORS.textSecondary}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={[styles.presetText, active && styles.presetTextActive]}>
+                {p.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       {/* ── List ──────────────────────────────────────────── */}
@@ -338,29 +343,32 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
 
+  presetScroll: { flexShrink: 0, flexGrow: 0 },
   presets: {
+    flexDirection:     "row",
+    alignItems:        "center",
     paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    gap: SPACING.xs,
-    flexDirection: "row",
-    alignItems: "center",
+    paddingVertical:   SPACING.xs,
+    gap:               SPACING.xs,
   },
   preset: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: BORDER_RADIUS.full,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    flexDirection:     "row",
+    alignItems:        "center",
+    height:            30,
+    paddingHorizontal: SPACING.sm,
+    borderRadius:      BORDER_RADIUS.full,
+    backgroundColor:   COLORS.surface,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
   },
   presetActive: {
     backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    borderColor:     COLORS.primary,
   },
   presetText: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
+    fontSize:   11,
     fontWeight: "600",
+    color:      COLORS.textSecondary,
   },
   presetTextActive: { color: COLORS.white },
 

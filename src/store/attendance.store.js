@@ -41,13 +41,13 @@ const useAttendanceStore = create((set, get) => ({
         res = await attendanceApi.getAll(params);
       }
 
-      const records = Array.isArray(res.data.records) ? res.data.records
+      const records = Array.isArray(res.data?.records) ? res.data.records
         : Array.isArray(res) ? res
           : [];
 
       set({
         records,
-        total: res.total ?? res.pagination?.total ?? records.length,
+        total: res.data?.total ?? records.length,
         isLoading: false,
       });
     } catch (err) {
@@ -70,11 +70,11 @@ const useAttendanceStore = create((set, get) => ({
         res = await attendanceApi.getAll(params);
       }
 
-      const records = Array.isArray(res.data.records) ? res.data.records
+      const records = Array.isArray(res.data?.records) ? res.data.records
         : Array.isArray(res) ? res
           : [];
 
-      set({ records, total: res.total ?? records.length, isRefreshing: false });
+      set({ records, total: res.data?.total ?? records.length, isRefreshing: false });
     } catch (_) {
       set({ isRefreshing: false });
     }

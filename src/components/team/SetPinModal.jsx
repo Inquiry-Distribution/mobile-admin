@@ -17,8 +17,10 @@ import {
   StyleSheet,
   TextInput,
   ActivityIndicator,
-  Alert,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -35,13 +37,13 @@ const PIN_MAX = 6;
 export default function SetPinModal({ visible, userId, userName, onClose, onSuccess }) {
   const { setPin, isMutating } = useUserStore();
 
-  const [pin,     setLocalPin]    = useState('');
-  const [confirm, setConfirm]     = useState('');
-  const [showPin, setShowPin]     = useState(false);
-  const [error,   setError]       = useState('');
+  const [pin,     setLocalPin] = useState('');
+  const [confirm, setConfirm]  = useState('');
+  const [showPin, setShowPin]  = useState(false);
+  const [error,   setError]    = useState('');
 
-  // Shake animation for error
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const pinRef    = useRef(null);
 
   useEffect(() => {
     if (visible) {
@@ -49,6 +51,7 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
       setConfirm('');
       setError('');
       setShowPin(false);
+      setTimeout(() => pinRef.current?.focus(), 300);
     }
   }, [visible]);
 
@@ -57,7 +60,7 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue:  10, duration: 50, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue:  10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue:   8, duration: 50, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue:  -6, duration: 50, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue:   0, duration: 40, useNativeDriver: true }),
     ]).start();
@@ -66,13 +69,11 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
   const validate = () => {
     if (pin.length < PIN_MIN) {
       setError(`PIN must be at least ${PIN_MIN} digits.`);
-      shake();
-      return false;
+      shake(); return false;
     }
     if (pin !== confirm) {
       setError('PINs do not match.');
-      shake();
-      return false;
+      shake(); return false;
     }
     return true;
   };
@@ -80,7 +81,6 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
   const handleSubmit = async () => {
     setError('');
     if (!validate()) return;
-
     const result = await setPin(userId, pin);
     if (result.success) {
       onSuccess?.();
@@ -90,6 +90,9 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
     }
   };
 
+  const pinMatch = confirm.length > 0 && confirm === pin;
+  const canSubmit = pin.length >= PIN_MIN && confirm.length >= PIN_MIN && !isMutating;
+
   return (
     <Modal
       visible={visible}
@@ -98,233 +101,317 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-
-        {/* ── Header ──────────────────────────────────── */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Icon name="close" size={22} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Set PIN</Text>
-          <View style={{ width: 30 }} />
-        </View>
-
-        {/* ── Body ────────────────────────────────────── */}
-        <View style={styles.body}>
-
-          {/* User indicator */}
-          <View style={styles.userChip}>
-            <Icon name="account-outline" size={16} color={COLORS.primary} />
-            <Text style={styles.userChipText} numberOfLines={1}>{userName}</Text>
+        <KeyboardAvoidingView
+          style={styles.kav}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {/* ── Header ─────────────────────────────────── */}
+          <View style={styles.header}>
+            <View style={{ width: 36 }} />
+            <Text style={styles.headerTitle}>Set PIN</Text>
+            <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Icon name="close" size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.hint}>
-            Set a {PIN_MIN}–{PIN_MAX} digit PIN for the salesperson to log in on their mobile device.
-          </Text>
-
-          {/* Animated error box */}
-          <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-            {error ? (
-              <View style={styles.errorBox}>
-                <Icon name="alert-circle-outline" size={15} color={COLORS.error} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            ) : null}
-          </Animated.View>
-
-          {/* PIN input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>New PIN</Text>
-            <View style={styles.inputWrap}>
-              <Icon name="lock-outline" size={18} color={COLORS.textMuted} />
-              <TextInput
-                style={styles.input}
-                value={pin}
-                onChangeText={(v) => { setLocalPin(v.replace(/\D/g, '').slice(0, PIN_MAX)); setError(''); }}
-                placeholder={`Enter ${PIN_MIN}–${PIN_MAX} digit PIN`}
-                placeholderTextColor={COLORS.textMuted}
-                keyboardType="number-pad"
-                secureTextEntry={!showPin}
-                maxLength={PIN_MAX}
-              />
-              <TouchableOpacity onPress={() => setShowPin((p) => !p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Icon name={showPin ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {/* PIN strength dots */}
-            <View style={styles.pinDots}>
-              {Array.from({ length: PIN_MAX }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.pinDot,
-                    i < pin.length && styles.pinDotFilled,
-                    i < PIN_MIN && i >= pin.length && { borderColor: COLORS.border },
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Confirm PIN */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Confirm PIN</Text>
-            <View style={styles.inputWrap}>
-              <Icon name="lock-check-outline" size={18} color={COLORS.textMuted} />
-              <TextInput
-                style={styles.input}
-                value={confirm}
-                onChangeText={(v) => { setConfirm(v.replace(/\D/g, '').slice(0, PIN_MAX)); setError(''); }}
-                placeholder="Re-enter PIN"
-                placeholderTextColor={COLORS.textMuted}
-                keyboardType="number-pad"
-                secureTextEntry={!showPin}
-                maxLength={PIN_MAX}
-              />
-              {confirm.length > 0 && confirm === pin && (
-                <Icon name="check-circle" size={18} color={COLORS.success} />
-              )}
-            </View>
-          </View>
-
-          {/* Submit */}
-          <TouchableOpacity
-            style={[
-              styles.submitBtn,
-              (pin.length < PIN_MIN || !confirm || isMutating) && styles.submitBtnDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={pin.length < PIN_MIN || !confirm || isMutating}
-            activeOpacity={0.85}
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {isMutating ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <>
-                <Icon name="lock-check-outline" size={18} color={COLORS.white} />
-                <Text style={styles.submitBtnText}>Save PIN</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+            {/* ── Hero ───────────────────────────────────── */}
+            <View style={styles.hero}>
+              <View style={styles.heroIcon}>
+                <Icon name="lock-outline" size={32} color={COLORS.primary} />
+              </View>
+              <Text style={styles.heroName}>{userName}</Text>
+              <Text style={styles.heroSub}>
+                Set a {PIN_MIN}–{PIN_MAX} digit PIN for this salesperson to log in to the mobile app.
+              </Text>
+            </View>
+
+            {/* ── Error ──────────────────────────────────── */}
+            <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+              {error ? (
+                <View style={styles.errorBox}>
+                  <Icon name="alert-circle-outline" size={15} color={COLORS.error} />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
+            </Animated.View>
+
+            {/* ── PIN input ──────────────────────────────── */}
+            <View style={styles.card}>
+              <View style={styles.fieldHeader}>
+                <Text style={styles.fieldLabel}>New PIN</Text>
+                <TouchableOpacity
+                  onPress={() => setShowPin((p) => !p)}
+                  style={styles.showToggle}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Icon name={showPin ? 'eye-off-outline' : 'eye-outline'} size={16} color={COLORS.primary} />
+                  <Text style={styles.showToggleText}>{showPin ? 'Hide' : 'Show'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputWrap}>
+                <Icon name="lock-outline" size={18} color={COLORS.textMuted} />
+                <TextInput
+                  ref={pinRef}
+                  style={styles.input}
+                  value={pin}
+                  onChangeText={(v) => { setLocalPin(v.replace(/\D/g, '').slice(0, PIN_MAX)); setError(''); }}
+                  placeholder={`${PIN_MIN}–${PIN_MAX} digits`}
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="number-pad"
+                  secureTextEntry={!showPin}
+                  maxLength={PIN_MAX}
+                />
+              </View>
+
+              {/* PIN progress dots */}
+              <View style={styles.dotsRow}>
+                {Array.from({ length: PIN_MAX }).map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.dot,
+                      i < pin.length ? styles.dotFilled : null,
+                      i === PIN_MIN - 1 ? styles.dotMinMark : null,
+                    ]}
+                  />
+                ))}
+                <Text style={styles.dotMinLabel}>min {PIN_MIN}</Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* ── Confirm PIN ──────────────────────────── */}
+              <Text style={styles.fieldLabel}>Confirm PIN</Text>
+              <View style={[styles.inputWrap, pinMatch && styles.inputWrapMatch]}>
+                <Icon
+                  name="lock-check-outline"
+                  size={18}
+                  color={pinMatch ? COLORS.success : COLORS.textMuted}
+                />
+                <TextInput
+                  style={styles.input}
+                  value={confirm}
+                  onChangeText={(v) => { setConfirm(v.replace(/\D/g, '').slice(0, PIN_MAX)); setError(''); }}
+                  placeholder="Re-enter PIN"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="number-pad"
+                  secureTextEntry={!showPin}
+                  maxLength={PIN_MAX}
+                />
+                {pinMatch && (
+                  <Icon name="check-circle" size={18} color={COLORS.success} />
+                )}
+              </View>
+            </View>
+
+            {/* ── Submit ─────────────────────────────────── */}
+            <TouchableOpacity
+              style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={!canSubmit}
+              activeOpacity={0.85}
+            >
+              {isMutating ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <>
+                  <Icon name="shield-lock-outline" size={18} color={COLORS.white} />
+                  <Text style={styles.submitBtnText}>Save PIN</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.background },
+  kav:  { flex: 1 },
 
+  // Header
   header: {
     flexDirection:     'row',
     alignItems:        'center',
     justifyContent:    'space-between',
     paddingHorizontal: SPACING.md,
     paddingVertical:   SPACING.sm,
+    backgroundColor:   COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    backgroundColor:   COLORS.surface,
   },
-  closeBtn:    { padding: 4 },
   headerTitle: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontWeight: '700' },
-
-  body: {
-    flex:              1,
-    paddingHorizontal: SPACING.lg,
-    paddingTop:        SPACING.xl,
+  closeBtn: {
+    width:           36,
+    height:          36,
+    borderRadius:    18,
+    backgroundColor: COLORS.background,
+    alignItems:      'center',
+    justifyContent:  'center',
   },
 
-  userChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    alignSelf:         'center',
-    gap:               6,
-    backgroundColor:   COLORS.primaryLight,
-    borderRadius:      BORDER_RADIUS.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical:   6,
-    marginBottom:      SPACING.md,
-  },
-  userChipText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.primary, fontWeight: '700' },
+  scroll: { padding: SPACING.md, paddingBottom: SPACING.xxl },
 
-  hint: {
+  // Hero
+  hero: { alignItems: 'center', marginBottom: SPACING.lg },
+  heroIcon: {
+    width:           72,
+    height:          72,
+    borderRadius:    36,
+    backgroundColor: COLORS.primaryLight,
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    SPACING.sm,
+    borderWidth:     2,
+    borderColor:     COLORS.primaryMid,
+  },
+  heroName: {
+    ...TYPOGRAPHY.h3,
+    color:        COLORS.textPrimary,
+    fontWeight:   '700',
+    marginBottom: 6,
+  },
+  heroSub: {
     ...TYPOGRAPHY.small,
-    color:        COLORS.textSecondary,
-    textAlign:    'center',
-    marginBottom: SPACING.lg,
+    color:     COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: SPACING.md,
   },
 
+  // Error
   errorBox: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               6,
-    backgroundColor:   '#FEE2E2',
-    borderRadius:      BORDER_RADIUS.md,
-    padding:           SPACING.sm,
-    marginBottom:      SPACING.md,
-    borderWidth:       1,
-    borderColor:       COLORS.error + '40',
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            6,
+    backgroundColor: '#FEE2E2',
+    borderRadius:   BORDER_RADIUS.md,
+    padding:        SPACING.sm,
+    marginBottom:   SPACING.md,
+    borderWidth:    1,
+    borderColor:    COLORS.error + '40',
   },
   errorText: { ...TYPOGRAPHY.small, color: COLORS.error, flex: 1 },
 
-  inputGroup: { marginBottom: SPACING.lg },
+  // Card
+  card: {
+    backgroundColor:   COLORS.surface,
+    borderRadius:      BORDER_RADIUS.lg,
+    padding:           SPACING.md,
+    marginBottom:      SPACING.md,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+    ...SHADOW.sm,
+  },
 
-  inputLabel: {
-    ...TYPOGRAPHY.smallMedium,
-    color:        COLORS.textSecondary,
-    fontWeight:   '600',
-    marginBottom: 6,
+  fieldHeader: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginBottom:   8,
+  },
+  fieldLabel: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  showToggle: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           4,
+  },
+  showToggleText: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.primary,
+    fontWeight: '600',
   },
 
   inputWrap: {
     flexDirection:     'row',
     alignItems:        'center',
-    gap:               SPACING.xs,
-    backgroundColor:   COLORS.surface,
+    gap:               SPACING.sm,
+    backgroundColor:   COLORS.background,
     borderRadius:      BORDER_RADIUS.md,
     borderWidth:       1.5,
     borderColor:       COLORS.border,
     paddingHorizontal: SPACING.sm,
-    paddingVertical:   SPACING.xs,
+    height:            52,
   },
-
+  inputWrapMatch: {
+    borderColor: COLORS.success,
+    backgroundColor: '#F0FDF4',
+  },
   input: {
-    flex:              1,
-    height:            44,
-    ...TYPOGRAPHY.body,
-    color:             COLORS.textPrimary,
-    letterSpacing:     8,
-    fontWeight:        '700',
+    flex:          1,
+    height:        52,
+    ...TYPOGRAPHY.h4,
+    color:         COLORS.textPrimary,
+    letterSpacing: 10,
+    fontWeight:    '800',
   },
 
-  // PIN strength dots
-  pinDots: {
+  // Dots
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           8,
+    marginTop:     12,
+    marginBottom:  4,
+  },
+  dot: {
+    width:        14,
+    height:       14,
+    borderRadius: 7,
+    borderWidth:  2,
+    borderColor:  COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  dotFilled: {
+    backgroundColor: COLORS.primary,
+    borderColor:     COLORS.primary,
+  },
+  dotMinMark: {
+    borderColor: COLORS.primaryMid,
+  },
+  dotMinLabel: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.textMuted,
+    marginLeft: 4,
+    fontSize:   10,
+  },
+
+  divider: {
+    height:          1,
+    backgroundColor: COLORS.divider,
+    marginVertical:  SPACING.md,
+  },
+
+  // Submit
+  submitBtn: {
     flexDirection:  'row',
     alignItems:     'center',
+    justifyContent: 'center',
     gap:            8,
-    marginTop:      10,
-    paddingLeft:    2,
-  },
-  pinDot: {
-    width:        12,
-    height:       12,
-    borderRadius: 6,
-    borderWidth:  2,
-    borderColor:  COLORS.primary,
-  },
-  pinDotFilled: { backgroundColor: COLORS.primary },
-
-  submitBtn: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    justifyContent:    'center',
-    gap:               8,
-    backgroundColor:   COLORS.primary,
-    borderRadius:      BORDER_RADIUS.lg,
-    paddingVertical:   SPACING.md,
-    marginTop:         SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderRadius:   BORDER_RADIUS.lg,
+    height:         52,
     ...SHADOW.md,
   },
-  submitBtnDisabled: { backgroundColor: COLORS.border, elevation: 0, shadowOpacity: 0 },
+  submitBtnDisabled: {
+    backgroundColor: COLORS.border,
+    elevation:       0,
+    shadowOpacity:   0,
+  },
   submitBtnText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontWeight: '700' },
 });

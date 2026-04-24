@@ -18,6 +18,7 @@ import useAuthStore         from '@store/auth.store';
 import useNotificationStore from '@store/notification.store';
 import useInquiryStore      from '@store/inquiry.store';
 import useDeviceStore       from '@store/device.store';
+import useGroupStore        from '@store/group.store';
 
 import socketService, { setStores } from '@services/socket.service';
 import notificationService, {
@@ -48,6 +49,7 @@ export default function RootNavigator() {
       nStore: useNotificationStore,
       iStore: useInquiryStore,
       dStore: useDeviceStore,
+      gStore: useGroupStore,
     });
 
     // 2. Connect socket

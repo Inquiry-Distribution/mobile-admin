@@ -4,10 +4,10 @@
  * Sections:
  *  • Hero — avatar, name, role badge
  *  • Account info — email, phone, employeeId, joined date
- *  • App info — version, socket status indicator
- *  • Danger zone — Logout
+ *  • App info — version, API
+ *  • Session — Logout
  */
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -19,18 +19,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import { COLORS, ROLE_COLORS } from '@constants/colors';
-import { TYPOGRAPHY }          from '@constants/typography';
-import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
-import { getInitials, formatDateTime }    from '@utils/helpers';
-
+import { COLORS, ROLE_COLORS }               from '@constants/colors';
+import { TYPOGRAPHY }                         from '@constants/typography';
+import { SPACING, BORDER_RADIUS, SHADOW }     from '@constants/config';
+import { getInitials, formatDateTime }        from '@utils/helpers';
 import useAuthStore from '@store/auth.store';
 
-const APP_VERSION = '1.0.0'; // update with BuildConfig / DeviceInfo in production
+const APP_VERSION = '1.0.0';
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen() {
   const { user, logout, isSuperuser } = useAuthStore();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -39,13 +37,9 @@ export default function ProfileScreen({ navigation }) {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            setIsLoggingOut(true);
-            await logout();
-            // navigation reset is handled by RootNavigator watching auth state
-          },
+          text:    'Sign Out',
+          style:   'destructive',
+          onPress: () => logout(),
         },
       ],
     );
@@ -53,11 +47,16 @@ export default function ProfileScreen({ navigation }) {
 
   if (!user) return null;
 
-  const roleColor = ROLE_COLORS[user.role] ?? { bg: COLORS.primaryLight, text: COLORS.primary };
+  const isSU       = isSuperuser();
+  const roleColor  = ROLE_COLORS[user.role] ?? { bg: COLORS.primaryLight, text: COLORS.primary };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+    // edges=['bottom'] only — navigator header already handles the top safe area
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
 
         {/* ── Hero ────────────────────────────────────── */}
         <View style={styles.hero}>
@@ -66,35 +65,32 @@ export default function ProfileScreen({ navigation }) {
               {getInitials(user.name)}
             </Text>
           </View>
+
           <Text style={styles.heroName}>{user.name}</Text>
 
-          <View style={styles.heroBadges}>
-            <View style={[styles.roleBadge, { backgroundColor: roleColor.bg }]}>
-              <Text style={[styles.roleBadgeText, { color: roleColor.text }]}>
-                {user.role.toUpperCase()}
-              </Text>
-            </View>
-            {isSuperuser() && (
-              <View style={styles.superBadge}>
-                <Icon name="crown" size={11} color='#D97706' />
-                <Text style={styles.superBadgeText}>Superuser</Text>
-              </View>
+          {/* Single badge — crown icon for superuser, plain for admin */}
+          <View style={[styles.roleBadge, { backgroundColor: roleColor.bg }]}>
+            {isSU && (
+              <Icon name="crown" size={11} color={roleColor.text} style={{ marginRight: 4 }} />
             )}
+            <Text style={[styles.roleBadgeText, { color: roleColor.text }]}>
+              {user.role.toUpperCase()}
+            </Text>
           </View>
         </View>
 
-        {/* ── Account info ──────────────────────────── */}
+        {/* ── Account ───────────────────────────────── */}
         <SectionCard title="Account">
-          <ProfileRow icon="email-outline"       label="Email"       value={user.email} />
-          {user.phone ? (
-            <ProfileRow icon="phone-outline"     label="Phone"       value={user.phone} />
-          ) : null}
-          {user.employeeId ? (
+          <ProfileRow icon="email-outline"          label="Email"       value={user.email} />
+          {user.phone && (
+            <ProfileRow icon="phone-outline"        label="Phone"       value={user.phone} />
+          )}
+          {user.employeeId && (
             <ProfileRow icon="badge-account-outline" label="Employee ID" value={user.employeeId} />
-          ) : null}
-          {user.assignedArea ? (
-            <ProfileRow icon="map-marker-outline" label="Area"       value={user.assignedArea} />
-          ) : null}
+          )}
+          {user.assignedArea && (
+            <ProfileRow icon="map-marker-outline"   label="Area"        value={user.assignedArea} />
+          )}
           <ProfileRow
             icon="calendar-outline"
             label="Joined"
@@ -102,16 +98,20 @@ export default function ProfileScreen({ navigation }) {
           />
         </SectionCard>
 
-        {/* ── App info ──────────────────────────────── */}
+        {/* ── App ───────────────────────────────────── */}
         <SectionCard title="App">
           <ProfileRow icon="information-outline" label="Version" value={`v${APP_VERSION}`} />
-          <ProfileRow icon="server-outline"      label="API"     value="Inquiry Desk API" />
+          <ProfileRow icon="api"                 label="API"     value="Inquiry Desk API"  />
         </SectionCard>
 
-        {/* ── Danger zone ───────────────────────────── */}
+        {/* ── Session ───────────────────────────────── */}
         <SectionCard title="Session">
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <View style={styles.logoutIcon}>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+            activeOpacity={0.75}
+          >
+            <View style={styles.logoutIconWrap}>
               <Icon name="logout" size={18} color={COLORS.error} />
             </View>
             <Text style={styles.logoutText}>Sign Out</Text>
@@ -119,7 +119,6 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </SectionCard>
 
-        <View style={{ height: SPACING.xxl }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -127,10 +126,21 @@ export default function ProfileScreen({ navigation }) {
 
 // ── Section card ──────────────────────────────────────────────
 function SectionCard({ title, children }) {
+  // Filter out falsy children (conditional renders)
+  const childArray = React.Children.toArray(children);
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionBody}>{children}</View>
+      <View style={styles.sectionBody}>
+        {childArray.map((child, i) => (
+          <React.Fragment key={i}>
+            {/* Divider between rows — not before first, not after last */}
+            {i > 0 && <View style={styles.rowDivider} />}
+            {child}
+          </React.Fragment>
+        ))}
+      </View>
     </View>
   );
 }
@@ -139,10 +149,12 @@ function SectionCard({ title, children }) {
 function ProfileRow({ icon, label, value }) {
   return (
     <View style={styles.profileRow}>
-      <Icon name={icon} size={18} color={COLORS.textMuted} style={styles.profileRowIcon} />
+      <View style={styles.profileRowIconWrap}>
+        <Icon name={icon} size={18} color={COLORS.textMuted} />
+      </View>
       <View style={styles.profileRowTexts}>
         <Text style={styles.profileRowLabel}>{label}</Text>
-        <Text style={styles.profileRowValue}>{value}</Text>
+        <Text style={styles.profileRowValue} numberOfLines={2}>{value ?? '—'}</Text>
       </View>
     </View>
   );
@@ -153,14 +165,15 @@ const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: COLORS.background },
   scroll: { paddingBottom: SPACING.xxl },
 
-  // Hero
+  // ── Hero ──────────────────────────────────────────────────
   hero: {
-    alignItems:        'center',
-    backgroundColor:   COLORS.surface,
-    paddingVertical:   SPACING.xl,
+    alignItems:      'center',
+    backgroundColor: COLORS.surface,
+    paddingVertical: SPACING.xl,
+    paddingBottom:   SPACING.lg,
+    marginBottom:    SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    marginBottom:      SPACING.sm,
   },
   avatar: {
     width:          80,
@@ -172,69 +185,79 @@ const styles = StyleSheet.create({
     ...SHADOW.md,
   },
   avatarText: { fontSize: 28, fontWeight: '800' },
-  heroName:   { ...TYPOGRAPHY.h3, color: COLORS.textPrimary, fontWeight: '700', marginBottom: SPACING.sm },
-
-  heroBadges: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  heroName: {
+    ...TYPOGRAPHY.h3,
+    color:        COLORS.textPrimary,
+    fontWeight:   '700',
+    marginBottom: SPACING.sm,
+  },
 
   roleBadge: {
+    flexDirection:     'row',
+    alignItems:        'center',
     borderRadius:      BORDER_RADIUS.full,
-    paddingHorizontal: 10,
-    paddingVertical:   4,
+    paddingHorizontal: 12,
+    paddingVertical:   5,
   },
   roleBadgeText: {
-    fontSize:      10,
+    fontSize:      11,
     fontWeight:    '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
 
-  superBadge: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               4,
-    backgroundColor:   '#FEF3C7',
-    borderRadius:      BORDER_RADIUS.full,
-    paddingHorizontal: 10,
-    paddingVertical:   4,
-  },
-  superBadgeText: { fontSize: 10, fontWeight: '800', color: '#D97706' },
-
-  // Section
+  // ── Section ───────────────────────────────────────────────
   section: {
-    marginTop:       SPACING.sm,
-    backgroundColor: COLORS.surface,
-    borderTopWidth:  1,
-    borderTopColor:  COLORS.divider,
+    backgroundColor:   COLORS.surface,
+    borderTopWidth:    1,
+    borderTopColor:    COLORS.divider,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    marginBottom:      SPACING.md,
   },
   sectionTitle: {
     ...TYPOGRAPHY.caption,
     color:             COLORS.textMuted,
     fontWeight:        '700',
     textTransform:     'uppercase',
-    letterSpacing:     0.5,
+    letterSpacing:     0.6,
     paddingHorizontal: SPACING.md,
-    paddingTop:        SPACING.md,
+    paddingTop:        SPACING.sm,
     paddingBottom:     SPACING.xs,
   },
   sectionBody: {},
 
-  // Profile row
+  // Divider between rows (not full-width — inset to align with text)
+  rowDivider: {
+    height:           1,
+    backgroundColor:  COLORS.divider,
+    marginLeft:       SPACING.md + 18 + SPACING.sm, // icon width offset
+  },
+
+  // ── Profile row ───────────────────────────────────────────
   profileRow: {
     flexDirection:     'row',
-    alignItems:        'flex-start',
+    alignItems:        'center',
     paddingHorizontal: SPACING.md,
-    paddingVertical:   12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    paddingVertical:   13,
   },
-  profileRowIcon:   { marginRight: SPACING.sm, marginTop: 2 },
-  profileRowTexts:  { flex: 1 },
-  profileRowLabel:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginBottom: 2 },
-  profileRowValue:  { ...TYPOGRAPHY.body, color: COLORS.textPrimary },
+  profileRowIconWrap: {
+    width:          18,
+    alignItems:     'center',
+    marginRight:    SPACING.sm,
+  },
+  profileRowTexts: { flex: 1 },
+  profileRowLabel: {
+    ...TYPOGRAPHY.caption,
+    color:        COLORS.textMuted,
+    marginBottom: 2,
+  },
+  profileRowValue: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+  },
 
-  // Logout
+  // ── Logout ────────────────────────────────────────────────
   logoutBtn: {
     flexDirection:     'row',
     alignItems:        'center',
@@ -242,7 +265,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical:   14,
   },
-  logoutIcon: {
+  logoutIconWrap: {
     width:           36,
     height:          36,
     borderRadius:    18,
@@ -250,5 +273,10 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     justifyContent:  'center',
   },
-  logoutText: { ...TYPOGRAPHY.body, color: COLORS.error, fontWeight: '700', flex: 1 },
+  logoutText: {
+    ...TYPOGRAPHY.body,
+    color:      COLORS.error,
+    fontWeight: '700',
+    flex:       1,
+  },
 });

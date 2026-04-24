@@ -76,7 +76,7 @@ export default function ReportsScreen() {
 
       setSummary(sumRes.data ?? sumRes);
       setInquiryReport(iqRes.data ?? iqRes);
-      setTeamReport(Array.isArray(teamRes.data) ? teamRes.data : teamRes ?? []);
+      setTeamReport(teamRes.data?.salespersons ?? teamRes.data ?? []);
     } catch (_) {
       // keep stale data on error
     } finally {
@@ -217,8 +217,8 @@ function TeamTab({ team }) {
     );
   }
 
-  // Sort by closed desc
-  const sorted = [...team].sort((a, b) => (b.closed ?? 0) - (a.closed ?? 0));
+  // Sort by closed desc — data is nested under row.inquiries
+  const sorted = [...team].sort((a, b) => (b.inquiries?.closed ?? 0) - (a.inquiries?.closed ?? 0));
 
   return (
     <View>
@@ -232,9 +232,10 @@ function TeamTab({ team }) {
       </View>
 
       {sorted.map((row, i) => {
-        const rate = row.assigned
-          ? ((row.closed ?? 0) / row.assigned) * 100
-          : 0;
+        const inq      = row.inquiries ?? {};
+        const assigned = inq.total  ?? 0;
+        const closed   = inq.closed ?? 0;
+        const rate     = assigned > 0 ? closed / assigned : 0;
         return (
           <View key={row.id ?? i} style={[styles.tableRow, i % 2 === 0 && styles.tableRowEven]}>
             <View style={[styles.tableCellView, { flex: 2 }]}>
@@ -243,9 +244,9 @@ function TeamTab({ team }) {
               </View>
               <Text style={styles.teamName} numberOfLines={1}>{row.name}</Text>
             </View>
-            <Text style={styles.tableCell}>{row.assigned ?? 0}</Text>
-            <Text style={styles.tableCell}>{row.closed   ?? 0}</Text>
-            <Text style={[styles.tableCell, { color: rate >= 50 ? COLORS.success : COLORS.textMuted }]}>
+            <Text style={styles.tableCell}>{assigned}</Text>
+            <Text style={styles.tableCell}>{closed}</Text>
+            <Text style={[styles.tableCell, { color: rate >= 0.5 ? COLORS.success : COLORS.textMuted }]}>
               {formatPercent(rate)}
             </Text>
           </View>
@@ -277,7 +278,7 @@ function KpiCard({ label, value, icon, color }) {
 
 // ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.background },
   loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   // Presets

@@ -239,11 +239,11 @@ function LocationCard({ loc, isSelected, onPress }) {
 function normaliseOne(raw) {
   return {
     salespersonId: raw.salespersonId ?? raw.id,
-    name:          raw.name ?? raw.salesperson?.name ?? 'Unknown',
+    name:          raw.salespersonName ?? raw.name ?? raw.salesperson?.name ?? 'Unknown',
     lat:           raw.lat ?? raw.lastLat ?? raw.latitude ?? null,
     lng:           raw.lng ?? raw.lastLng ?? raw.longitude ?? null,
     address:       raw.address ?? raw.lastAddress ?? null,
-    lastLocatedAt: raw.lastLocatedAt ?? raw.updatedAt ?? null,
+    lastLocatedAt: raw.lastLocatedAt ?? raw.recordedAt ?? raw.updatedAt ?? null,
   };
 }
 

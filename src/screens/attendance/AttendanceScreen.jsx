@@ -163,6 +163,7 @@ export default function AttendanceScreen({ route }) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.chipsWrap}
         contentContainerStyle={styles.chips}
       >
         {STATUS_CHIPS.map((c) => (
@@ -200,6 +201,7 @@ export default function AttendanceScreen({ route }) {
 
       {/* ── List ──────────────────────────────────────── */}
       <FlatList
+        style={styles.list}
         data={records}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => <AttendanceRow record={item} />}
@@ -366,7 +368,7 @@ function AttendanceRow({ record }) {
 
 // ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { backgroundColor: COLORS.background, },
+  safe: { flex: 1, backgroundColor: COLORS.background },
 
   // Date navigator
   dateNav: {
@@ -456,6 +458,7 @@ const styles = StyleSheet.create({
   summaryLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   // Status chips
+  chipsWrap: { flexGrow: 0, flexShrink: 0, backgroundColor: COLORS.background },
   chips: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
@@ -554,6 +557,7 @@ const styles = StyleSheet.create({
   addressRow: { flexDirection: "row", alignItems: "center", gap: 3 },
   addressText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flex: 1 },
 
-  listContent: { paddingBottom: SPACING.xxl },
+  list: { flex: 1, backgroundColor: COLORS.background },
+  listContent: { paddingTop: SPACING.sm, paddingBottom: SPACING.xxl },
   emptyContent: { flexGrow: 1 },
 });

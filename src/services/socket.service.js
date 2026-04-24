@@ -23,13 +23,15 @@ let socket            = null;
 let notificationStore = null;
 let inquiryStore      = null;
 let deviceStore       = null;
+let groupStore        = null;
 let onLocationUpdate  = null;  // callback: (locationData) => void  (used by LiveMap)
 
 // ─── Store injection ──────────────────────────────────────────
-export const setStores = ({ nStore, iStore, dStore }) => {
+export const setStores = ({ nStore, iStore, dStore, gStore }) => {
   notificationStore = nStore;
   inquiryStore      = iStore;
   deviceStore       = dStore;
+  groupStore        = gStore;
 };
 
 /**
@@ -56,8 +58,7 @@ export const connect = (adminId) => {
   socket.on('connect', () => {
     console.warn('[Admin Socket] connected:', socket.id);
     socket.emit('join', adminId);
-    // Ask server to include admin in the location broadcast room
-    socket.emit('admin:join-location-room');
+    socket.emit('join:admin');
   });
 
   socket.on('disconnect', (reason) => {
@@ -120,6 +121,12 @@ export const connect = (adminId) => {
     if (onLocationUpdate) onLocationUpdate({ ...data, isOnline: false });
   });
 
+  // ── Global group message handler ───────────────────────────
+  // Runs on every screen — keeps unread counts up-to-date
+  socket.on('group:message', (msg) => {
+    if (groupStore) groupStore.getState().appendMessage(msg);
+  });
+
   // ── Device events ──────────────────────────────────────────
 
   socket.on('device:blocked', (data) => {
@@ -131,6 +138,22 @@ export const connect = (adminId) => {
     console.warn('[Admin Socket] device:unblocked', data?.deviceId);
     if (deviceStore) deviceStore.getState().updateDeviceInList(data);
   });
+};
+
+// ─── Group room helpers ───────────────────────────────────────
+export const joinGroup  = (groupId) => { if (socket?.connected) socket.emit('join:group',  groupId); };
+export const leaveGroup = (groupId) => { if (socket?.connected) socket.emit('leave:group', groupId); };
+
+export const onGroupMessage = (handler) => {
+  if (!socket) return () => {};
+  socket.on('group:message', handler);
+  return () => socket.off('group:message', handler);
+};
+
+export const onGroupMessageEdited = (handler) => {
+  if (!socket) return () => {};
+  socket.on('group:message:edited', handler);
+  return () => socket.off('group:message:edited', handler);
 };
 
 // ─── Disconnect ───────────────────────────────────────────────
@@ -150,4 +173,8 @@ export default {
   setStores,
   setLocationListener,
   clearLocationListener,
+  joinGroup,
+  leaveGroup,
+  onGroupMessage,
+  onGroupMessageEdited,
 };

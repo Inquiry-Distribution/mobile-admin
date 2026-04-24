@@ -57,6 +57,9 @@ export const getFCMToken = async () => {
 function handleIncomingMessage(remoteMessage) {
   if (!notificationStore) return;
 
+  // Group message pushes are real-time via socket — skip notification list
+  if (remoteMessage.data?.groupId) return;
+
   const store     = notificationStore.getState();
   const title     = remoteMessage.notification?.title ?? remoteMessage.data?.title ?? 'Notification';
   const body      = remoteMessage.notification?.body  ?? remoteMessage.data?.body  ?? '';
