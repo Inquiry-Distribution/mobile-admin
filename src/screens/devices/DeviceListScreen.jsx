@@ -164,61 +164,66 @@ export default function DeviceListScreen({ navigation }) {
   if (isLoading && devices.length === 0) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
 
-      {/* ── Search ──────────────────────────────────────── */}
-      <View style={styles.searchWrap}>
-        <Icon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search salesperson, device ID…"
-          placeholderTextColor={COLORS.textMuted}
-          value={search ?? ''}
-          onChangeText={(v) => setSearch(v)}
-          returnKeyType="search"
-          onSubmitEditing={fetchDevices}
-        />
-        {(search ?? '').length > 0 && (
-          <TouchableOpacity
-            onPress={() => { setSearch(''); fetchDevices(); }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Icon name="close-circle" size={18} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* ── Filter panel ─────────────────────────────────── */}
+      <View style={styles.filterPanel}>
 
-      {/* ── Status chips ─────────────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-      >
-        {STATUS_CHIPS.map((c) => {
-          // Match chip value string to current blockedFilter
-          const chipBool = c.value === '' ? null : c.value === 'true';
-          const isActive = blockedFilter === chipBool;
-          return (
+        {/* Search */}
+        <View style={styles.searchWrap}>
+          <Icon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search salesperson, device ID…"
+            placeholderTextColor={COLORS.textMuted}
+            value={search ?? ''}
+            onChangeText={(v) => setSearch(v)}
+            returnKeyType="search"
+            onSubmitEditing={fetchDevices}
+          />
+          {(search ?? '').length > 0 && (
             <TouchableOpacity
-              key={c.value}
-              style={[styles.chip, isActive && styles.chipActive]}
-              onPress={() => onChipPress(c.value)}
+              onPress={() => { setSearch(''); fetchDevices(); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              {c.value === 'true' && (
-                <Icon name="cellphone-lock" size={12}
-                  color={isActive ? COLORS.white : COLORS.error} />
-              )}
-              {c.value === 'false' && (
-                <Icon name="cellphone-check" size={12}
-                  color={isActive ? COLORS.white : COLORS.success} />
-              )}
-              <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-                {c.label}
-              </Text>
+              <Icon name="close-circle" size={18} color={COLORS.textMuted} />
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+          )}
+        </View>
+
+        {/* Status chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScroll}
+          contentContainerStyle={styles.chips}
+        >
+          {STATUS_CHIPS.map((c) => {
+            const chipBool = c.value === '' ? null : c.value === 'true';
+            const isActive = blockedFilter === chipBool;
+            return (
+              <TouchableOpacity
+                key={c.value}
+                style={[styles.chip, isActive && styles.chipActive]}
+                onPress={() => onChipPress(c.value)}
+              >
+                {c.value === 'true' && (
+                  <Icon name="cellphone-lock" size={12}
+                    color={isActive ? COLORS.white : COLORS.error} />
+                )}
+                {c.value === 'false' && (
+                  <Icon name="cellphone-check" size={12}
+                    color={isActive ? COLORS.white : COLORS.success} />
+                )}
+                <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                  {c.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+      </View>{/* end filterPanel */}
 
       {/* ── List ──────────────────────────────────────────── */}
       <FlatList
@@ -418,21 +423,30 @@ function DeviceRow({ device, isMutating, onBlock, onUnblock, onReset }) {
 
 // ── Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.background },
+
+  filterPanel: {
+    backgroundColor:   COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    paddingBottom:     SPACING.xs,
+  },
 
   searchWrap: {
     flexDirection:     'row',
     alignItems:        'center',
-    backgroundColor:   COLORS.surface,
+    backgroundColor:   COLORS.background,
     borderRadius:      BORDER_RADIUS.md,
     margin:            SPACING.md,
     marginBottom:      SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    ...SHADOW.sm,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
   },
   searchIcon:  { marginRight: 6 },
   searchInput: { flex: 1, height: 44, ...TYPOGRAPHY.body, color: COLORS.textPrimary },
 
+  chipsScroll: { flexShrink: 0, flexGrow: 0 },
   chips: {
     paddingHorizontal: SPACING.md,
     paddingBottom:     SPACING.sm,
@@ -445,12 +459,11 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     gap:               4,
     paddingHorizontal: SPACING.md,
-    paddingVertical:   6,
     borderRadius:      BORDER_RADIUS.full,
-    backgroundColor:   COLORS.surface,
+    backgroundColor:   COLORS.background,
     borderWidth:       1,
     borderColor:       COLORS.border,
-    height: 36,
+    height:            32,
   },
   chipActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontWeight: '600' },

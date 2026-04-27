@@ -137,6 +137,18 @@ export default function CreateInquiryScreen({ navigation }) {
       sp.employeeId?.toLowerCase().includes(spSearch.toLowerCase()),
   );
 
+  // ─── Reset form ──────────────────────────────────────────────
+  const resetForm = () => {
+    setDescription('');
+    setMobile('');
+    setInquiryTime('');
+    setPriority('medium');
+    setSource('');
+    setImages([]);
+    setSelectedSp(null);
+    setSpSearch('');
+  };
+
   // ─── Submit ──────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!description.trim() && !mobile.trim()) {
@@ -173,7 +185,8 @@ export default function CreateInquiryScreen({ navigation }) {
         await inquiryApi.distribute(inquiryId, { salesPersonId: selectedSp.id });
       }
 
-      // 5. Refresh list & go back
+      // 5. Reset form, refresh list & go back
+      resetForm();
       refreshInquiries();
       Toast.show({
         type:  'success',

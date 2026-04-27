@@ -125,8 +125,6 @@ export default function DashboardScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    console.log('Dashboard');
-    
     loadSummary('all', true);
     loadTodayCount();
     fetchUnassigned();
@@ -153,7 +151,7 @@ export default function DashboardScreen({ navigation }) {
 
   if (summaryError && !summary) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.errorState}>
           <Icon name="alert-circle-outline" size={48} color={COLORS.error} />
           <Text style={styles.errorTitle}>Failed to load dashboard</Text>
@@ -175,7 +173,7 @@ export default function DashboardScreen({ navigation }) {
   const urgentCount = unassigned.length;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
@@ -398,7 +396,7 @@ export default function DashboardScreen({ navigation }) {
             icon="map-marker-multiple-outline"
             label="Live Map"
             color={COLORS.inProgress}
-            onPress={() => navigation.navigate('Map')}
+            onPress={() => navigation.navigate('More', { screen: 'LiveMap' })}
           />
           <QuickAction
             icon="chart-bar"
