@@ -29,7 +29,8 @@ import Toast                 from 'react-native-toast-message';
 
 import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
 import { TYPOGRAPHY }                             from '@constants/typography';
-import { SPACING, BORDER_RADIUS, SHADOW, PRIORITY_LABELS } from '@constants/config';
+import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
+import { PRIORITY_LABEL }               from '@utils/helpers';
 
 import { inquiryApi }  from '@api/inquiry.api';
 import useInquiryStore from '@store/inquiry.store';
@@ -332,7 +333,7 @@ export default function EditInquiryScreen({ route, navigation }) {
                         { backgroundColor: PRIORITY_COLORS[priority]?.text ?? COLORS.textMuted },
                       ]}
                     />
-                    <Text style={styles.dropdownText}>{PRIORITY_LABELS[priority]}</Text>
+                    <Text style={styles.dropdownText}>{PRIORITY_LABEL[priority]}</Text>
                     <Icon name="chevron-down" size={18} color={COLORS.textSecondary} />
                   </TouchableOpacity>
                 }

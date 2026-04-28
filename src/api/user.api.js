@@ -60,4 +60,10 @@ export const userApi = {
    * Permanently delete a user (superuser only).
    */
   remove: (id) => client.delete(`/users/${id}`),
+
+  /**
+   * Sync sales users from external API.
+   * Returns: { total, created, updated, skipped }
+   */
+  sync: () => client.post('/users/sync'),
 };

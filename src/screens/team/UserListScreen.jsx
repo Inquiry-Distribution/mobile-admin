@@ -8,7 +8,7 @@
  *  • Infinite scroll via user.store
  *  • Tap row → UserDetailScreen
  */
-import React, { useEffect } from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -28,6 +30,7 @@ import { SPACING, BORDER_RADIUS, SHADOW } from "@constants/config";
 import { getInitials } from "@utils/helpers";
 
 import useUserStore from "@store/user.store";
+import { userApi } from "@api/user.api";
 import Loader from "@components/common/Loader";
 import EmptyState from "@components/common/EmptyState";
 
@@ -59,6 +62,41 @@ export default function UserListScreen({ navigation }) {
     setFilters,
     clearFilters,
   } = useUserStore();
+
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [isSyncing,   setIsSyncing]   = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.headerMenuBtn}
+          onPress={() => setMenuVisible(true)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Icon name="dots-vertical" size={22} color="#fff" />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
+  const handleSync = async () => {
+    setMenuVisible(false);
+    setIsSyncing(true);
+    try {
+      const res = await userApi.sync();
+      const { created, updated, skipped, total: tot } = res.data ?? res;
+      Alert.alert(
+        "Sync Complete",
+        `Total: ${tot}  •  Created: ${created}  •  Updated: ${updated}  •  Skipped: ${skipped}`
+      );
+      refreshUsers();
+    } catch {
+      Alert.alert("Sync Failed", "Could not sync users. Please try again.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -241,6 +279,37 @@ export default function UserListScreen({ navigation }) {
       >
         <Icon name="account-plus-outline" size={24} color={COLORS.white} />
       </TouchableOpacity>
+
+      {/* ── Three-dot dropdown menu ──────────────────────── */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuBox}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleSync}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Icon name="sync" size={18} color={COLORS.primary} />
+              )}
+              <Text style={styles.menuItemText}>
+                {isSyncing ? "Syncing…" : "Sync Users"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -520,6 +589,38 @@ const styles = StyleSheet.create({
   loadingMore: { paddingVertical: SPACING.lg, alignItems: "center" },
   listContent: { paddingBottom: 90 }, // extra room for FAB
   emptyContent: { flexGrow: 1 },
+
+  headerMenuBtn: {
+    marginRight: 12,
+    padding: 4,
+  },
+
+  // ── Dropdown menu ───────────────────────────────────────────────
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  menuBox: {
+    position: "absolute",
+    top: 56,
+    right: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: 4,
+    minWidth: 160,
+    ...SHADOW.md,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+  },
+  menuItemText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+  },
 
   // ── FAB ────────────────────────────────────────────────────────
   fab: {

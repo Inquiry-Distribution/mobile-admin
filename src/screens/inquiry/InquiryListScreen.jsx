@@ -26,7 +26,8 @@ import { SafeAreaView }   from 'react-native-safe-area-context';
 import Icon               from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs              from 'dayjs';
 
-import { COLORS, PRIORITY_COLORS } from '@constants/colors';
+import { COLORS, PRIORITY_COLORS, STATUS_COLORS } from '@constants/colors';
+import { STATUS_LABEL } from '@utils/helpers';
 import { TYPOGRAPHY }              from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW }  from '@constants/config';
 
@@ -34,8 +35,6 @@ import useInquiryStore from '@store/inquiry.store';
 import useUserStore    from '@store/user.store';
 import Loader          from '@components/common/Loader';
 import EmptyState      from '@components/common/EmptyState';
-import StatusBadge     from '@components/common/StatusBadge';
-import PriorityBadge   from '@components/common/PriorityBadge';
 
 // ─── Date period chips ────────────────────────────────────────
 const DATE_PERIODS = [
@@ -443,86 +442,119 @@ function InquiryRow({ inquiry, onPress }) {
     createdAt, assignedAt, assignedTo, source,
   } = inquiry;
 
-  const priorityColor = PRIORITY_COLORS[priority]?.text ?? COLORS.textMuted;
-  const isUnassigned  = status === 'unassigned';
-  const ageMinutes    = dayjs().diff(dayjs(createdAt), 'minute');
-  const isOld         = isUnassigned && ageMinutes >= 60;
+  const pc          = PRIORITY_COLORS[priority] ?? { bg: '#F3F4F6', text: COLORS.textMuted };
+  const sc          = STATUS_COLORS[status]     ?? { bg: '#F3F4F6', text: COLORS.textMuted };
+  const isUnassigned = status === 'unassigned';
+  const ageMinutes  = dayjs().diff(dayjs(createdAt), 'minute');
+  const isUrgent    = isUnassigned && ageMinutes >= 60;
 
-  const companyName   = assignedTo?.company?.name ?? null;
+  const companyName = assignedTo?.company?.name ?? null;
+  const initials    = assignedTo?.name
+    ? assignedTo.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+    : null;
+
+  const timeLabel = assignedAt
+    ? dayjs(assignedAt).format('DD MMM · hh:mm A')
+    : dayjs(createdAt).format('DD MMM · hh:mm A');
+  const timeColor = isUrgent ? COLORS.error : COLORS.textMuted;
 
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.78}>
-      {/* Priority strip */}
-      <View style={[styles.rowStrip, { backgroundColor: priorityColor }]} />
+    <TouchableOpacity
+      style={[styles.card, isUrgent && styles.cardUrgent]}
+      onPress={onPress}
+      activeOpacity={0.74}
+    >
+      {/* Left priority strip */}
+      <View style={[styles.strip, { backgroundColor: pc.text }]} />
 
-      <View style={styles.rowBody}>
-        {/* Top row */}
-        <View style={styles.rowTop}>
-          <Text style={styles.rowDesc} numberOfLines={1}>
-            {description || title || 'No description'}
-          </Text>
-          <PriorityBadge priority={priority} size="sm" />
+      <View style={styles.cardBody}>
+
+        {/* ── Badge row: priority pill + status pill ── */}
+        <View style={styles.badgeRow}>
+          <View style={[styles.priorityPill, { backgroundColor: pc.bg }]}>
+            <View style={[styles.priorityDotSmall, { backgroundColor: pc.text }]} />
+            <Text style={[styles.priorityPillText, { color: pc.text }]}>
+              {priority
+                ? priority.charAt(0).toUpperCase() + priority.slice(1)
+                : 'No Priority'}
+            </Text>
+          </View>
+
+          <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
+            <Text style={[styles.statusPillText, { color: sc.text }]}>
+              {STATUS_LABEL[status] ?? status}
+            </Text>
+          </View>
         </View>
 
-        {/* Mobile + source */}
-        <View style={styles.rowMeta}>
-          {mobile ? (
-            <View style={styles.rowMetaItem}>
-              <Icon name="phone-outline" size={11} color={COLORS.textMuted} />
-              <Text style={styles.rowMetaText}>{mobile}</Text>
-            </View>
-          ) : null}
-          {source ? (
-            <View style={styles.rowMetaItem}>
-              <Icon name="map-marker-outline" size={11} color={COLORS.textMuted} />
-              <Text style={styles.rowMetaText}>{source}</Text>
-            </View>
-          ) : null}
-        </View>
+        {/* ── Description ── */}
+        <Text style={styles.cardDesc} numberOfLines={2}>
+          {description || title || 'No description'}
+        </Text>
 
-        {/* Assigned salesperson + company */}
-        {assignedTo ? (
-          <View style={styles.assignedBlock}>
-            <View style={styles.assignedChip}>
-              <Icon name="account-outline" size={10} color={COLORS.secondary} />
-              <Text style={styles.assignedText} numberOfLines={1}>
-                {assignedTo.name}
-              </Text>
-            </View>
-            {companyName ? (
-              <View style={styles.assignedCompanyChip}>
-                <Icon name="domain" size={9} color={COLORS.primary} />
-                <Text style={styles.assignedCompanyText} numberOfLines={1}>
-                  {companyName}
-                </Text>
+        {/* ── Meta chips: phone + source ── */}
+        {(mobile || source) ? (
+          <View style={styles.metaRow}>
+            {mobile ? (
+              <View style={styles.metaChip}>
+                <Icon name="phone-outline" size={11} color={COLORS.primary} />
+                <Text style={styles.metaChipText}>{mobile}</Text>
+              </View>
+            ) : null}
+            {source ? (
+              <View style={[styles.metaChip, { backgroundColor: COLORS.secondaryLight }]}>
+                <Icon name="map-marker-outline" size={11} color={COLORS.secondary} />
+                <Text style={[styles.metaChipText, { color: COLORS.secondary }]}>{source}</Text>
               </View>
             ) : null}
           </View>
         ) : null}
 
-        {/* Bottom row */}
-        <View style={styles.rowBottom}>
-          <StatusBadge status={status} size="sm" />
+        {/* ── Divider ── */}
+        <View style={styles.cardDivider} />
 
-          <View style={styles.rowRight}>
-            {/* Show distribute time when assigned, created time otherwise */}
-            {assignedAt ? (
-              <View style={styles.assignedTimeChip}>
-                <Icon name="send-outline" size={9} color={COLORS.secondary} />
-                <Text style={styles.assignedTimeText}>
-                  {dayjs(assignedAt).format('DD MMM · hh:mm A')}
-                </Text>
+        {/* ── Footer: assignee + time ── */}
+        <View style={styles.cardFooter}>
+          {/* Left: avatar + name + company */}
+          {assignedTo ? (
+            <View style={styles.footerAssignee}>
+              <View style={styles.avatarBubble}>
+                <Text style={styles.avatarText}>{initials}</Text>
               </View>
-            ) : (
-              <Text style={[styles.rowTime, isOld && { color: COLORS.error }]}>
-                {dayjs(createdAt).format('DD MMM · hh:mm A')}
-              </Text>
-            )}
+              <View style={styles.footerAssigneeInfo}>
+                <Text style={styles.assigneeName} numberOfLines={1}>
+                  {assignedTo.name}
+                </Text>
+                {companyName ? (
+                  <Text style={styles.assigneeCompany} numberOfLines={1}>
+                    {companyName}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.footerAssignee}>
+              <View style={[styles.avatarBubble, styles.avatarBubbleEmpty]}>
+                <Icon name="account-question-outline" size={13} color={COLORS.textMuted} />
+              </View>
+              <Text style={styles.unassignedLabel}>Not assigned</Text>
+            </View>
+          )}
+
+          {/* Right: time */}
+          <View style={styles.footerTime}>
+            <Icon
+              name={assignedAt ? 'send-outline' : 'clock-outline'}
+              size={11}
+              color={timeColor}
+            />
+            <Text style={[styles.timeText, { color: timeColor }]}>{timeLabel}</Text>
           </View>
         </View>
+
       </View>
 
-      <Icon name="chevron-right" size={18} color={COLORS.border} style={styles.rowChevron} />
+      <Icon name="chevron-right" size={15} color={COLORS.border} style={styles.cardChevron} />
     </TouchableOpacity>
   );
 }
@@ -777,118 +809,170 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Row
-  row: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: COLORS.surface,
-    borderRadius:    BORDER_RADIUS.lg,
+  // ── Card ───────────────────────────────────────────────────
+  card: {
+    flexDirection:    'row',
+    alignItems:       'stretch',
+    backgroundColor:  COLORS.surface,
+    borderRadius:     16,
     marginHorizontal: SPACING.md,
-    marginBottom:    SPACING.sm,
-    overflow:        'hidden',
-    ...SHADOW.sm,
+    marginBottom:     10,
+    overflow:         'hidden',
+    // subtle shadow
+    shadowColor:      '#5B21B6',
+    shadowOffset:     { width: 0, height: 2 },
+    shadowOpacity:    0.07,
+    shadowRadius:     6,
+    elevation:        3,
   },
-  rowStrip: { width: 4, alignSelf: 'stretch' },
-  rowBody: { flex: 1, padding: SPACING.md, paddingVertical: 20 },
+  cardUrgent: {
+    borderWidth:  1,
+    borderColor:  '#FECACA',   // red-200 — flags stale unassigned
+    backgroundColor: '#FFFBFB',
+  },
+  strip: {
+    width:  5,
+    alignSelf: 'stretch',
+  },
+  cardBody: {
+    flex:    1,
+    padding: SPACING.md,
+    paddingVertical: 12,
+  },
 
-  rowTop: {
+  // Badge row
+  badgeRow: {
     flexDirection:  'row',
-    alignItems:     'flex-start',
+    alignItems:     'center',
     justifyContent: 'space-between',
-    marginBottom:   4,
-    gap:            8,
+    marginBottom:   8,
   },
-  rowDesc: {
-    ...TYPOGRAPHY.bodyMedium,
-    color:  COLORS.textPrimary,
-    flex:   1,
+  priorityPill: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               5,
+    paddingHorizontal: 9,
+    paddingVertical:   3,
+    borderRadius:      BORDER_RADIUS.full,
+  },
+  priorityDotSmall: {
+    width: 6, height: 6, borderRadius: 3,
+  },
+  priorityPillText: {
+    fontSize:   11,
     fontWeight: '700',
-    
+    letterSpacing: 0.2,
   },
-  rowMeta: {
+  statusPill: {
+    paddingHorizontal: 9,
+    paddingVertical:   3,
+    borderRadius:      BORDER_RADIUS.full,
+  },
+  statusPillText: {
+    fontSize:   11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+
+  // Description
+  cardDesc: {
+    fontSize:     14,
+    fontWeight:   '700',
+    color:        COLORS.textPrimary,
+    lineHeight:   20,
+    marginBottom: 8,
+    letterSpacing: 0.1,
+  },
+
+  // Meta chips
+  metaRow: {
     flexDirection:  'row',
-    gap:            12,
-    marginBottom:   6,
+    flexWrap:       'wrap',
+    gap:            6,
+    marginBottom:   10,
   },
-  rowMetaItem: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           3,
+  metaChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    borderRadius:      BORDER_RADIUS.full,
+    backgroundColor:   COLORS.primaryLight,
   },
-  rowMetaText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
+  metaChipText: {
+    fontSize:   11,
+    fontWeight: '600',
+    color:      COLORS.primary,
   },
-  rowBottom: {
+
+  // Divider
+  cardDivider: {
+    height:          1,
+    backgroundColor: COLORS.divider,
+    marginBottom:    8,
+  },
+
+  // Footer
+  cardFooter: {
     flexDirection:  'row',
     alignItems:     'center',
     justifyContent: 'space-between',
   },
-  rowRight: {
+  footerAssignee: {
     flexDirection: 'row',
     alignItems:    'center',
-    gap:           8,
+    gap:           7,
+    flex:          1,
+    marginRight:   8,
   },
-  // Assigned salesperson block (chip + company on same line)
-  assignedBlock: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           6,
-    marginBottom:  5,
-    flexWrap:      'wrap',
+  avatarBubble: {
+    width:           30,
+    height:          30,
+    borderRadius:    15,
+    backgroundColor: COLORS.primaryLight,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
   },
-  assignedChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               3,
-    backgroundColor:   '#D1FAE5',     // emerald-100
-    borderRadius:      BORDER_RADIUS.full,
-    paddingHorizontal: 7,
-    paddingVertical:   2,
+  avatarBubbleEmpty: {
+    backgroundColor: COLORS.background,
   },
-  assignedText: {
-    fontSize:   10,
-    color:      COLORS.secondary,
-    fontWeight: '700',
-    maxWidth:   90,
-  },
-  assignedCompanyChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               3,
-    backgroundColor:   COLORS.primaryLight,
-    borderRadius:      BORDER_RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical:   2,
-  },
-  assignedCompanyText: {
-    fontSize:   10,
+  avatarText: {
+    fontSize:   11,
+    fontWeight: '800',
     color:      COLORS.primary,
-    fontWeight: '600',
-    maxWidth:   80,
   },
-
-  // Distribute-time chip (shown in bottom-right when inquiry is assigned)
-  assignedTimeChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               3,
-    backgroundColor:   '#D1FAE5',
-    borderRadius:      BORDER_RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical:   2,
+  footerAssigneeInfo: { flex: 1 },
+  assigneeName: {
+    fontSize:   12,
+    fontWeight: '700',
+    color:      COLORS.textPrimary,
   },
-  assignedTimeText: {
+  assigneeCompany: {
     fontSize:   10,
-    color:      COLORS.secondary,
+    fontWeight: '500',
+    color:      COLORS.textMuted,
+    marginTop:  1,
+  },
+  unassignedLabel: {
+    fontSize:   12,
+    fontWeight: '500',
+    color:      COLORS.textMuted,
+    fontStyle:  'italic',
+  },
+  footerTime: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           4,
+    flexShrink:    0,
+  },
+  timeText: {
+    fontSize:   11,
     fontWeight: '600',
   },
-
-  rowTime: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
-  },
-  rowChevron: {
+  cardChevron: {
+    alignSelf:   'center',
     marginRight: SPACING.sm,
   },
 

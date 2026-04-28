@@ -18,7 +18,6 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -26,13 +25,13 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS }     from '@constants/colors';
 import { TYPOGRAPHY } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
-import { getInitials } from '@utils/helpers';
 
 import useUserStore    from '@store/user.store';
 import useInquiryStore from '@store/inquiry.store';
 import { reportApi }   from '@api/report.api';
 
-const Screen = Dimensions.get('window');
+import SalespersonRow from './shared/SalespersonRow';
+import StatsCard      from './shared/StatsCard';
 
 // ── Date helpers ──────────────────────────────────────────────
 const startOfMonth = () => {
@@ -75,11 +74,13 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
     return () => { cancelled = true; };
   }, [selected?.id]);
 
+  const q = search.toLowerCase();
   const filtered = salespersons.filter((sp) =>
     !search ||
-    sp.name?.toLowerCase().includes(search.toLowerCase()) ||
-    sp.employeeId?.toLowerCase().includes(search.toLowerCase()) ||
-    sp.assignedArea?.toLowerCase().includes(search.toLowerCase()),
+    sp.name?.toLowerCase().includes(q) ||
+    sp.employeeId?.toLowerCase().includes(q) ||
+    sp.assignedArea?.toLowerCase().includes(q) ||
+    sp.company?.name?.toLowerCase().includes(q),
   );
 
   const handleDistribute = async () => {
@@ -95,9 +96,6 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
       Alert.alert('Error', result.message ?? 'Failed to distribute inquiry.');
     }
   };
-
-  // List height shrinks when stats card is visible
-  const listHeight = selected ? Screen.height * 0.38 : Screen.height * 0.57;
 
   return (
     <Modal
@@ -136,7 +134,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
           <Icon name="magnify" size={18} color={COLORS.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by name, ID or area…"
+            placeholder="Search by name, ID, area or company…"
             placeholderTextColor={COLORS.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -154,7 +152,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
             <ActivityIndicator color={COLORS.primary} />
           </View>
         ) : (
-          <View style={{ height: listHeight }}>
+          <View style={styles.listContainer}>
             <FlatList
               data={filtered}
               keyExtractor={(item) => item.id}
@@ -162,7 +160,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
                 <SalespersonRow
                   sp={item}
                   isSelected={selected?.id === item.id}
-                  onPress={() => setSelected(item === selected ? null : item)}
+                  onPress={() => setSelected(selected?.id === item.id ? null : item)}
                 />
               )}
               ListEmptyComponent={
@@ -181,7 +179,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
           <StatsCard stats={spStats} isLoading={isLoadingStats} person={selected} />
         ) : null}
 
-        {/* ── Confirm button ────────────────────────────── */}
+        {/* ── Footer ───────────────────────────────────── */}
         <View style={styles.footer}>
           {selected ? (
             <View style={styles.selectedPreview}>
@@ -215,118 +213,37 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
   );
 }
 
-// ── SalespersonRow ────────────────────────────────────────────
-function SalespersonRow({ sp, isSelected, onPress }) {
-  return (
-    <TouchableOpacity
-      style={[styles.spRow, isSelected && styles.spRowSelected]}
-      onPress={onPress}
-      activeOpacity={0.78}
-    >
-      {/* Avatar */}
-      <View style={[styles.spAvatar, isSelected && styles.spAvatarSelected]}>
-        <Text style={[styles.spAvatarText, isSelected && { color: COLORS.white }]}>
-          {getInitials(sp.name)}
-        </Text>
-      </View>
-
-      {/* Info */}
-      <View style={styles.spInfo}>
-        <Text style={styles.spName}>{sp.name}</Text>
-        <View style={styles.spMeta}>
-          {sp.employeeId ? (
-            <Text style={styles.spMetaText}>{sp.employeeId}</Text>
-          ) : null}
-          {sp.assignedArea ? (
-            <>
-              <Text style={styles.spMetaDot}>·</Text>
-              <Text style={styles.spMetaText}>{sp.assignedArea}</Text>
-            </>
-          ) : null}
-        </View>
-        {sp.company?.name ? (
-          <View style={styles.spCompanyRow}>
-            <Icon name="domain" size={10} color={COLORS.primary} />
-            <Text style={styles.spCompanyText} numberOfLines={1}>{sp.company.name}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Check */}
-      <View style={[styles.spCheck, isSelected && styles.spCheckSelected]}>
-        {isSelected ? (
-          <Icon name="check" size={14} color={COLORS.white} />
-        ) : null}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-// ── StatsCard ─────────────────────────────────────────────────
-function StatsCard({ stats, isLoading, person }) {
-  const cells = [
-    { label: 'Assigned',    value: stats?.total       ?? '—', icon: 'inbox-outline',        color: COLORS.primary },
-    { label: 'In Progress', value: stats?.inProgress  ?? '—', icon: 'progress-clock',       color: COLORS.warning },
-    { label: 'Closed',      value: stats?.closed      ?? '—', icon: 'check-circle-outline', color: COLORS.success },
-    { label: 'Converted',   value: stats?.conversionRate ?? '—', icon: 'trending-up',       color: '#8B5CF6' },
-  ];
-
-  return (
-    <View style={styles.statsCard}>
-      <View style={styles.statsHeader}>
-        <Icon name="chart-bar" size={13} color={COLORS.primary} />
-        <Text style={styles.statsTitle}>
-          {person.name} — This Month
-        </Text>
-        {isLoading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginLeft: 6 }} />}
-      </View>
-      <View style={styles.statsCells}>
-        {cells.map((cell, idx) => (
-          <React.Fragment key={cell.label}>
-            {idx > 0 && <View style={styles.statsDivider} />}
-            <View style={styles.statsCell}>
-              <Icon name={cell.icon} size={14} color={cell.color} style={{ marginBottom: 3 }} />
-              <Text style={[styles.statsValue, { color: cell.color }]}>{cell.value}</Text>
-              <Text style={styles.statsLabel}>{cell.label}</Text>
-            </View>
-          </React.Fragment>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  safe: { backgroundColor: COLORS.background },
+  safe: { flex: 1, backgroundColor: COLORS.background },
 
   // Header
   header: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    justifyContent:  'space-between',
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical:   SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    backgroundColor: COLORS.surface,
+    backgroundColor:   COLORS.surface,
   },
   closeBtn:    { padding: 4 },
   headerTitle: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontWeight: '700' },
 
   // Inquiry summary
   inquirySummary: {
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor:  COLORS.primaryLight,
     marginHorizontal: SPACING.md,
-    marginTop:       SPACING.md,
-    borderRadius:    BORDER_RADIUS.lg,
-    padding:         SPACING.md,
-    borderWidth:     1,
-    borderColor:     COLORS.primaryMid,
+    marginTop:        SPACING.md,
+    borderRadius:     BORDER_RADIUS.lg,
+    padding:          SPACING.md,
+    borderWidth:      1,
+    borderColor:      COLORS.primaryMid,
   },
   summaryLabel: {
     ...TYPOGRAPHY.caption,
-    color:        COLORS.primary,
-    fontWeight:   '700',
+    color:         COLORS.primary,
+    fontWeight:    '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom:  4,
@@ -348,146 +265,42 @@ const styles = StyleSheet.create({
 
   // Search
   searchWrap: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             SPACING.xs,
-    backgroundColor: COLORS.surface,
-    borderRadius:    BORDER_RADIUS.md,
-    marginHorizontal: SPACING.md,
-    marginTop:       SPACING.md,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.xs,
+    backgroundColor:   COLORS.surface,
+    borderRadius:      BORDER_RADIUS.md,
+    marginHorizontal:  SPACING.md,
+    marginTop:         SPACING.md,
     paddingHorizontal: SPACING.sm,
     ...SHADOW.sm,
   },
   searchInput: {
-    flex:           1,
-    height:         42,
+    flex:   1,
+    height: 42,
     ...TYPOGRAPHY.body,
-    color:          COLORS.textPrimary,
-  },
-  listLoader: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listContent:  { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.md },
-  emptyList:    { alignItems: 'center', paddingVertical: SPACING.xl },
-  emptyText:    { ...TYPOGRAPHY.small, color: COLORS.textMuted },
-
-  // Salesperson row
-  spRow: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    backgroundColor: COLORS.surface,
-    borderRadius:    BORDER_RADIUS.lg,
-    marginBottom:    SPACING.sm,
-    padding:         SPACING.md,
-    borderWidth:     1.5,
-    borderColor:     'transparent',
-    ...SHADOW.sm,
-  },
-  spRowSelected: {
-    borderColor:     COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-  },
-  spAvatar: {
-    width:           40,
-    height:          40,
-    borderRadius:    20,
-    backgroundColor: COLORS.primaryLight,
-    alignItems:      'center',
-    justifyContent:  'center',
-    marginRight:     SPACING.sm,
-  },
-  spAvatarSelected: { backgroundColor: COLORS.primary },
-  spAvatarText: {
-    fontSize:   14,
-    fontWeight: '700',
-    color:      COLORS.primary,
-  },
-  spInfo: { flex: 1 },
-  spName: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600' },
-  spMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  spMetaText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
-  spMetaDot:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
-  spCompanyRow:  { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
-  spCompanyText: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600', flex: 1 },
-
-  spCheck: {
-    width:        22,
-    height:       22,
-    borderRadius: 11,
-    borderWidth:  2,
-    borderColor:  COLORS.border,
-    alignItems:   'center',
-    justifyContent: 'center',
-  },
-  spCheckSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor:     COLORS.primary,
+    color:  COLORS.textPrimary,
   },
 
-  // ── Stats card ──────────────────────────────────────────────
-  statsCard: {
-    marginHorizontal: SPACING.md,
-    marginTop:        SPACING.sm,
-    backgroundColor:  COLORS.surface,
-    borderRadius:     BORDER_RADIUS.lg,
-    borderWidth:      1,
-    borderColor:      COLORS.primary + '30',
-    paddingHorizontal: SPACING.md,
-    paddingVertical:  SPACING.sm,
-    ...SHADOW.sm,
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           5,
-    marginBottom:  SPACING.sm,
-  },
-  statsTitle: {
-    ...TYPOGRAPHY.caption,
-    color:      COLORS.primary,
-    fontWeight: '700',
-    flex:       1,
-  },
-  statsCells: {
-    flexDirection: 'row',
-    alignItems:    'center',
-  },
-  statsCell: {
-    flex:       1,
-    alignItems: 'center',
-  },
-  statsValue: {
-    fontSize:   16,
-    fontWeight: '800',
-    lineHeight: 20,
-  },
-  statsLabel: {
-    ...TYPOGRAPHY.caption,
-    color:     COLORS.textMuted,
-    marginTop: 1,
-    textAlign: 'center',
-  },
-  statsDivider: {
-    width:            1,
-    height:           36,
-    backgroundColor:  COLORS.divider,
-    marginHorizontal: 4,
-  },
+  // List
+  listLoader:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  listContainer: { flex: 1 },
+  listContent:   { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.md },
+  emptyList:     { alignItems: 'center', paddingVertical: SPACING.xl },
+  emptyText:     { ...TYPOGRAPHY.small, color: COLORS.textMuted },
 
   // Footer
   footer: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    justifyContent:  'space-between',
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    borderTopWidth:  1,
-    borderTopColor:  COLORS.divider,
-    backgroundColor: COLORS.surface,
-    gap:             SPACING.sm,
-    marginTop:       SPACING.sm,
+    paddingVertical:   SPACING.md,
+    borderTopWidth:    1,
+    borderTopColor:    COLORS.divider,
+    backgroundColor:   COLORS.surface,
+    gap:               SPACING.sm,
+    marginTop:         SPACING.sm,
   },
   selectedPreview: {
     flex:          1,
@@ -502,23 +315,24 @@ const styles = StyleSheet.create({
     flex:       1,
   },
   footerHint: {
-    flex:       1,
+    flex: 1,
     ...TYPOGRAPHY.small,
-    color:      COLORS.textMuted,
+    color: COLORS.textMuted,
   },
   confirmBtn: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             6,
-    backgroundColor: COLORS.primary,
-    borderRadius:    BORDER_RADIUS.md,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               6,
+    backgroundColor:   COLORS.primary,
+    borderRadius:      BORDER_RADIUS.md,
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
+    paddingVertical:   SPACING.sm,
     ...SHADOW.sm,
   },
   confirmBtnDisabled: {
     backgroundColor: COLORS.border,
-    elevation: 0, shadowOpacity: 0,
+    shadowOpacity:   0,
+    elevation:       0,
   },
   confirmBtnText: {
     ...TYPOGRAPHY.bodyMedium,

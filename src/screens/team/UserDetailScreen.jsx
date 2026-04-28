@@ -43,6 +43,7 @@ export default function UserDetailScreen({ navigation, route }) {
 
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [isRefreshing,    setIsRefreshing]    = useState(false);
+  const [deleteError,     setDeleteError]     = useState(null);
 
   useEffect(() => {
     fetchUser(id);
@@ -81,6 +82,7 @@ export default function UserDetailScreen({ navigation, route }) {
 
   const handleDelete = () => {
     if (!selectedUser) return;
+    setDeleteError(null);
     Alert.alert(
       'Delete User',
       `Permanently delete ${selectedUser.name}? This cannot be undone.`,
@@ -94,7 +96,7 @@ export default function UserDetailScreen({ navigation, route }) {
             if (result.success) {
               navigation.goBack();
             } else {
-              Alert.alert('Error', result.message ?? 'Failed to delete user.');
+              setDeleteError(result.message ?? 'Failed to delete user.');
             }
           },
         },
@@ -226,6 +228,13 @@ export default function UserDetailScreen({ navigation, route }) {
               />
             )}
           </View>
+
+          {deleteError ? (
+            <View style={styles.deleteErrorBanner}>
+              <Icon name="alert-circle-outline" size={16} color={COLORS.error} />
+              <Text style={styles.deleteErrorText}>{deleteError}</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* ── Contact info ──────────────────────────────── */}
@@ -548,6 +557,25 @@ const styles = StyleSheet.create({
   deviceBadgeText: { fontSize: 10, fontWeight: '700' },
   deviceLastSeen:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 6 },
   deviceAppVer:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
+
+  deleteErrorBanner: {
+    flexDirection:    'row',
+    alignItems:       'flex-start',
+    gap:              SPACING.xs,
+    backgroundColor:  COLORS.error + '12',
+    borderRadius:     BORDER_RADIUS.md,
+    borderWidth:      1,
+    borderColor:      COLORS.error + '40',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:  SPACING.sm,
+    marginTop:        SPACING.sm,
+  },
+  deleteErrorText: {
+    ...TYPOGRAPHY.small,
+    color:     COLORS.error,
+    flex:      1,
+    lineHeight: 18,
+  },
 
   noDevice: {
     flexDirection:  'row',

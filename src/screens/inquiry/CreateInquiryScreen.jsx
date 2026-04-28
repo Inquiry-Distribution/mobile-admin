@@ -26,8 +26,8 @@ import Toast               from 'react-native-toast-message';
 
 import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
 import { TYPOGRAPHY }                             from '@constants/typography';
-import { SPACING, BORDER_RADIUS, SHADOW, PRIORITY_LABELS } from '@constants/config';
-import { getInitials }                            from '@utils/helpers';
+import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
+import { getInitials, PRIORITY_LABEL }   from '@utils/helpers';
 
 import dayjs from 'dayjs';
 
@@ -208,11 +208,13 @@ export default function CreateInquiryScreen({ navigation }) {
   const selectedSourceConfig = SOURCE_OPTIONS.find((s) => s.label === source) ?? null;
 
   // ─── Filtered salespersons ───────────────────────────────────
+  const spQ = spSearch.toLowerCase();
   const filteredSp = salespersons.filter(
     (sp) =>
       !spSearch ||
-      sp.name?.toLowerCase().includes(spSearch.toLowerCase()) ||
-      sp.employeeId?.toLowerCase().includes(spSearch.toLowerCase()),
+      sp.name?.toLowerCase().includes(spQ) ||
+      sp.employeeId?.toLowerCase().includes(spQ) ||
+      sp.company?.name?.toLowerCase().includes(spQ),
   );
 
   // ─── Reset form ──────────────────────────────────────────────
@@ -419,7 +421,7 @@ export default function CreateInquiryScreen({ navigation }) {
                         { backgroundColor: PRIORITY_COLORS[priority]?.text ?? COLORS.textMuted },
                       ]}
                     />
-                    <Text style={styles.dropdownText}>{PRIORITY_LABELS[priority]}</Text>
+                    <Text style={styles.dropdownText}>{PRIORITY_LABEL[priority]}</Text>
                     <Icon name="chevron-down" size={18} color={COLORS.textSecondary} />
                   </TouchableOpacity>
                 }
@@ -489,7 +491,7 @@ export default function CreateInquiryScreen({ navigation }) {
                 <Icon name="magnify" size={15} color={COLORS.textMuted} />
                 <TextInput
                   style={styles.spSearchInput}
-                  placeholder="Search sales person..."
+                  placeholder="Search name or company…"
                   placeholderTextColor={COLORS.textMuted}
                   value={spSearch}
                   onChangeText={setSpSearch}
@@ -547,6 +549,11 @@ export default function CreateInquiryScreen({ navigation }) {
                       >
                         {sp.name?.split(' ')[0]}
                       </Text>
+                      {sp.company?.name ? (
+                        <Text style={styles.avatarCompany} numberOfLines={1}>
+                          {sp.company.name}
+                        </Text>
+                      ) : null}
                     </TouchableOpacity>
                   );
                 })}
@@ -1007,7 +1014,7 @@ const styles = StyleSheet.create({
   },
   spLoader:   { marginVertical: SPACING.lg },
   avatarRow:  { paddingVertical: SPACING.xs, gap: SPACING.md },
-  avatarItem: { alignItems: 'center', width: 56 },
+  avatarItem: { alignItems: 'center', width: 68 },
   avatar: {
     width:        48,
     height:       48,
@@ -1039,7 +1046,15 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color:     COLORS.textSecondary,
     textAlign: 'center',
-    maxWidth:  52,
+    maxWidth:  66,
+  },
+  avatarCompany: {
+    fontSize:  9,
+    color:     COLORS.primary,
+    textAlign: 'center',
+    maxWidth:  66,
+    fontWeight: '600',
+    marginTop:  1,
   },
   noSpText: {
     ...TYPOGRAPHY.small,
