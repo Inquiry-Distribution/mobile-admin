@@ -31,8 +31,7 @@ import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 
 import useUserStore from '@store/user.store';
 
-const PIN_MIN = 4;
-const PIN_MAX = 6;
+const PIN_LENGTH = 4;
 
 export default function SetPinModal({ visible, userId, userName, onClose, onSuccess }) {
   const { setPin, isMutating } = useUserStore();
@@ -67,8 +66,8 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
   };
 
   const validate = () => {
-    if (pin.length < PIN_MIN) {
-      setError(`PIN must be at least ${PIN_MIN} digits.`);
+    if (pin.length !== PIN_LENGTH) {
+      setError(`PIN must be exactly ${PIN_LENGTH} digits.`);
       shake(); return false;
     }
     if (pin !== confirm) {
@@ -90,8 +89,8 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
     }
   };
 
-  const pinMatch = confirm.length > 0 && confirm === pin;
-  const canSubmit = pin.length >= PIN_MIN && confirm.length >= PIN_MIN && !isMutating;
+  const pinMatch  = confirm.length > 0 && confirm === pin;
+  const canSubmit = pin.length === PIN_LENGTH && confirm.length === PIN_LENGTH && !isMutating;
 
   return (
     <Modal
@@ -126,7 +125,7 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
               </View>
               <Text style={styles.heroName}>{userName}</Text>
               <Text style={styles.heroSub}>
-                Set a {PIN_MIN}–{PIN_MAX} digit PIN for this salesperson to log in to the mobile app.
+                Set a {PIN_LENGTH}-digit PIN for this salesperson to log in to the mobile app.
               </Text>
             </View>
 
@@ -160,28 +159,23 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
                   ref={pinRef}
                   style={styles.input}
                   value={pin}
-                  onChangeText={(v) => { setLocalPin(v.replace(/\D/g, '').slice(0, PIN_MAX)); setError(''); }}
-                  placeholder={`${PIN_MIN}–${PIN_MAX} digits`}
+                  onChangeText={(v) => { setLocalPin(v.replace(/\D/g, '').slice(0, PIN_LENGTH)); setError(''); }}
+                  placeholder={`${PIN_LENGTH} digits`}
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   secureTextEntry={!showPin}
-                  maxLength={PIN_MAX}
+                  maxLength={PIN_LENGTH}
                 />
               </View>
 
               {/* PIN progress dots */}
               <View style={styles.dotsRow}>
-                {Array.from({ length: PIN_MAX }).map((_, i) => (
+                {Array.from({ length: PIN_LENGTH }).map((_, i) => (
                   <View
                     key={i}
-                    style={[
-                      styles.dot,
-                      i < pin.length ? styles.dotFilled : null,
-                      i === PIN_MIN - 1 ? styles.dotMinMark : null,
-                    ]}
+                    style={[styles.dot, i < pin.length && styles.dotFilled]}
                   />
                 ))}
-                <Text style={styles.dotMinLabel}>min {PIN_MIN}</Text>
               </View>
 
               <View style={styles.divider} />
@@ -197,12 +191,12 @@ export default function SetPinModal({ visible, userId, userName, onClose, onSucc
                 <TextInput
                   style={styles.input}
                   value={confirm}
-                  onChangeText={(v) => { setConfirm(v.replace(/\D/g, '').slice(0, PIN_MAX)); setError(''); }}
+                  onChangeText={(v) => { setConfirm(v.replace(/\D/g, '').slice(0, PIN_LENGTH)); setError(''); }}
                   placeholder="Re-enter PIN"
                   placeholderTextColor={COLORS.textMuted}
                   keyboardType="number-pad"
                   secureTextEntry={!showPin}
-                  maxLength={PIN_MAX}
+                  maxLength={PIN_LENGTH}
                 />
                 {pinMatch && (
                   <Icon name="check-circle" size={18} color={COLORS.success} />
@@ -381,16 +375,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderColor:     COLORS.primary,
   },
-  dotMinMark: {
-    borderColor: COLORS.primaryMid,
-  },
-  dotMinLabel: {
-    ...TYPOGRAPHY.caption,
-    color:      COLORS.textMuted,
-    marginLeft: 4,
-    fontSize:   10,
-  },
-
   divider: {
     height:          1,
     backgroundColor: COLORS.divider,

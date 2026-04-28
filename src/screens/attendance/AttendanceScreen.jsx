@@ -42,10 +42,10 @@ const STATUS_CHIPS = [
   { label: "Half Day", value: "half_day" },
 ];
 
-export default function AttendanceScreen({ route }) {
+export default function AttendanceScreen({ route, navigation }) {
   // Optional route params: salespersonId + name (from UserDetail)
   const routeSalespersonId = route?.params?.salespersonId ?? null;
-  const routeName = route?.params?.name ?? null;
+  const routeName          = route?.params?.name          ?? null;
 
   const {
     records,
@@ -99,17 +99,33 @@ export default function AttendanceScreen({ route }) {
           )}
         </View>
 
-        <TouchableOpacity
-          style={[styles.dateNavBtn, isToday && styles.dateNavBtnDisabled]}
-          onPress={goToNextDate}
-          disabled={isToday}
-        >
-          <Icon
-            name="chevron-right"
-            size={22}
-            color={isToday ? COLORS.border : COLORS.primary}
-          />
-        </TouchableOpacity>
+        <View style={styles.dateNavRight}>
+          <TouchableOpacity
+            style={[styles.dateNavBtn, isToday && styles.dateNavBtnDisabled]}
+            onPress={goToNextDate}
+            disabled={isToday}
+          >
+            <Icon
+              name="chevron-right"
+              size={22}
+              color={isToday ? COLORS.border : COLORS.primary}
+            />
+          </TouchableOpacity>
+
+          {/* Month View shortcut */}
+          <TouchableOpacity
+            style={styles.monthViewBtn}
+            onPress={() =>
+              navigation.navigate('AttendanceMonth', routeSalespersonId
+                ? { salespersonId: routeSalespersonId, name: routeName }
+                : undefined
+              )
+            }
+          >
+            <Icon name="calendar-month-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.monthViewText}>Month</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* "Go to today" — only visible when not on today */}
@@ -204,7 +220,12 @@ export default function AttendanceScreen({ route }) {
         style={styles.list}
         data={records}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <AttendanceRow record={item} />}
+        renderItem={({ item }) => (
+            <AttendanceRow
+              record={item}
+              onPress={() => navigation.navigate('AttendanceDayDetail', { record: item })}
+            />
+          )}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -252,32 +273,42 @@ function SummaryChip({ label, count, color }) {
 }
 
 // ── Attendance row ────────────────────────────────────────────
-function AttendanceRow({ record }) {
-  const {
-    salesperson,
-    checkInTime,
-    checkOutTime,
-    checkInAddress,
-    status,
-    date,
-  } = record;
+function AttendanceRow({ record, onPress }) {
+  const { salesperson, sessions = [], totalMinutes = 0, sessionsCount = 0, status } = record;
 
   const statusColor = ATTENDANCE_STATUS_COLORS[status] ?? {
     bg: COLORS.border,
     text: COLORS.textMuted,
   };
 
-  // Duration
-  const duration =
-    checkInTime && checkOutTime
-      ? formatDuration(checkInTime, checkOutTime)
-      : null;
+  // Derive first check-in and last check-out from sessions array
+  const firstSession   = sessions[0] ?? null;
+  const openSession    = sessions.find((s) => !s.checkOutTime) ?? null;
+  const lastSession    = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+  const firstCheckIn   = firstSession?.checkInTime  ?? null;
+  const lastCheckOut   = lastSession?.checkOutTime  ?? null;
+  const firstAddress   = firstSession?.checkInAddress ?? null;
+  const hasOpenSession = !!openSession;
 
-  const name = salesperson?.name ?? "Unknown";
+  // Total worked — prefer server-aggregated totalMinutes, fall back to live calc
+  const workedLabel = (() => {
+    if (totalMinutes > 0) {
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+    if (firstCheckIn && lastCheckOut)
+      return formatDuration(firstCheckIn, lastCheckOut);
+    return null;
+  })();
+
+  const completedSessions = sessionsCount || sessions.filter((s) => !!s.checkOutTime).length;
+
+  const name     = salesperson?.name ?? "Unknown";
   const initials = getInitials(name);
 
   return (
-    <View style={styles.row}>
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
       {/* Avatar */}
       <View style={[styles.avatar, { backgroundColor: statusColor.bg }]}>
         <Text style={[styles.avatarText, { color: statusColor.text }]}>
@@ -291,9 +322,7 @@ function AttendanceRow({ record }) {
           <Text style={styles.rowName} numberOfLines={1}>
             {name}
           </Text>
-          <View
-            style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}
-          >
+          <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
             <Text style={[styles.statusBadgeText, { color: statusColor.text }]}>
               {status === "half_day"
                 ? "Half"
@@ -308,61 +337,68 @@ function AttendanceRow({ record }) {
           </Text>
         ) : null}
 
-        {/* Time row */}
+        {/* Time row — first in / last out */}
         <View style={styles.timeRow}>
-          {checkInTime ? (
+          {firstCheckIn ? (
             <View style={styles.timeItem}>
               <Icon name="login" size={11} color={COLORS.success} />
-              <Text style={styles.timeText}>{formatTime(checkInTime)}</Text>
+              <Text style={styles.timeText}>{formatTime(firstCheckIn)}</Text>
             </View>
           ) : (
             <View style={styles.timeItem}>
               <Icon name="login" size={11} color={COLORS.textMuted} />
-              <Text style={[styles.timeText, { color: COLORS.textMuted }]}>
-                —
-              </Text>
+              <Text style={[styles.timeText, { color: COLORS.textMuted }]}>—</Text>
             </View>
           )}
 
-          {checkOutTime ? (
+          {lastCheckOut ? (
             <View style={styles.timeItem}>
               <Icon name="logout" size={11} color={COLORS.error} />
-              <Text style={styles.timeText}>{formatTime(checkOutTime)}</Text>
+              <Text style={styles.timeText}>{formatTime(lastCheckOut)}</Text>
             </View>
-          ) : checkInTime ? (
+          ) : hasOpenSession ? (
             <View style={styles.timeItem}>
               <Icon name="logout" size={11} color={COLORS.textMuted} />
-              <Text style={[styles.timeText, { color: COLORS.textMuted }]}>
-                Not checked out
+              <Text style={[styles.timeText, { color: COLORS.warning }]}>
+                Active
               </Text>
             </View>
           ) : null}
 
-          {duration ? (
+          {workedLabel ? (
             <View style={styles.timeItem}>
               <Icon name="timer-outline" size={11} color={COLORS.primary} />
               <Text style={[styles.timeText, { color: COLORS.primary }]}>
-                {duration}
+                {workedLabel}
               </Text>
             </View>
           ) : null}
         </View>
 
-        {/* Check-in address */}
-        {checkInAddress ? (
-          <View style={styles.addressRow}>
-            <Icon
-              name="map-marker-outline"
-              size={11}
-              color={COLORS.textMuted}
-            />
-            <Text style={styles.addressText} numberOfLines={1}>
-              {checkInAddress}
-            </Text>
-          </View>
-        ) : null}
+        {/* Sessions count + address */}
+        <View style={styles.metaRow}>
+          {completedSessions > 0 && (
+            <View style={styles.timeItem}>
+              <Icon name="calendar-check-outline" size={11} color={COLORS.textMuted} />
+              <Text style={styles.timeText}>
+                {completedSessions} session{completedSessions > 1 ? "s" : ""}
+              </Text>
+            </View>
+          )}
+          {firstAddress ? (
+            <View style={[styles.addressRow, { flex: 1 }]}>
+              <Icon name="map-marker-outline" size={11} color={COLORS.textMuted} />
+              <Text style={styles.addressText} numberOfLines={1}>
+                {firstAddress}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
-    </View>
+
+      {/* Chevron */}
+      <Icon name="chevron-right" size={18} color={COLORS.border} style={styles.rowChevron} />
+    </TouchableOpacity>
   );
 }
 
@@ -390,6 +426,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
   },
   dateNavBtnDisabled: { backgroundColor: COLORS.background },
+  dateNavRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  monthViewBtn: {
+    flexDirection:     "row",
+    alignItems:        "center",
+    gap:               4,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 10,
+    paddingVertical:   6,
+  },
+  monthViewText: {
+    fontSize:   11,
+    fontWeight: "700",
+    color:      COLORS.primary,
+  },
   dateCenter: {
     alignItems: "center",
     gap: 4,
@@ -554,8 +605,17 @@ const styles = StyleSheet.create({
   timeItem: { flexDirection: "row", alignItems: "center", gap: 3 },
   timeText: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary },
 
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+    marginTop: 2,
+  },
   addressRow: { flexDirection: "row", alignItems: "center", gap: 3 },
   addressText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flex: 1 },
+
+  rowChevron: { alignSelf: 'center', marginLeft: SPACING.xs },
 
   list: { flex: 1, backgroundColor: COLORS.background },
   listContent: { paddingTop: SPACING.sm, paddingBottom: SPACING.xxl },

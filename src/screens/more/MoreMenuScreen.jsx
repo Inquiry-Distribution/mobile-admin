@@ -100,6 +100,24 @@ export default function MoreMenuScreen({ navigation }) {
             />
           )}
 
+          {isSuperuser() && (
+            <MenuItem
+              icon="message-alert-outline"
+              label="Complaints & Suggestions"
+              subtitle="Review feedback from salespersons"
+              color="#DC2626"
+              onPress={() => navigation.navigate('ComplaintList')}
+            />
+          )}
+
+          <MenuItem
+            icon="domain"
+            label="Companies"
+            subtitle="Manage company list"
+            color="#0891B2"
+            onPress={() => navigation.navigate('CompanyList')}
+          />
+
         </View>
 
         <View style={{ height: SPACING.xxl }} />

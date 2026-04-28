@@ -49,15 +49,16 @@ function getDateRange(preset) {
   };
 }
 
-const TABS = ['Overview', 'Team'];
+const TABS = ['Overview', 'Team', 'Companies'];
 
-export default function ReportsScreen() {
+export default function ReportsScreen({ navigation }) {
   const [activeTab,     setActiveTab]     = useState(0);
   const [presetIndex,   setPresetIndex]   = useState(1); // default 30d
 
   const [summary,       setSummary]       = useState(null);
   const [inquiryReport, setInquiryReport] = useState(null);
   const [teamReport,    setTeamReport]    = useState([]);
+  const [companyReport, setCompanyReport] = useState(null);
 
   const [isLoading,     setIsLoading]     = useState(true);
   const [isRefreshing,  setIsRefreshing]  = useState(false);
@@ -68,15 +69,17 @@ export default function ReportsScreen() {
 
     try {
       const range = getDateRange(DATE_PRESETS[presetIndex]);
-      const [sumRes, iqRes, teamRes] = await Promise.all([
+      const [sumRes, iqRes, teamRes, companyRes] = await Promise.all([
         reportApi.getSummary(),
         reportApi.getInquiryReport(range),
         reportApi.getAllSalespersons(range),
+        reportApi.getCompanyReport(range),
       ]);
 
       setSummary(sumRes.data ?? sumRes);
       setInquiryReport(iqRes.data ?? iqRes);
       setTeamReport(teamRes.data?.salespersons ?? teamRes.data ?? []);
+      setCompanyReport(companyRes.data ?? companyRes);
     } catch (_) {
       // keep stale data on error
     } finally {
@@ -143,7 +146,13 @@ export default function ReportsScreen() {
       >
         {activeTab === 0
           ? <OverviewTab summary={summary} report={inquiryReport} />
-          : <TeamTab team={teamReport} />
+          : activeTab === 1
+          ? <TeamTab team={teamReport} />
+          : <CompaniesTab
+              companyReport={companyReport}
+              range={getDateRange(DATE_PRESETS[presetIndex])}
+              navigation={navigation}
+            />
         }
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
@@ -252,6 +261,132 @@ function TeamTab({ team }) {
           </View>
         );
       })}
+    </View>
+  );
+}
+
+// ── Companies tab ─────────────────────────────────────────────
+const COMPANY_COLORS = ['#6366F1', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+
+function CompaniesTab({ companyReport, range, navigation }) {
+  const companies = companyReport?.companies ?? [];
+  const summary   = companyReport?.summary   ?? null;
+  const noCompany = companyReport?.noCompany ?? null;
+
+  if (!companyReport) {
+    return (
+      <View style={styles.emptyTeam}>
+        <Icon name="domain" size={40} color={COLORS.border} />
+        <Text style={styles.emptyTeamText}>No company data available</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      {/* Summary row */}
+      {summary && (
+        <View style={styles.companySummaryRow}>
+          <CompanySummaryChip label="Companies" value={summary.totalCompanies} color={COLORS.primary} />
+          <CompanySummaryChip label="Total"     value={summary.grandTotal}     color={COLORS.textSecondary} />
+          <CompanySummaryChip label="Closed"    value={summary.grandClosed}    color={COLORS.success} />
+          <CompanySummaryChip label="Rate"      value={summary.overallRate}    color="#8B5CF6" />
+        </View>
+      )}
+
+      <SectionTitle title="By Company" />
+
+      {companies.map((stat, idx) => {
+        const color    = COMPANY_COLORS[idx % COMPANY_COLORS.length];
+        const rateNum  = parseFloat(stat.conversionRate) || 0;
+        return (
+          <TouchableOpacity
+            key={stat.company.id}
+            style={styles.companyRow}
+            activeOpacity={0.78}
+            onPress={() =>
+              navigation.navigate('CompanyDrillDown', {
+                companyId:   stat.company.id,
+                companyName: stat.company.name,
+                from:        range.from,
+                to:          range.to,
+              })
+            }
+          >
+            {/* Color indicator */}
+            <View style={[styles.companyDot, { backgroundColor: color }]} />
+
+            {/* Name + meta */}
+            <View style={styles.companyInfo}>
+              <View style={styles.companyNameRow}>
+                <Text style={styles.companyName} numberOfLines={1}>{stat.company.name}</Text>
+                <Text style={styles.companySpCount}>
+                  {stat.salespersonCount} SP
+                </Text>
+              </View>
+              {/* Mini bar */}
+              <View style={styles.miniBarTrack}>
+                <View
+                  style={[
+                    styles.miniBarFill,
+                    { width: `${Math.min(100, rateNum)}%`, backgroundColor: color },
+                  ]}
+                />
+              </View>
+            </View>
+
+            {/* Counts */}
+            <View style={styles.companyCounts}>
+              <Text style={styles.companyCountMain}>{stat.total}</Text>
+              <Text style={styles.companyCountSub}>{stat.closed} closed</Text>
+            </View>
+            <View style={[styles.companyRate, { backgroundColor: color + '18' }]}>
+              <Text style={[styles.companyRateText, { color }]}>{stat.conversionRate}</Text>
+            </View>
+            <Icon name="chevron-right" size={14} color={COLORS.border} style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+        );
+      })}
+
+      {/* No-company row */}
+      {noCompany && noCompany.total > 0 && (
+        <>
+          <SectionTitle title="No Company" />
+          <View style={[styles.companyRow, { opacity: 0.7 }]}>
+            <View style={[styles.companyDot, { backgroundColor: COLORS.textMuted }]} />
+            <View style={styles.companyInfo}>
+              <Text style={styles.companyName}>Unaffiliated Salespersons</Text>
+              <View style={styles.miniBarTrack}>
+                <View
+                  style={[
+                    styles.miniBarFill,
+                    {
+                      width: `${Math.min(100, parseFloat(noCompany.conversionRate) || 0)}%`,
+                      backgroundColor: COLORS.textMuted,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+            <View style={styles.companyCounts}>
+              <Text style={styles.companyCountMain}>{noCompany.total}</Text>
+              <Text style={styles.companyCountSub}>{noCompany.closed} closed</Text>
+            </View>
+            <View style={[styles.companyRate, { backgroundColor: COLORS.border }]}>
+              <Text style={[styles.companyRateText, { color: COLORS.textMuted }]}>{noCompany.conversionRate}</Text>
+            </View>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+function CompanySummaryChip({ label, value, color }) {
+  return (
+    <View style={styles.companySummaryChip}>
+      <Text style={[styles.companySummaryValue, { color }]}>{value}</Text>
+      <Text style={styles.companySummaryLabel}>{label}</Text>
     </View>
   );
 }
@@ -437,4 +572,60 @@ const styles = StyleSheet.create({
     paddingTop:   SPACING.xxl,
   },
   emptyTeamText: { ...TYPOGRAPHY.small, color: COLORS.textMuted },
+
+  // Companies tab
+  companySummaryRow: {
+    flexDirection:     'row',
+    marginHorizontal:  SPACING.md,
+    marginTop:         SPACING.md,
+    backgroundColor:   COLORS.surface,
+    borderRadius:      BORDER_RADIUS.lg,
+    paddingVertical:   SPACING.md,
+    overflow:          'hidden',
+  },
+  companySummaryChip:  { flex: 1, alignItems: 'center' },
+  companySummaryValue: { fontSize: 18, fontWeight: '800' },
+  companySummaryLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1 },
+
+  companyRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    gap:               SPACING.sm,
+    backgroundColor:   COLORS.surface,
+  },
+  companyDot: {
+    width: 10, height: 10, borderRadius: 5, flexShrink: 0,
+  },
+  companyInfo:   { flex: 1, minWidth: 0 },
+  companyNameRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           SPACING.xs,
+    marginBottom:  3,
+  },
+  companyName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', flex: 1 },
+  companySpCount: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flexShrink: 0 },
+  miniBarTrack: {
+    height:          4,
+    backgroundColor: COLORS.background,
+    borderRadius:    2,
+    overflow:        'hidden',
+  },
+  miniBarFill: { height: '100%', borderRadius: 2 },
+
+  companyCounts:    { alignItems: 'flex-end', flexShrink: 0 },
+  companyCountMain: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
+  companyCountSub:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
+
+  companyRate: {
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    flexShrink:        0,
+  },
+  companyRateText: { fontSize: 11, fontWeight: '700' },
 });

@@ -440,13 +440,15 @@ export default function InquiryListScreen({ navigation, route }) {
 function InquiryRow({ inquiry, onPress }) {
   const {
     description, title, mobile, status, priority,
-    createdAt, assignedTo, source,
+    createdAt, assignedAt, assignedTo, source,
   } = inquiry;
 
   const priorityColor = PRIORITY_COLORS[priority]?.text ?? COLORS.textMuted;
   const isUnassigned  = status === 'unassigned';
   const ageMinutes    = dayjs().diff(dayjs(createdAt), 'minute');
   const isOld         = isUnassigned && ageMinutes >= 60;
+
+  const companyName   = assignedTo?.company?.name ?? null;
 
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.78}>
@@ -478,23 +480,44 @@ function InquiryRow({ inquiry, onPress }) {
           ) : null}
         </View>
 
+        {/* Assigned salesperson + company */}
+        {assignedTo ? (
+          <View style={styles.assignedBlock}>
+            <View style={styles.assignedChip}>
+              <Icon name="account-outline" size={10} color={COLORS.secondary} />
+              <Text style={styles.assignedText} numberOfLines={1}>
+                {assignedTo.name}
+              </Text>
+            </View>
+            {companyName ? (
+              <View style={styles.assignedCompanyChip}>
+                <Icon name="domain" size={9} color={COLORS.primary} />
+                <Text style={styles.assignedCompanyText} numberOfLines={1}>
+                  {companyName}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* Bottom row */}
         <View style={styles.rowBottom}>
           <StatusBadge status={status} size="sm" />
 
           <View style={styles.rowRight}>
-            {assignedTo ? (
-              <View style={styles.assignedChip}>
-                <Icon name="account-outline" size={10} color={COLORS.textSecondary} />
-                <Text style={styles.assignedText} numberOfLines={1}>
-                  {assignedTo.name?.split(' ')[0]}
+            {/* Show distribute time when assigned, created time otherwise */}
+            {assignedAt ? (
+              <View style={styles.assignedTimeChip}>
+                <Icon name="send-outline" size={9} color={COLORS.secondary} />
+                <Text style={styles.assignedTimeText}>
+                  {dayjs(assignedAt).format('DD MMM · hh:mm A')}
                 </Text>
               </View>
-            ) : null}
-            <Text style={[styles.rowTime, isOld && { color: COLORS.error }]}>
-              {/* {dayjs(createdAt).fromNow()} */}
-              {dayjs(createdAt).format('DD MMM · hh:mm A')}
-            </Text>
+            ) : (
+              <Text style={[styles.rowTime, isOld && { color: COLORS.error }]}>
+                {dayjs(createdAt).format('DD MMM · hh:mm A')}
+              </Text>
+            )}
           </View>
         </View>
       </View>
@@ -806,21 +829,61 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     gap:           8,
   },
+  // Assigned salesperson block (chip + company on same line)
+  assignedBlock: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           6,
+    marginBottom:  5,
+    flexWrap:      'wrap',
+  },
   assignedChip: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             3,
-    backgroundColor: COLORS.primaryLight,
-    borderRadius:    BORDER_RADIUS.full,
-    paddingHorizontal: 6,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               3,
+    backgroundColor:   '#D1FAE5',     // emerald-100
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 7,
     paddingVertical:   2,
   },
   assignedText: {
     fontSize:   10,
+    color:      COLORS.secondary,
+    fontWeight: '700',
+    maxWidth:   90,
+  },
+  assignedCompanyChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               3,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 6,
+    paddingVertical:   2,
+  },
+  assignedCompanyText: {
+    fontSize:   10,
     color:      COLORS.primary,
     fontWeight: '600',
-    maxWidth:   60,
+    maxWidth:   80,
   },
+
+  // Distribute-time chip (shown in bottom-right when inquiry is assigned)
+  assignedTimeChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               3,
+    backgroundColor:   '#D1FAE5',
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 6,
+    paddingVertical:   2,
+  },
+  assignedTimeText: {
+    fontSize:   10,
+    color:      COLORS.secondary,
+    fontWeight: '600',
+  },
+
   rowTime: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,

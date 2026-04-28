@@ -247,7 +247,7 @@ export default function UserListScreen({ navigation }) {
 
 // ── Row ──────────────────────────────────────────────────────
 function UserRow({ user, onPress }) {
-  const { name, email, role, employeeId, assignedArea, isActive, pin } = user;
+  const { name, email, role, employeeId, assignedArea, isActive, pin, company } = user;
   const roleColor = ROLE_COLORS[role] ?? {
     bg: COLORS.primaryLight,
     text: COLORS.primary,
@@ -286,6 +286,16 @@ function UserRow({ user, onPress }) {
         <Text style={styles.emailText} numberOfLines={1}>
           {email}
         </Text>
+
+        {/* Company row */}
+        {company?.name ? (
+          <View style={styles.companyRow}>
+            <Icon name="domain" size={11} color={COLORS.primary} />
+            <Text style={styles.companyText} numberOfLines={1}>
+              {company.name}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.metaRow}>
           <View style={[styles.roleBadge, { backgroundColor: roleColor.bg }]}>
@@ -480,6 +490,19 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
+  companyRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           3,
+    marginBottom:  3,
+  },
+  companyText: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.primary,
+    fontWeight: '600',
+    flex:       1,
+  },
+
   metaText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   metaDot: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 

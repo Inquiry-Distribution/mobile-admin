@@ -45,17 +45,25 @@ import CreateUserScreen          from '@screens/team/CreateUserScreen';
 import EditUserScreen            from '@screens/team/EditUserScreen';
 import DeviceListScreen          from '@screens/devices/DeviceListScreen';
 import AttendanceScreen          from '@screens/attendance/AttendanceScreen';
+import AttendanceDayDetailScreen from '@screens/attendance/AttendanceDayDetailScreen';
+import AttendanceMonthScreen     from '@screens/attendance/AttendanceMonthScreen';
 import SalespersonReportScreen   from '@screens/reports/SalespersonReportScreen';
+import CompanyReportScreen       from '@screens/reports/CompanyReportScreen';
+import CompanyDrillDownScreen    from '@screens/reports/CompanyDrillDownScreen';
 import LocationHistoryScreen     from '@screens/map/LocationHistoryScreen';
 import MoreMenuScreen      from '@screens/more/MoreMenuScreen';
 import ReportsScreen       from '@screens/reports/ReportsScreen';
 import NotificationsScreen from '@screens/notifications/NotificationsScreen';
 import AuditLogScreen      from '@screens/audit/AuditLogScreen';
 import ProfileScreen       from '@screens/profile/ProfileScreen';
-import GroupListScreen     from '@screens/groups/GroupListScreen';
-import GroupChatScreen     from '@screens/groups/GroupChatScreen';
-import CreateGroupScreen   from '@screens/groups/CreateGroupScreen';
-import GroupMembersScreen  from '@screens/groups/GroupMembersScreen';
+import GroupListScreen        from '@screens/groups/GroupListScreen';
+import GroupChatScreen        from '@screens/groups/GroupChatScreen';
+import CreateGroupScreen      from '@screens/groups/CreateGroupScreen';
+import GroupMembersScreen     from '@screens/groups/GroupMembersScreen';
+import ComplaintListScreen    from '@screens/complaints/ComplaintListScreen';
+import ComplaintDetailScreen  from '@screens/complaints/ComplaintDetailScreen';
+import CompanyListScreen      from '@screens/companies/CompanyListScreen';
+import CompanyFormScreen      from '@screens/companies/CompanyFormScreen';
 
 const Tab           = createBottomTabNavigator();
 const InquiryStack  = createStackNavigator();
@@ -209,6 +217,27 @@ function TeamNavigator() {
         }}
       />
       <TeamStack.Screen
+        name="AttendanceDayDetail"
+        component={AttendanceDayDetailScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="calendar-text-outline" title="Day Detail" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <TeamStack.Screen
+        name="AttendanceMonth"
+        component={AttendanceMonthScreen}
+        options={({ route }) => ({
+          headerTitle: () => (
+            <HeaderTitle
+              icon="calendar-month-outline"
+              title={route.params?.name ? `${route.params.name} — Monthly` : 'Monthly Attendance'}
+            />
+          ),
+          headerLeft: () => <BackButton />,
+        })}
+      />
+      <TeamStack.Screen
         name="SalespersonReport"
         component={SalespersonReportScreen}
         options={{
@@ -299,6 +328,24 @@ function MoreNavigator() {
         }}
       />
       <MoreStack.Screen
+        name="CompanyReport"
+        component={CompanyReportScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="domain" title="Company Report" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <MoreStack.Screen
+        name="CompanyDrillDown"
+        component={CompanyDrillDownScreen}
+        options={({ route }) => ({
+          headerTitle: () => (
+            <HeaderTitle icon="domain" title={route.params?.companyName ?? 'Company'} />
+          ),
+          headerLeft: () => <BackButton />,
+        })}
+      />
+      <MoreStack.Screen
         name="Notifications"
         component={NotificationsScreen}
         options={{
@@ -316,6 +363,50 @@ function MoreNavigator() {
           }}
         />
       )}
+      {isSuperuser && (
+        <MoreStack.Screen
+          name="ComplaintList"
+          component={ComplaintListScreen}
+          options={{
+            headerTitle: () => <HeaderTitle icon="message-alert-outline" title="Complaints & Suggestions" />,
+            headerLeft:  () => <BackButton />,
+          }}
+        />
+      )}
+      {isSuperuser && (
+        <MoreStack.Screen
+          name="ComplaintDetail"
+          component={ComplaintDetailScreen}
+          options={{
+            headerTitle: () => <HeaderTitle icon="message-text-outline" title="Submission Detail" />,
+            headerLeft:  () => <BackButton />,
+          }}
+        />
+      )}
+      <MoreStack.Screen
+        name="CompanyList"
+        component={CompanyListScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="domain" title="Companies" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <MoreStack.Screen
+        name="CreateCompany"
+        component={CompanyFormScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="domain-plus" title="New Company" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <MoreStack.Screen
+        name="EditCompany"
+        component={CompanyFormScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="domain" title="Edit Company" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
       <MoreStack.Screen
         name="Profile"
         component={ProfileScreen}

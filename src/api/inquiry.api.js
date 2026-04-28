@@ -93,6 +93,13 @@ export const inquiryApi = {
   reassign: (id, payload) =>
     client.post(`/inquiries/${id}/reassign`, payload),
 
+  /**
+   * Unassign an inquiry — resets it back to unassigned status.
+   * Allowed for assigned / in_progress / follow_up. Blocked for closed.
+   */
+  unassign: (id) =>
+    client.patch(`/inquiries/${id}/unassign`),
+
   // ─── Update (superuser only) ────────────────────────────────
 
   /**

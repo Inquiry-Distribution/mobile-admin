@@ -4,7 +4,7 @@
  * Fields: images, description, mobile, time, priority, source, distribute
  * Flow:   create → uploadImages (if any) → distribute (if salesperson selected)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,10 @@ import { TYPOGRAPHY }                             from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, PRIORITY_LABELS } from '@constants/config';
 import { getInitials }                            from '@utils/helpers';
 
+import dayjs from 'dayjs';
+
 import { inquiryApi }   from '@api/inquiry.api';
+import { reportApi }    from '@api/report.api';
 import useUserStore     from '@store/user.store';
 import useInquiryStore  from '@store/inquiry.store';
 
@@ -38,6 +41,17 @@ const PRIORITIES = [
   { label: 'High',   value: 'high' },
   { label: 'Medium', value: 'medium' },
   { label: 'Low',    value: 'low' },
+];
+
+const SOURCE_OPTIONS = [
+  { label: 'Walk-in',      icon: 'walk',                        color: '#059669' },
+  { label: 'Phone Call',   icon: 'phone-outline',               color: '#2563EB' },
+  { label: 'WhatsApp',     icon: 'whatsapp',                    color: '#25D366' },
+  { label: 'Website',      icon: 'web',                         color: '#7C3AED' },
+  { label: 'Email',        icon: 'email-outline',               color: '#EA580C' },
+  { label: 'Referral',     icon: 'account-group-outline',       color: '#D97706' },
+  { label: 'Social Media', icon: 'instagram',                   color: '#DB2777' },
+  { label: 'Other',        icon: 'dots-horizontal-circle-outline', color: '#6B7280' },
 ];
 
 const MAX_IMAGES   = 8;
@@ -55,6 +69,11 @@ function avatarColor(index) {
   return AVATAR_COLORS[index % AVATAR_COLORS.length];
 }
 
+function currentTime() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
 function formatTime12(time24) {
   if (!time24) return '';
   const [h, m] = time24.split(':').map(Number);
@@ -66,12 +85,12 @@ function formatTime12(time24) {
 // ─── Screen ───────────────────────────────────────────────────
 export default function CreateInquiryScreen({ navigation }) {
   const { salespersons, isLoadingSalespersons, fetchSalespersons } = useUserStore();
-  const { refreshInquiries } = useInquiryStore();
+  const { refreshInquiries, fetchUnassigned, bumpSummaryRefresh } = useInquiryStore();
 
   // Form fields
   const [description, setDescription] = useState('');
   const [mobile,      setMobile]      = useState('');
-  const [inquiryTime, setInquiryTime] = useState('');   // "HH:MM" 24h
+  const [inquiryTime, setInquiryTime] = useState(currentTime);  // auto-fill current time
   const [priority,    setPriority]    = useState('medium');
   const [source,      setSource]      = useState('');
   const [images,      setImages]      = useState([]);
@@ -79,13 +98,44 @@ export default function CreateInquiryScreen({ navigation }) {
   const [spSearch,    setSpSearch]    = useState('');
 
   // UI state
-  const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
-  const [timePickerOpen,   setTimePickerOpen]   = useState(false);
-  const [isSubmitting,     setIsSubmitting]      = useState(false);
+  const [priorityMenuOpen,  setPriorityMenuOpen]  = useState(false);
+  const [timePickerOpen,    setTimePickerOpen]    = useState(false);
+  const [sourcePickerOpen,  setSourcePickerOpen]  = useState(false);
+  const [sourceSearch,      setSourceSearch]      = useState('');
+  const [isSubmitting,      setIsSubmitting]      = useState(false);
+
+  // Salesperson current-month stats
+  const [spStats,        setSpStats]        = useState(null);
+  const [spStatsLoading, setSpStatsLoading] = useState(false);
 
   useEffect(() => {
     fetchSalespersons();
   }, []);
+
+  // Fetch current-month stats whenever a salesperson is selected / deselected
+  useEffect(() => {
+    if (!selectedSp) {
+      setSpStats(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchStats = async () => {
+      setSpStatsLoading(true);
+      try {
+        const now  = dayjs();
+        const from = now.startOf('month').format('YYYY-MM-DD');
+        const to   = now.format('YYYY-MM-DD');
+        const res  = await reportApi.getSalesperson(selectedSp.id, { from, to });
+        if (!cancelled) setSpStats(res.data ?? res);
+      } catch (_) {
+        if (!cancelled) setSpStats(null);
+      } finally {
+        if (!cancelled) setSpStatsLoading(false);
+      }
+    };
+    fetchStats();
+    return () => { cancelled = true; };
+  }, [selectedSp]);
 
   // ─── Image picker ────────────────────────────────────────────
   const handlePickImages = async () => {
@@ -129,6 +179,34 @@ export default function CreateInquiryScreen({ navigation }) {
     setTimePickerOpen(false);
   };
 
+  // ─── Source picker ───────────────────────────────────────────
+  const openSourcePicker = () => {
+    setSourceSearch('');
+    setSourcePickerOpen(true);
+  };
+
+  const selectSource = (value) => {
+    setSource(typeof value === 'string' ? value : value.label);
+    setSourcePickerOpen(false);
+    setSourceSearch('');
+  };
+
+  // Filtered preset options; if typed text is non-empty and not an exact match → show "Use …" row
+  const filteredSources = useMemo(() => {
+    const q = sourceSearch.trim().toLowerCase();
+    if (!q) return SOURCE_OPTIONS;
+    return SOURCE_OPTIONS.filter((s) => s.label.toLowerCase().includes(q));
+  }, [sourceSearch]);
+
+  const showCustomRow =
+    sourceSearch.trim().length > 0 &&
+    !SOURCE_OPTIONS.some(
+      (s) => s.label.toLowerCase() === sourceSearch.trim().toLowerCase(),
+    );
+
+  // Find config for the currently selected source (for trigger chip)
+  const selectedSourceConfig = SOURCE_OPTIONS.find((s) => s.label === source) ?? null;
+
   // ─── Filtered salespersons ───────────────────────────────────
   const filteredSp = salespersons.filter(
     (sp) =>
@@ -141,12 +219,13 @@ export default function CreateInquiryScreen({ navigation }) {
   const resetForm = () => {
     setDescription('');
     setMobile('');
-    setInquiryTime('');
+    setInquiryTime(currentTime());
     setPriority('medium');
     setSource('');
     setImages([]);
     setSelectedSp(null);
     setSpSearch('');
+    setSpStats(null);
   };
 
   // ─── Submit ──────────────────────────────────────────────────
@@ -187,7 +266,9 @@ export default function CreateInquiryScreen({ navigation }) {
 
       // 5. Reset form, refresh list & go back
       resetForm();
-      refreshInquiries();
+      refreshInquiries();     // updates InquiryList store
+      fetchUnassigned();      // updates Dashboard "Needs Assignment" store
+      bumpSummaryRefresh();   // signals Dashboard to re-fetch KPI count cards
       Toast.show({
         type:  'success',
         text1: 'Inquiry Created',
@@ -360,13 +441,43 @@ export default function CreateInquiryScreen({ navigation }) {
 
             <View style={styles.halfField}>
               <Text style={styles.fieldLabel}>SOURCE</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Walk-in, Phone, Website..."
-                placeholderTextColor={COLORS.textMuted}
-                value={source}
-                onChangeText={setSource}
-              />
+              <TouchableOpacity
+                style={[styles.input, styles.dropdownInput, source && styles.sourceInputSelected]}
+                onPress={openSourcePicker}
+                activeOpacity={0.7}
+              >
+                {selectedSourceConfig ? (
+                  <>
+                    <View style={[styles.sourceChipIcon, { backgroundColor: selectedSourceConfig.color + '20' }]}>
+                      <Icon name={selectedSourceConfig.icon} size={13} color={selectedSourceConfig.color} />
+                    </View>
+                    <Text style={[styles.dropdownText, { color: selectedSourceConfig.color, fontWeight: '700' }]} numberOfLines={1}>
+                      {source}
+                    </Text>
+                  </>
+                ) : source ? (
+                  <>
+                    <View style={[styles.sourceChipIcon, { backgroundColor: COLORS.border }]}>
+                      <Icon name="pencil-outline" size={13} color={COLORS.textSecondary} />
+                    </View>
+                    <Text style={styles.dropdownText} numberOfLines={1}>{source}</Text>
+                  </>
+                ) : (
+                  <Text style={[styles.dropdownText, styles.placeholderText]} numberOfLines={1}>
+                    Select source…
+                  </Text>
+                )}
+                {source ? (
+                  <TouchableOpacity
+                    onPress={() => setSource('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Icon name="close-circle" size={16} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                ) : (
+                  <Icon name="chevron-down" size={18} color={COLORS.textSecondary} />
+                )}
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -461,6 +572,54 @@ export default function CreateInquiryScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* ── Salesperson current-month stats ─────── */}
+            {selectedSp && (
+              <View style={styles.spStatsCard}>
+                <View style={styles.spStatsHeader}>
+                  <Icon name="chart-bar" size={13} color={COLORS.textMuted} />
+                  <Text style={styles.spStatsTitle}>
+                    {dayjs().format('MMMM')} Performance
+                  </Text>
+                </View>
+
+                {spStatsLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={COLORS.primary}
+                    style={styles.spStatsLoader}
+                  />
+                ) : spStats ? (
+                  <View style={styles.spStatsTiles}>
+                    <View style={styles.spStatsTile}>
+                      <Text style={styles.spStatsTileValue}>{spStats.total ?? spStats.totalInquiries ?? 0}</Text>
+                      <Text style={styles.spStatsTileLabel}>Assigned</Text>
+                    </View>
+                    <View style={styles.spStatsDivider} />
+                    <View style={styles.spStatsTile}>
+                      <Text style={styles.spStatsTileValue}>{spStats.inProgress ?? 0}</Text>
+                      <Text style={styles.spStatsTileLabel}>In Progress</Text>
+                    </View>
+                    <View style={styles.spStatsDivider} />
+                    <View style={styles.spStatsTile}>
+                      <Text style={styles.spStatsTileValue}>{spStats.closed ?? 0}</Text>
+                      <Text style={styles.spStatsTileLabel}>Closed</Text>
+                    </View>
+                    <View style={styles.spStatsDivider} />
+                    <View style={styles.spStatsTile}>
+                      <Text style={[styles.spStatsTileValue, styles.spStatsTileRate]}>
+                        {spStats.conversionRate != null
+                          ? `${Math.round(parseFloat(spStats.conversionRate))}%`
+                          : '—'}
+                      </Text>
+                      <Text style={styles.spStatsTileLabel}>Conv. Rate</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.spStatsEmpty}>No data available</Text>
+                )}
+              </View>
+            )}
           </View>
 
         </ScrollView>
@@ -484,6 +643,135 @@ export default function CreateInquiryScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* ── Source Picker Modal ──────────────────────── */}
+      <Portal>
+        <Modal
+          visible={sourcePickerOpen}
+          onDismiss={() => setSourcePickerOpen(false)}
+          contentContainerStyle={styles.sourceModal}
+        >
+          {/* ── Header ── */}
+          <View style={styles.sourceModalHeader}>
+            <View style={styles.sourceModalTitleWrap}>
+              <View style={styles.sourceModalIconBox}>
+                <Icon name="map-marker-outline" size={16} color={COLORS.primary} />
+              </View>
+              <View>
+                <Text style={styles.sourceModalTitle}>Inquiry Source</Text>
+                <Text style={styles.sourceModalSubtitle}>Where did this inquiry come from?</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.sourceModalClose}
+              onPress={() => setSourcePickerOpen(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Icon name="close" size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Search ── */}
+          <View style={styles.sourceSearchWrap}>
+            <Icon name="magnify" size={17} color={COLORS.textMuted} />
+            <TextInput
+              style={styles.sourceSearchInput}
+              placeholder="Search or type a custom source…"
+              placeholderTextColor={COLORS.textMuted}
+              value={sourceSearch}
+              onChangeText={setSourceSearch}
+              autoFocus
+              autoCapitalize="words"
+            />
+            {sourceSearch.length > 0 && (
+              <TouchableOpacity onPress={() => setSourceSearch('')} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                <Icon name="close-circle" size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* ── Custom "Use …" row ── */}
+          {showCustomRow && (
+            <TouchableOpacity
+              style={styles.sourceOptionCustom}
+              onPress={() => selectSource(sourceSearch.trim())}
+              activeOpacity={0.75}
+            >
+              <View style={styles.sourceCustomIconBox}>
+                <Icon name="pencil-outline" size={16} color={COLORS.primary} />
+              </View>
+              <View style={styles.sourceOptionBody}>
+                <Text style={styles.sourceOptionCustomLabel}>Use as custom source</Text>
+                <Text style={styles.sourceOptionCustomValue} numberOfLines={1}>
+                  "{sourceSearch.trim()}"
+                </Text>
+              </View>
+              <View style={styles.sourceCustomArrow}>
+                <Icon name="arrow-right" size={14} color={COLORS.white} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* ── Scrollable list ── */}
+          <ScrollView
+            style={styles.sourceList}
+            contentContainerStyle={styles.sourceListContent}
+            showsVerticalScrollIndicator={true}
+            indicatorStyle="black"
+            persistentScrollbar={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            {filteredSources.map((opt, index) => {
+              const isActive = source === opt.label;
+              return (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={[
+                    styles.sourceListItem,
+                    isActive && { backgroundColor: opt.color + '10', borderColor: opt.color },
+                    index === filteredSources.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                  onPress={() => selectSource(opt)}
+                  activeOpacity={0.7}
+                >
+                  {/* Icon bubble */}
+                  <View style={[
+                    styles.sourceListIconBubble,
+                    { backgroundColor: isActive ? opt.color : opt.color + '18' },
+                  ]}>
+                    <Icon name={opt.icon} size={20} color={isActive ? COLORS.white : opt.color} />
+                  </View>
+
+                  {/* Label */}
+                  <Text style={[
+                    styles.sourceListLabel,
+                    isActive && { color: opt.color, fontWeight: '700' },
+                  ]}>
+                    {opt.label}
+                  </Text>
+
+                  {/* Selected check */}
+                  {isActive ? (
+                    <View style={[styles.sourceListCheck, { backgroundColor: opt.color }]}>
+                      <Icon name="check" size={11} color={COLORS.white} />
+                    </View>
+                  ) : (
+                    <Icon name="chevron-right" size={18} color={COLORS.border} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+
+            {filteredSources.length === 0 && !showCustomRow && (
+              <View style={styles.sourceEmpty}>
+                <Icon name="magnify-remove-outline" size={32} color={COLORS.textMuted} style={{ marginBottom: 8 }} />
+                <Text style={styles.sourceEmptyText}>No match found</Text>
+                <Text style={styles.sourceEmptyHint}>Type above to use a custom source</Text>
+              </View>
+            )}
+          </ScrollView>
+        </Modal>
+      </Portal>
 
       {/* ── Custom Time Picker Modal ─────────────────── */}
       <Portal>
@@ -775,6 +1063,70 @@ const styles = StyleSheet.create({
     color:      COLORS.primary,
   },
 
+  // Salesperson stats card
+  spStatsCard: {
+    marginTop:        SPACING.sm,
+    borderRadius:     BORDER_RADIUS.md,
+    borderWidth:      1,
+    borderColor:      COLORS.divider,
+    backgroundColor:  COLORS.background,
+    overflow:         'hidden',
+  },
+  spStatsHeader: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   SPACING.xs + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    backgroundColor:   COLORS.surface,
+  },
+  spStatsTitle: {
+    ...TYPOGRAPHY.caption,
+    color:       COLORS.textMuted,
+    fontWeight:  '600',
+    letterSpacing: 0.3,
+  },
+  spStatsLoader: {
+    paddingVertical: SPACING.md,
+  },
+  spStatsTiles: {
+    flexDirection:  'row',
+    alignItems:     'stretch',
+  },
+  spStatsTile: {
+    flex:           1,
+    alignItems:     'center',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: 2,
+  },
+  spStatsDivider: {
+    width:           1,
+    backgroundColor: COLORS.divider,
+    marginVertical:  SPACING.sm,
+  },
+  spStatsTileValue: {
+    ...TYPOGRAPHY.h4,
+    color:      COLORS.textPrimary,
+    fontWeight: '700',
+  },
+  spStatsTileRate: {
+    color: COLORS.primary,
+  },
+  spStatsTileLabel: {
+    ...TYPOGRAPHY.caption,
+    color:     COLORS.textMuted,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  spStatsEmpty: {
+    ...TYPOGRAPHY.small,
+    color:          COLORS.textMuted,
+    textAlign:      'center',
+    paddingVertical: SPACING.md,
+  },
+
   // Footer
   footer: {
     paddingHorizontal: SPACING.md,
@@ -803,6 +1155,187 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
     fontWeight: '700',
+  },
+
+  // ── Source trigger chip ───────────────────────────────────────
+  sourceInputSelected: {
+    borderColor: COLORS.primaryMid,
+  },
+  sourceChipIcon: {
+    width:          22,
+    height:         22,
+    borderRadius:   11,
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
+  },
+
+  // ── Source picker modal ───────────────────────────────────────
+  sourceModal: {
+    backgroundColor:  COLORS.surface,
+    borderRadius:     BORDER_RADIUS.xl,
+    marginHorizontal: SPACING.md,
+    paddingBottom:    SPACING.lg,
+    overflow:         'hidden',
+    maxHeight:        '78%',
+  },
+  sourceModalHeader: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingTop:        SPACING.md,
+    paddingBottom:     SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  sourceModalTitleWrap: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           SPACING.sm,
+  },
+  sourceModalIconBox: {
+    width:           36,
+    height:          36,
+    borderRadius:    BORDER_RADIUS.md,
+    backgroundColor: COLORS.primaryLight,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  sourceModalTitle: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.textPrimary,
+    fontWeight: '700',
+  },
+  sourceModalSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    marginTop: 1,
+  },
+  sourceModalClose: {
+    width:           32,
+    height:          32,
+    borderRadius:    16,
+    backgroundColor: COLORS.background,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  sourceSearchWrap: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.xs,
+    margin:            SPACING.md,
+    marginBottom:      SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    height:            44,
+    borderRadius:      BORDER_RADIUS.md,
+    backgroundColor:   COLORS.background,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+  },
+  sourceSearchInput: {
+    flex:    1,
+    height:  44,
+    ...TYPOGRAPHY.body,
+    color:   COLORS.textPrimary,
+    padding: 0,
+  },
+
+  // Custom "Use …" row
+  sourceOptionCustom: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginBottom:     SPACING.sm,
+    padding:          SPACING.sm,
+    borderRadius:     BORDER_RADIUS.lg,
+    backgroundColor:  COLORS.primaryLight,
+    borderWidth:      1.5,
+    borderColor:      COLORS.primaryMid,
+    borderStyle:      'dashed',
+  },
+  sourceCustomIconBox: {
+    width:           38,
+    height:          38,
+    borderRadius:    BORDER_RADIUS.md,
+    backgroundColor: COLORS.white,
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderWidth:     1,
+    borderColor:     COLORS.primaryMid,
+  },
+  sourceOptionBody:        { flex: 1 },
+  sourceOptionCustomLabel: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '700', letterSpacing: 0.3 },
+  sourceOptionCustomValue: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', marginTop: 1 },
+  sourceCustomArrow: {
+    width:           26,
+    height:          26,
+    borderRadius:    13,
+    backgroundColor: COLORS.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+
+  // Scrollable list
+  sourceList: {
+    maxHeight: 320,
+  },
+  sourceListContent: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom:     SPACING.sm,
+  },
+  sourceListItem: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             SPACING.sm,
+    paddingVertical: 13,
+    paddingHorizontal: SPACING.sm,
+    borderRadius:    BORDER_RADIUS.md,
+    borderWidth:     1,
+    borderColor:     'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    marginBottom:    2,
+  },
+  sourceListIconBubble: {
+    width:          42,
+    height:         42,
+    borderRadius:   BORDER_RADIUS.md,
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
+  },
+  sourceListLabel: {
+    ...TYPOGRAPHY.body,
+    color:      COLORS.textPrimary,
+    fontWeight: '500',
+    flex:       1,
+  },
+  sourceListCheck: {
+    width:          22,
+    height:         22,
+    borderRadius:   11,
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
+  },
+
+  sourceEmpty: {
+    paddingVertical:   SPACING.xl,
+    alignItems:        'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  sourceEmptyText: {
+    ...TYPOGRAPHY.body,
+    color:      COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  sourceEmptyHint: {
+    ...TYPOGRAPHY.small,
+    color:     COLORS.textMuted,
+    marginTop: 4,
+    textAlign: 'center',
   },
 
   // Time picker modal

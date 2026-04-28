@@ -40,4 +40,12 @@ export const reportApi = {
    */
   getSalesperson: (salespersonId, params = {}) =>
     client.get(`/reports/salesperson/${salespersonId}${buildQuery(params)}`),
+
+  /**
+   * Company-wise inquiry report — aggregated stats per company.
+   * @param {{ from?, to? }} params
+   * Returns: { companies[], noCompany{}, summary{} }
+   */
+  getCompanyReport: (params = {}) =>
+    client.get(`/reports/companies${buildQuery(params)}`),
 };

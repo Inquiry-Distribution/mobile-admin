@@ -23,6 +23,7 @@ import {
   Alert,
   Linking,
   Platform,
+  Clipboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -57,16 +58,50 @@ export default function InquiryDetailScreen({ route, navigation }) {
 
   const { selectedInquiry, selectInquiry, isLoading, isMutating } = useInquiryStore();
 
-  const [showDistribute, setShowDistribute] = useState(false);
-  const [showReassign,   setShowReassign]   = useState(false);
-  const [deleteLoading,  setDeleteLoading]  = useState(false);
-  const [menuVisible,    setMenuVisible]    = useState(false);
+  const [showDistribute,  setShowDistribute]  = useState(false);
+  const [showReassign,    setShowReassign]    = useState(false);
+  const [deleteLoading,   setDeleteLoading]   = useState(false);
+  const [unassignLoading, setUnassignLoading] = useState(false);
+  const [menuVisible,     setMenuVisible]     = useState(false);
+  const [callSupported,   setCallSupported]   = useState(true);
+
+  // Check once whether this device can make phone calls
+  useEffect(() => {
+    Linking.canOpenURL('tel:0').then(setCallSupported).catch(() => setCallSupported(false));
+  }, []);
 
   useEffect(() => {
     selectInquiry(id);
   }, [id]);
 
   const refetch = useCallback(() => selectInquiry(id), [id]);
+
+  // ── Unassign ──────────────────────────────────────────────────
+  const handleUnassign = useCallback(() => {
+    if (!selectedInquiry) return;
+    Alert.alert(
+      'Unassign Inquiry',
+      `Remove assignment from ${selectedInquiry.assignedTo?.name ?? 'this salesperson'} and reset to Unassigned?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unassign',
+          style: 'destructive',
+          onPress: async () => {
+            setUnassignLoading(true);
+            try {
+              await inquiryApi.unassign(selectedInquiry.id);
+              refetch();
+            } catch (err) {
+              Alert.alert('Error', err.message ?? 'Failed to unassign inquiry.');
+            } finally {
+              setUnassignLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedInquiry, refetch]);
 
   // ── Delete (superuser only) ───────────────────────────────────
   const handleDelete = useCallback(() => {
@@ -135,12 +170,45 @@ export default function InquiryDetailScreen({ route, navigation }) {
     });
   }, [selectedInquiry, handleDelete, menuVisible]);
 
+  // ── Call — must be above the early return (hook rule) ────────
+  const handleCall = useCallback(() => {
+    const number = selectedInquiry?.mobile;
+    if (!number) return;
+    const url = `tel:${number}`;
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url).catch(() =>
+            Alert.alert('Call Failed', 'Could not open the dialer. Please try again.')
+          );
+        } else {
+          Alert.alert(
+            'Cannot Make Calls',
+            'Your device does not support phone calls. You can manually dial:\n\n' + number,
+            [
+              {
+                text: 'Copy Number',
+                onPress: () => {
+                  Clipboard.setString(number);
+                  Alert.alert('Copied', 'Phone number copied to clipboard.');
+                },
+              },
+              { text: 'OK', style: 'cancel' },
+            ]
+          );
+        }
+      })
+      .catch(() =>
+        Alert.alert('Call Failed', 'Could not initiate the call. Please try again.')
+      );
+  }, [selectedInquiry?.mobile]);
+
   if (isLoading || !selectedInquiry) return <Loader message="Loading inquiry…" />;
 
   const inquiry = selectedInquiry;
   const {
     description, title, mobile, source, type, status, priority,
-    createdAt, assignedTo, uploadedBy, assignedBy,
+    createdAt, assignedAt, assignedTo, uploadedBy, assignedBy,
     notes = [], images = [], statusHistory = [],
     isConverted, convertedAt,
   } = inquiry;
@@ -150,16 +218,16 @@ export default function InquiryDetailScreen({ route, navigation }) {
 
   const canDistribute = status === 'unassigned' || !assignedTo;
   const canReassign   = !!assignedTo && status !== 'closed';
+  const canUnassign   = !!assignedTo && status !== 'closed' && status !== 'unassigned';
 
-  // ── Call ──────────────────────────────────────────────────────
-  const handleCall = () => {
-    if (!mobile) return;
-    const url = `tel:${mobile}`;
-    Linking.canOpenURL(url).then((ok) => {
-      if (ok) Linking.openURL(url);
-      else Alert.alert('Cannot Call', 'Device does not support calls.');
-    });
-  };
+  // ── Distribute / reassign analytics ──────────────────────────
+  // statusHistory is ASC — index 0 is the original event, last is the most recent
+  const assignedHistory  = statusHistory.filter((h) => h.status === 'assigned');
+  const distributeEntry  = assignedHistory[0]  ?? null;   // first assignment = distribute
+  const lastReassignEntry= assignedHistory.length > 1
+    ? assignedHistory[assignedHistory.length - 1]
+    : null;                                                // only exists if reassigned ≥ 1x
+  const reassignCount    = Math.max(0, assignedHistory.length - 1);
 
   return (
     <>
@@ -198,18 +266,30 @@ export default function InquiryDetailScreen({ route, navigation }) {
               {mobile ? (
                 <>
                   <View style={styles.heroDivider} />
-                  <TouchableOpacity style={styles.callCard} onPress={handleCall} activeOpacity={0.78}>
-                    <View style={styles.callIcon}>
-                      <Icon name="phone" size={18} color={COLORS.white} />
+                  <TouchableOpacity
+                    style={[styles.callCard, !callSupported && styles.callCardDisabled]}
+                    onPress={handleCall}
+                    activeOpacity={0.78}
+                  >
+                    <View style={[styles.callIcon, !callSupported && styles.callIconDisabled]}>
+                      <Icon name={callSupported ? 'phone' : 'phone-off'} size={18} color={COLORS.white} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.callNumber}>{mobile}</Text>
-                      <Text style={styles.callHint}>Tap to call</Text>
+                      <Text style={[styles.callHint, !callSupported && styles.callHintDisabled]}>
+                        {callSupported ? 'Tap to call' : 'Device cannot make calls'}
+                      </Text>
                     </View>
-                    <View style={styles.callBtn}>
-                      <Icon name="phone-outgoing" size={13} color={COLORS.white} />
-                      <Text style={styles.callBtnText}>Call</Text>
-                    </View>
+                    {callSupported ? (
+                      <View style={styles.callBtn}>
+                        <Icon name="phone-outgoing" size={13} color={COLORS.white} />
+                        <Text style={styles.callBtnText}>Call</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.callBtnDisabled}>
+                        <Icon name="phone-off" size={13} color={COLORS.textMuted} />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -238,50 +318,149 @@ export default function InquiryDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* ── Admin action buttons ─────────────────────── */}
-          <View style={styles.actionRow}>
-            {canDistribute && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.distributeBtn]}
-                onPress={() => setShowDistribute(true)}
-                disabled={isMutating}
-                activeOpacity={0.85}
-              >
-                <Icon name="send-outline" size={16} color={COLORS.white} />
-                <Text style={styles.actionBtnText}>Distribute</Text>
-              </TouchableOpacity>
-            )}
-
-            {canReassign && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.reassignBtn]}
-                onPress={() => setShowReassign(true)}
-                disabled={isMutating}
-                activeOpacity={0.85}
-              >
-                <Icon name="account-switch-outline" size={16} color={COLORS.primary} />
-                <Text style={[styles.actionBtnText, { color: COLORS.primary }]}>Reassign</Text>
-              </TouchableOpacity>
-            )}
-
+          {/* ── Inquiry stats strip ─────────────────────── */}
+          <View style={styles.statsStrip}>
+            <StatCell
+              icon="clock-outline"
+              label="Created"
+              value={dayjs(createdAt).format('DD MMM, hh:mm A')}
+            />
+            <View style={styles.statsDivider} />
+            <StatCell
+              icon="send-check-outline"
+              label="Distributed"
+              value={distributeEntry
+                ? dayjs(distributeEntry.changedAt).format('DD MMM, hh:mm A')
+                : '—'}
+            />
+            <View style={styles.statsDivider} />
+            <StatCell
+              icon="note-text-outline"
+              label="Notes"
+              value={String(notes.length)}
+            />
+            <View style={styles.statsDivider} />
+            <StatCell
+              icon="account-convert-outline"
+              label="Reassigned"
+              value={reassignCount > 0 ? `${reassignCount}×` : '—'}
+            />
           </View>
+
+          {/* ── Admin action buttons ─────────────────────── */}
+          {(canDistribute || canReassign || canUnassign) && (
+            <View style={styles.actionSection}>
+
+              {/* Primary — Distribute (full width) */}
+              {canDistribute && (
+                <TouchableOpacity
+                  style={styles.primaryBtn}
+                  onPress={() => setShowDistribute(true)}
+                  disabled={isMutating}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.primaryBtnIconWrap}>
+                    <Icon name="send-outline" size={20} color={COLORS.white} />
+                  </View>
+                  <View style={styles.primaryBtnBody}>
+                    <Text style={styles.primaryBtnText}>Distribute Inquiry</Text>
+                    <Text style={styles.primaryBtnSub}>Assign to a salesperson</Text>
+                  </View>
+                  <Icon name="chevron-right" size={20} color={COLORS.white} style={{ opacity: 0.6 }} />
+                </TouchableOpacity>
+              )}
+
+              {/* Secondary row — Reassign + Unassign */}
+              {(canReassign || canUnassign) && (
+                <View style={styles.secondaryRow}>
+                  {canReassign && (
+                    <TouchableOpacity
+                      style={styles.secondaryBtn}
+                      onPress={() => setShowReassign(true)}
+                      disabled={isMutating}
+                      activeOpacity={0.82}
+                    >
+                      <View style={[styles.secondaryBtnIcon, { backgroundColor: COLORS.primary + '18' }]}>
+                        <Icon name="account-switch-outline" size={18} color={COLORS.primary} />
+                      </View>
+                      <Text style={[styles.secondaryBtnText, { color: COLORS.primary }]}>Reassign</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {canUnassign && (
+                    <TouchableOpacity
+                      style={[styles.secondaryBtn, styles.secondaryBtnDanger]}
+                      onPress={handleUnassign}
+                      disabled={unassignLoading || isMutating}
+                      activeOpacity={0.82}
+                    >
+                      <View style={[styles.secondaryBtnIcon, { backgroundColor: COLORS.error + '15' }]}>
+                        <Icon name="account-remove-outline" size={18} color={COLORS.error} />
+                      </View>
+                      <Text style={[styles.secondaryBtnText, { color: COLORS.error }]}>Unassign</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+            </View>
+          )}
 
           {/* ── Assignment info ──────────────────────────── */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Assignment</Text>
+
             <View style={styles.assignRow}>
               {uploadedBy && (
                 <PersonChip label="Uploaded by" person={uploadedBy} color={COLORS.primary} />
               )}
               {assignedTo && (
-                <PersonChip label="Assigned to"  person={assignedTo}  color={COLORS.secondary} />
+                <PersonChip
+                  label="Assigned to"
+                  person={assignedTo}
+                  color={COLORS.secondary}
+                  subtitle={assignedTo.company?.name}
+                />
               )}
               {assignedBy && (
-                <PersonChip label="Assigned by"  person={assignedBy}  color={COLORS.warning} />
+                <PersonChip label="Assigned by" person={assignedBy} color={COLORS.warning} />
               )}
             </View>
+
             {!uploadedBy && !assignedTo && (
               <Text style={styles.noData}>Not yet assigned to anyone.</Text>
+            )}
+
+            {/* ── Timing rows ─────────────────────── */}
+            {(distributeEntry || lastReassignEntry) && (
+              <View style={styles.timingBlock}>
+                {distributeEntry && (
+                  <TimingRow
+                    icon="send-outline"
+                    label="Distributed"
+                    by={distributeEntry.changedBy?.name}
+                    at={distributeEntry.changedAt}
+                    color={COLORS.secondary}
+                  />
+                )}
+                {lastReassignEntry && (
+                  <TimingRow
+                    icon="account-switch-outline"
+                    label="Last reassigned"
+                    by={lastReassignEntry.changedBy?.name}
+                    at={lastReassignEntry.changedAt}
+                    color={COLORS.warning}
+                  />
+                )}
+                {reassignCount > 1 && (
+                  <View style={styles.reassignBadge}>
+                    <Icon name="refresh" size={10} color={COLORS.warning} />
+                    <Text style={styles.reassignBadgeText}>
+                      Reassigned {reassignCount} time{reassignCount !== 1 ? 's' : ''} total
+                    </Text>
+                  </View>
+                )}
+              </View>
             )}
           </View>
 
@@ -385,15 +564,50 @@ export default function InquiryDetailScreen({ route, navigation }) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────
-function PersonChip({ label, person, color }) {
+function PersonChip({ label, person, color, subtitle }) {
   return (
     <View style={styles.personChip}>
       <View style={[styles.personAvatar, { backgroundColor: color + '22' }]}>
         <Text style={[styles.personInitials, { color }]}>{getInitials(person.name)}</Text>
       </View>
-      <View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.personLabel}>{label}</Text>
-        <Text style={styles.personName}>{person.name}</Text>
+        <Text style={styles.personName} numberOfLines={1}>{person.name}</Text>
+        {subtitle ? (
+          <View style={styles.personCompany}>
+            <Icon name="domain" size={10} color={color} />
+            <Text style={[styles.personCompanyText, { color }]} numberOfLines={1}>{subtitle}</Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function StatCell({ icon, label, value }) {
+  return (
+    <View style={styles.statCell}>
+      <Icon name={icon} size={14} color={COLORS.primary} />
+      <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function TimingRow({ icon, label, by, at, color }) {
+  return (
+    <View style={styles.timingRow}>
+      <View style={[styles.timingIconWrap, { backgroundColor: color + '18' }]}>
+        <Icon name={icon} size={12} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.timingLabel}>{label}</Text>
+        <Text style={styles.timingValue}>
+          {dayjs(at).format('DD MMM YYYY · hh:mm A')}
+        </Text>
+        {by ? (
+          <Text style={[styles.timingBy, { color }]}>by {by}</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -466,6 +680,7 @@ const styles = StyleSheet.create({
   },
   callNumber: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
   callHint:   { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
+  callHintDisabled: { color: COLORS.error },
   callBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: COLORS.primary,
@@ -473,6 +688,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   callBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
+  callBtnDisabled: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  callCardDisabled: {
+    backgroundColor: COLORS.background,
+    borderColor: COLORS.border,
+    opacity: 0.85,
+  },
+  callIconDisabled: { backgroundColor: COLORS.textMuted },
 
   infoChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -494,27 +720,74 @@ const styles = StyleSheet.create({
   convertedText: { fontSize: 10, fontWeight: '800', color: '#16a34a' },
 
   // Action buttons
-  actionRow: {
-    flexDirection:   'row',
-    gap:             SPACING.sm,
+  actionSection: {
     paddingHorizontal: SPACING.md,
-    marginBottom:    SPACING.sm,
+    marginBottom:      SPACING.sm,
+    gap:               SPACING.xs + 2,
   },
-  actionBtn: {
+
+  // Primary (Distribute) — full-width solid card
+  primaryBtn: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderRadius:    BORDER_RADIUS.lg,
+    paddingVertical:   14,
+    paddingHorizontal: SPACING.md,
+    ...SHADOW.md,
+  },
+  primaryBtnIconWrap: {
+    width:           42,
+    height:          42,
+    borderRadius:    21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  primaryBtnBody:  { flex: 1 },
+  primaryBtnText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.white,
+    fontWeight: '700',
+  },
+  primaryBtnSub: {
+    fontSize:  11,
+    color:     'rgba(255,255,255,0.7)',
+    marginTop: 1,
+  },
+
+  // Secondary row (Reassign / Unassign)
+  secondaryRow: {
+    flexDirection: 'row',
+    gap:           SPACING.xs + 2,
+  },
+  secondaryBtn: {
     flex:            1,
     flexDirection:   'row',
     alignItems:      'center',
     justifyContent:  'center',
-    gap:             6,
-    paddingVertical: 12,
-    borderRadius:    BORDER_RADIUS.md,
-    ...SHADOW.sm,
-  },
-  distributeBtn: { backgroundColor: COLORS.primary },
-  reassignBtn: {
-    backgroundColor: COLORS.primaryLight,
+    gap:             SPACING.xs + 2,
+    backgroundColor: COLORS.surface,
+    borderRadius:    BORDER_RADIUS.lg,
+    paddingVertical: 13,
     borderWidth:     1.5,
     borderColor:     COLORS.primary,
+    ...SHADOW.sm,
+  },
+  secondaryBtnDanger: {
+    borderColor: COLORS.error,
+  },
+  secondaryBtnIcon: {
+    width:          32,
+    height:         32,
+    borderRadius:   16,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: {
+    ...TYPOGRAPHY.bodyMedium,
+    fontWeight: '700',
   },
   // Header three-dot button
   headerActionBtn: {
@@ -530,7 +803,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius:    BORDER_RADIUS.md,
   },
-  actionBtnText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontWeight: '700' },
 
   // Sections
   section: {
@@ -591,6 +863,109 @@ const styles = StyleSheet.create({
   noteMeta:      { flexDirection: 'row', gap: 6, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' },
   noteBy:        { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600' },
   noteTime:      { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
+
+  // Stats strip
+  statsStrip: {
+    flexDirection:   'row',
+    backgroundColor: COLORS.surface,
+    borderRadius:    BORDER_RADIUS.lg,
+    marginHorizontal: SPACING.md,
+    marginBottom:    SPACING.sm,
+    paddingVertical: SPACING.md,
+    ...SHADOW.sm,
+  },
+  statCell: {
+    flex:           1,
+    alignItems:     'center',
+    gap:            3,
+  },
+  statValue: {
+    ...TYPOGRAPHY.caption,
+    fontWeight:  '700',
+    color:       COLORS.textPrimary,
+    fontSize:    12,
+    textAlign:   'center',
+  },
+  statLabel: {
+    fontSize:   9,
+    fontWeight: '600',
+    color:      COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  statsDivider: {
+    width:           1,
+    backgroundColor: COLORS.divider,
+    marginVertical:  4,
+  },
+
+  // PersonChip company line
+  personCompany: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           3,
+    marginTop:     2,
+  },
+  personCompanyText: {
+    fontSize:   10,
+    fontWeight: '600',
+  },
+
+  // Timing block (inside Assignment section)
+  timingBlock: {
+    marginTop:    SPACING.sm,
+    gap:          SPACING.xs,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    paddingTop:   SPACING.sm,
+  },
+  timingRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           SPACING.sm,
+  },
+  timingIconWrap: {
+    width:          28,
+    height:         28,
+    borderRadius:   14,
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
+  },
+  timingLabel: {
+    fontSize:   10,
+    fontWeight: '700',
+    color:      COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  timingValue: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.textPrimary,
+    fontWeight: '500',
+    marginTop:  1,
+  },
+  timingBy: {
+    ...TYPOGRAPHY.caption,
+    fontWeight: '700',
+    marginTop:  1,
+  },
+  reassignBadge: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    alignSelf:         'flex-start',
+    backgroundColor:   COLORS.warning + '15',
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    marginTop:         SPACING.xs,
+  },
+  reassignBadgeText: {
+    fontSize:   10,
+    fontWeight: '700',
+    color:      COLORS.warning,
+  },
 
   // Timeline
   tlItem:      { flexDirection: 'row', gap: SPACING.sm },

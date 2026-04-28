@@ -12,7 +12,7 @@
  *  9. Error state with Retry button
  * 10. Conversion-rate removed (not in summary API); replaced by device stats
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,10 +22,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView }  from 'react-native-safe-area-context';
-import Icon              from 'react-native-vector-icons/MaterialCommunityIcons';
-import Toast             from 'react-native-toast-message';
-import dayjs             from 'dayjs';
+import { SafeAreaView }    from 'react-native-safe-area-context';
+import { useFocusEffect }  from '@react-navigation/native';
+import Icon                from 'react-native-vector-icons/MaterialCommunityIcons';
+import Toast               from 'react-native-toast-message';
+import dayjs               from 'dayjs';
 
 import { COLORS }                             from '@constants/colors';
 import { TYPOGRAPHY }                         from '@constants/typography';
@@ -85,6 +86,7 @@ export default function DashboardScreen({ navigation }) {
   const {
     unassigned,
     fetchUnassigned,
+    summaryRefreshKey,
   } = useInquiryStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
 
@@ -98,6 +100,9 @@ export default function DashboardScreen({ navigation }) {
 
   // Distribute modal state
   const [distributeInquiry, setDistributeInquiry] = useState(null);
+
+  // Track whether this is the very first focus (to show full loader only on mount)
+  const isFirstFocus = useRef(true);
 
   // ── Loaders ──────────────────────────────────────────────────
   const loadSummary = useCallback(async (periodKey = 'all', isInitial = false) => {
@@ -124,11 +129,28 @@ export default function DashboardScreen({ navigation }) {
     } catch (_) {}
   }, []);
 
+  // ── Reload every time the screen gains focus ─────────────────
+  // Covers: initial mount AND returning to this tab from any other tab.
+  // Full loader (isInitial=true) only on first mount; silent refresh on return.
+  useFocusEffect(
+    useCallback(() => {
+      const first = isFirstFocus.current;
+      isFirstFocus.current = false;
+      loadSummary(activePeriod, first);
+      loadTodayCount();
+      fetchUnassigned();
+    }, [activePeriod]),
+  );
+
+  // ── React to inquiry creation / mutation from any screen ─────
+  // summaryRefreshKey is incremented by CreateInquiry (and any other
+  // mutation screen). This fires even if Dashboard never lost focus
+  // (e.g. user returns to Dashboard tab, or a socket event triggers it).
   useEffect(() => {
-    loadSummary('all', true);
+    if (summaryRefreshKey === 0) return; // skip on initial mount
+    loadSummary(activePeriod, false);
     loadTodayCount();
-    fetchUnassigned();
-  }, []);
+  }, [summaryRefreshKey]);
 
   const onPeriodChange = useCallback((key) => {
     setActivePeriod(key);

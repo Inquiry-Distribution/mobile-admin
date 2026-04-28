@@ -26,8 +26,10 @@ import Icon      from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
 import { TYPOGRAPHY } from '@constants/typography';
-import useUserStore   from '@store/user.store';
-import useAuthStore   from '@store/auth.store';
+import useUserStore    from '@store/user.store';
+import useAuthStore    from '@store/auth.store';
+import useCompanyStore from '@store/company.store';
+import CompanyPickerModal from '@components/team/CompanyPickerModal';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -95,15 +97,18 @@ export default function CreateUserScreen({ navigation }) {
 
   // ── Form state ─────────────────────────────────────────────────
   const [form, setForm] = useState({
-    name:       '',
-    email:      '',
-    phone:      '',
-    employeeId: '',
-    role:       'sales',   // default: sales
-    password:   '',
+    name:            '',
+    email:           '',
+    phone:           '',
+    employeeId:      '',
+    role:            'sales',
+    password:        '',
     confirmPassword: '',
+    companyId:       null,
+    companyName:     '',
   });
   const [errors, setErrors] = useState({});
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const patch = (key, val) => {
     setForm((f) => ({ ...f, [key]: val }));
@@ -142,6 +147,7 @@ export default function CreateUserScreen({ navigation }) {
     };
     if (form.phone.trim())      payload.phone      = form.phone.trim();
     if (form.employeeId.trim()) payload.employeeId = form.employeeId.trim();
+    if (form.companyId)         payload.companyId  = form.companyId;
 
     const result = await createUser(payload);
 
@@ -239,6 +245,22 @@ export default function CreateUserScreen({ navigation }) {
           )}
         </View>
 
+        {/* ── Company ────────────────────────────────────── */}
+        <View style={styles.card}>
+          <SectionTitle>Company</SectionTitle>
+          <TouchableOpacity
+            style={styles.pickerField}
+            onPress={() => setPickerVisible(true)}
+            activeOpacity={0.75}
+          >
+            <Icon name="domain" size={18} color={form.companyId ? COLORS.primary : COLORS.textMuted} />
+            <Text style={[styles.pickerText, !form.companyId && styles.pickerPlaceholder]} numberOfLines={1}>
+              {form.companyName || 'Select company (optional)'}
+            </Text>
+            <Icon name="chevron-down" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </View>
+
         {/* ── Password ───────────────────────────────────── */}
         <View style={styles.card}>
           <SectionTitle>Set Password</SectionTitle>
@@ -287,6 +309,22 @@ export default function CreateUserScreen({ navigation }) {
 
         <View style={styles.bottomPad} />
       </ScrollView>
+
+      <CompanyPickerModal
+        visible={pickerVisible}
+        selectedId={form.companyId}
+        onSelect={(co) => {
+          patch('companyId',   co.id);
+          patch('companyName', co.name);
+          setPickerVisible(false);
+        }}
+        onClear={() => {
+          patch('companyId',   null);
+          patch('companyName', '');
+          setPickerVisible(false);
+        }}
+        onClose={() => setPickerVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -384,6 +422,22 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
   },
+
+  // ── Company picker ─────────────────────────────────────────
+  pickerField: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               10,
+    borderWidth:       1.5,
+    borderColor:       COLORS.border,
+    borderRadius:      10,
+    backgroundColor:   COLORS.white,
+    paddingHorizontal: 12,
+    height:            44,
+    marginBottom:      4,
+  },
+  pickerText:        { ...TYPOGRAPHY.body, color: COLORS.textPrimary, flex: 1 },
+  pickerPlaceholder: { color: COLORS.textMuted },
 
   // ── Submit ─────────────────────────────────────────────────────
   submitBtn: {

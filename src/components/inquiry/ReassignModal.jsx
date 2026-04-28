@@ -18,6 +18,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -29,25 +30,52 @@ import { getInitials } from '@utils/helpers';
 
 import useUserStore    from '@store/user.store';
 import useInquiryStore from '@store/inquiry.store';
-import { Dimensions } from "react-native";
+import { reportApi }   from '@api/report.api';
+
+const Screen = Dimensions.get('window');
+
+// ── Date helpers ──────────────────────────────────────────────
+const startOfMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+};
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) {
   const { salespersons, isLoadingSalespersons, fetchSalespersons } = useUserStore();
   const { reassign, isMutating } = useInquiryStore();
 
-  const [selected, setSelected] = useState(null);
-  const [reason,   setReason]   = useState('');
-  const [search,   setSearch]   = useState('');
+  const [selected,       setSelected]       = useState(null);
+  const [reason,         setReason]         = useState('');
+  const [search,         setSearch]         = useState('');
+  const [spStats,        setSpStats]        = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
-  const Screen = Dimensions.get("window");
   useEffect(() => {
     if (visible) {
       fetchSalespersons();
       setSelected(null);
       setReason('');
       setSearch('');
+      setSpStats(null);
     }
   }, [visible]);
+
+  // Fetch current-month stats whenever selection changes
+  useEffect(() => {
+    if (!selected) { setSpStats(null); return; }
+    let cancelled = false;
+    setIsLoadingStats(true);
+    setSpStats(null);
+    reportApi
+      .getSalesperson(selected.id, { from: startOfMonth(), to: todayStr() })
+      .then((res) => {
+        if (!cancelled) setSpStats(res.data ?? res);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoadingStats(false); });
+    return () => { cancelled = true; };
+  }, [selected?.id]);
 
   // Exclude currently assigned salesperson
   const currentAssignedId = inquiry?.assignedTo?.id;
@@ -77,6 +105,9 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
       Alert.alert('Error', result.message ?? 'Failed to reassign inquiry.');
     }
   };
+
+  // List height shrinks when stats card is visible
+  const listHeight = selected ? Screen.height * 0.36 : Screen.height * 0.55;
 
   return (
     <Modal
@@ -144,29 +175,34 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
             <ActivityIndicator color={COLORS.primary} />
           </View>
         ) : (
-          <View style={{  height: Screen.height * 0.58 }}>
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <SpRow
-                sp={item}
-                isSelected={selected?.id === item.id}
-                onPress={() => setSelected(item)}
-              />
-            )}
-            ListEmptyComponent={
-              <View style={styles.emptyList}>
-                <Text style={styles.emptyText}>
-                  {search ? 'No match found.' : 'No other salespersons available.'}
-                </Text>
-              </View>
-            }
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          />
+          <View style={{ height: listHeight }}>
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <SpRow
+                  sp={item}
+                  isSelected={selected?.id === item.id}
+                  onPress={() => setSelected(item === selected ? null : item)}
+                />
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyList}>
+                  <Text style={styles.emptyText}>
+                    {search ? 'No match found.' : 'No other salespersons available.'}
+                  </Text>
+                </View>
+              }
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
         )}
+
+        {/* ── Stats card (shown when a salesperson is selected) ── */}
+        {selected ? (
+          <StatsCard stats={spStats} isLoading={isLoadingStats} person={selected} />
+        ) : null}
 
         {/* ── Footer ───────────────────────────────────── */}
         <View style={styles.footer}>
@@ -202,6 +238,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
   );
 }
 
+// ── SpRow ─────────────────────────────────────────────────────
 function SpRow({ sp, isSelected, onPress }) {
   return (
     <TouchableOpacity
@@ -225,11 +262,51 @@ function SpRow({ sp, isSelected, onPress }) {
             </>
           ) : null}
         </View>
+        {sp.company?.name ? (
+          <View style={styles.spCompanyRow}>
+            <Icon name="domain" size={10} color={COLORS.primary} />
+            <Text style={styles.spCompanyText} numberOfLines={1}>{sp.company.name}</Text>
+          </View>
+        ) : null}
       </View>
       <View style={[styles.spCheck, isSelected && styles.spCheckSel]}>
         {isSelected ? <Icon name="check" size={13} color={COLORS.white} /> : null}
       </View>
     </TouchableOpacity>
+  );
+}
+
+// ── StatsCard ─────────────────────────────────────────────────
+function StatsCard({ stats, isLoading, person }) {
+  const cells = [
+    { label: 'Assigned',    value: stats?.total      ?? '—', icon: 'inbox-outline',        color: COLORS.primary },
+    { label: 'In Progress', value: stats?.inProgress  ?? '—', icon: 'progress-clock',       color: COLORS.warning },
+    { label: 'Closed',      value: stats?.closed      ?? '—', icon: 'check-circle-outline', color: COLORS.success },
+    { label: 'Converted',   value: stats?.conversionRate ?? '—', icon: 'trending-up',       color: '#8B5CF6' },
+  ];
+
+  return (
+    <View style={styles.statsCard}>
+      <View style={styles.statsHeader}>
+        <Icon name="chart-bar" size={13} color={COLORS.primary} />
+        <Text style={styles.statsTitle}>
+          {person.name} — This Month
+        </Text>
+        {isLoading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginLeft: 6 }} />}
+      </View>
+      <View style={styles.statsCells}>
+        {cells.map((cell, idx) => (
+          <React.Fragment key={cell.label}>
+            {idx > 0 && <View style={styles.statsDivider} />}
+            <View style={styles.statsCell}>
+              <Icon name={cell.icon} size={14} color={cell.color} style={{ marginBottom: 3 }} />
+              <Text style={[styles.statsValue, { color: cell.color }]}>{cell.value}</Text>
+              <Text style={styles.statsLabel}>{cell.label}</Text>
+            </View>
+          </React.Fragment>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -301,7 +378,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, height: 42, ...TYPOGRAPHY.body, color: COLORS.textPrimary },
 
   listLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: 100 },
+  listContent: { paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.md },
   emptyList:   { alignItems: 'center', paddingVertical: SPACING.xl },
   emptyText:   { ...TYPOGRAPHY.small, color: COLORS.textMuted },
 
@@ -330,12 +407,64 @@ const styles = StyleSheet.create({
   spMeta:       { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   spMetaText:   { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   spMetaDot:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
+  spCompanyRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  spCompanyText: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600', flex: 1 },
   spCheck: {
     width: 22, height: 22, borderRadius: 11,
     borderWidth: 2, borderColor: COLORS.border,
     alignItems: 'center', justifyContent: 'center',
   },
   spCheckSel: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+
+  // ── Stats card ──────────────────────────────────────────────
+  statsCard: {
+    marginHorizontal: SPACING.md,
+    marginTop:        SPACING.sm,
+    backgroundColor:  COLORS.surface,
+    borderRadius:     BORDER_RADIUS.lg,
+    borderWidth:      1,
+    borderColor:      COLORS.primary + '30',
+    paddingHorizontal: SPACING.md,
+    paddingVertical:  SPACING.sm,
+    ...SHADOW.sm,
+  },
+  statsHeader: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           5,
+    marginBottom:  SPACING.sm,
+  },
+  statsTitle: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.primary,
+    fontWeight: '700',
+    flex:       1,
+  },
+  statsCells: {
+    flexDirection: 'row',
+    alignItems:    'center',
+  },
+  statsCell: {
+    flex:       1,
+    alignItems: 'center',
+  },
+  statsValue: {
+    fontSize:   16,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  statsLabel: {
+    ...TYPOGRAPHY.caption,
+    color:     COLORS.textMuted,
+    marginTop: 1,
+    textAlign: 'center',
+  },
+  statsDivider: {
+    width:            1,
+    height:           36,
+    backgroundColor:  COLORS.divider,
+    marginHorizontal: 4,
+  },
 
   footer: {
     flexDirection:   'row',
@@ -346,6 +475,7 @@ const styles = StyleSheet.create({
     borderTopColor:  COLORS.divider,
     backgroundColor: COLORS.surface,
     gap:             SPACING.sm,
+    marginTop:       SPACING.sm,
   },
   footerLeft: {
     flex:          1,

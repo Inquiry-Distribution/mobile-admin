@@ -27,8 +27,10 @@ import Icon      from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
 import { TYPOGRAPHY } from '@constants/typography';
-import useUserStore   from '@store/user.store';
-import useAuthStore   from '@store/auth.store';
+import useUserStore    from '@store/user.store';
+import useAuthStore    from '@store/auth.store';
+import useCompanyStore from '@store/company.store';
+import CompanyPickerModal from '@components/team/CompanyPickerModal';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -101,25 +103,30 @@ export default function EditUserScreen({ navigation, route }) {
   const user = selectedUser;
 
   const [form, setForm] = useState({
-    name:         user?.name         ?? '',
-    email:        user?.email        ?? '',
-    phone:        user?.phone        ?? '',
-    employeeId:   user?.employeeId   ?? '',
-    assignedArea: user?.assignedArea ?? '',
-    isActive:     user?.isActive     ?? true,
+    name:         user?.name                  ?? '',
+    email:        user?.email                 ?? '',
+    phone:        user?.phone                 ?? '',
+    employeeId:   user?.employeeId            ?? '',
+    assignedArea: user?.assignedArea          ?? '',
+    isActive:     user?.isActive              ?? true,
+    companyId:    user?.company?.id           ?? null,
+    companyName:  user?.company?.name         ?? '',
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors]       = useState({});
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   // If selectedUser changes (e.g. hot reload), re-sync
   useEffect(() => {
     if (user) {
       setForm({
-        name:         user.name         ?? '',
-        email:        user.email        ?? '',
-        phone:        user.phone        ?? '',
-        employeeId:   user.employeeId   ?? '',
-        assignedArea: user.assignedArea ?? '',
-        isActive:     user.isActive     ?? true,
+        name:         user.name                ?? '',
+        email:        user.email               ?? '',
+        phone:        user.phone               ?? '',
+        employeeId:   user.employeeId          ?? '',
+        assignedArea: user.assignedArea        ?? '',
+        isActive:     user.isActive            ?? true,
+        companyId:    user.company?.id         ?? null,
+        companyName:  user.company?.name       ?? '',
       });
     }
   }, [user?.id]);
@@ -163,6 +170,7 @@ export default function EditUserScreen({ navigation, route }) {
     if (form.phone.trim())        payload.phone        = form.phone.trim();
     if (form.employeeId.trim())   payload.employeeId   = form.employeeId.trim();
     if (form.assignedArea.trim()) payload.assignedArea = form.assignedArea.trim();
+    payload.companyId = form.companyId ?? null;  // null = clear company
 
     const result = await updateUser(id, payload);
 
@@ -269,6 +277,22 @@ export default function EditUserScreen({ navigation, route }) {
           />
         </View>
 
+        {/* ── Company ────────────────────────────────────── */}
+        <View style={styles.card}>
+          <SectionTitle>Company</SectionTitle>
+          <TouchableOpacity
+            style={styles.pickerField}
+            onPress={() => setPickerVisible(true)}
+            activeOpacity={0.75}
+          >
+            <Icon name="domain" size={18} color={form.companyId ? COLORS.primary : COLORS.textMuted} />
+            <Text style={[styles.pickerText, !form.companyId && styles.pickerPlaceholder]} numberOfLines={1}>
+              {form.companyName || 'Select company (optional)'}
+            </Text>
+            <Icon name="chevron-down" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </View>
+
         {/* ── Status ─────────────────────────────────────── */}
         <View style={styles.card}>
           <SectionTitle>Account Status</SectionTitle>
@@ -310,6 +334,22 @@ export default function EditUserScreen({ navigation, route }) {
 
         <View style={styles.bottomPad} />
       </ScrollView>
+
+      <CompanyPickerModal
+        visible={pickerVisible}
+        selectedId={form.companyId}
+        onSelect={(co) => {
+          patch('companyId',   co.id);
+          patch('companyName', co.name);
+          setPickerVisible(false);
+        }}
+        onClear={() => {
+          patch('companyId',   null);
+          patch('companyName', '');
+          setPickerVisible(false);
+        }}
+        onClose={() => setPickerVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -396,6 +436,22 @@ const styles = StyleSheet.create({
     color:     COLORS.error,
     marginTop: 4,
   },
+
+  // ── Company picker ─────────────────────────────────────────────
+  pickerField: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               10,
+    borderWidth:       1.5,
+    borderColor:       COLORS.border,
+    borderRadius:      10,
+    backgroundColor:   COLORS.white,
+    paddingHorizontal: 12,
+    height:            44,
+    marginBottom:      4,
+  },
+  pickerText:        { ...TYPOGRAPHY.body, color: COLORS.textPrimary, flex: 1 },
+  pickerPlaceholder: { color: COLORS.textMuted },
 
   // ── Toggle ─────────────────────────────────────────────────────
   toggleRow: {

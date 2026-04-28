@@ -17,6 +17,7 @@
 import { io } from 'socket.io-client';
 import { CONFIG } from '@constants/config';
 import { getAccessToken } from '@utils/storage';
+import useLocationStore from '@store/location.store';
 
 // ─── Module-level singletons ──────────────────────────────────
 let socket            = null;
@@ -24,7 +25,6 @@ let notificationStore = null;
 let inquiryStore      = null;
 let deviceStore       = null;
 let groupStore        = null;
-let onLocationUpdate  = null;  // callback: (locationData) => void  (used by LiveMap)
 
 // ─── Store injection ──────────────────────────────────────────
 export const setStores = ({ nStore, iStore, dStore, gStore }) => {
@@ -33,14 +33,6 @@ export const setStores = ({ nStore, iStore, dStore, gStore }) => {
   deviceStore       = dStore;
   groupStore        = gStore;
 };
-
-/**
- * Register a callback for live location updates.
- * LiveMapScreen calls this on mount and clears on unmount.
- * Only one listener at a time (the map screen).
- */
-export const setLocationListener = (cb) => { onLocationUpdate = cb; };
-export const clearLocationListener = ()  => { onLocationUpdate = null; };
 
 // ─── Connect ──────────────────────────────────────────────────
 export const connect = (adminId) => {
@@ -104,21 +96,22 @@ export const connect = (adminId) => {
   });
 
   // ── Location events ────────────────────────────────────────
+  // All three events update the location store directly.
+  // LiveMapScreen subscribes to the store — no callbacks needed.
 
   /** Live GPS update from a salesperson device */
   socket.on('location:update', (data) => {
-    // Forward to LiveMapScreen callback if it's mounted
-    if (onLocationUpdate) onLocationUpdate(data);
+    useLocationStore.getState().upsertLocation(data);
   });
 
   /** Salesperson came online */
   socket.on('user:online', (data) => {
-    if (onLocationUpdate) onLocationUpdate({ ...data, isOnline: true });
+    useLocationStore.getState().upsertLocation({ ...data, isOnline: true });
   });
 
   /** Salesperson went offline */
   socket.on('user:offline', (data) => {
-    if (onLocationUpdate) onLocationUpdate({ ...data, isOnline: false });
+    useLocationStore.getState().setOnlineStatus(data.salespersonId ?? data.id, false);
   });
 
   // ── Global group message handler ───────────────────────────
@@ -171,8 +164,6 @@ export default {
   disconnect,
   isConnected,
   setStores,
-  setLocationListener,
-  clearLocationListener,
   joinGroup,
   leaveGroup,
   onGroupMessage,

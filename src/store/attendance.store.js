@@ -26,6 +26,13 @@ const useAttendanceStore = create((set, get) => ({
   isRefreshing: false,
   error: null,
 
+  // ─── Month view state ─────────────────────────────────────────
+  monthYear: { month: dayjs().month() + 1, year: dayjs().year() },
+  monthRecords: [],
+  monthTotal: 0,
+  isLoadingMonth: false,
+  isRefreshingMonth: false,
+
   // ─── Fetch records ────────────────────────────────────────────
   fetchRecords: async () => {
     const { date, status, salespersonId } = get();
@@ -119,6 +126,61 @@ const useAttendanceStore = create((set, get) => ({
       date: dayjs().format('YYYY-MM-DD'),
       records: [],
       total: 0,
+    });
+  },
+
+  // ─── Month view actions ───────────────────────────────────────
+
+  fetchMonthRecords: async (salespersonId = null) => {
+    const { month, year } = get().monthYear;
+    set({ isLoadingMonth: true });
+    try {
+      const params = { month, year, limit: 500 };
+      const res = salespersonId
+        ? await attendanceApi.getBySalesperson(salespersonId, params)
+        : await attendanceApi.getAll(params);
+      const records = Array.isArray(res.data?.records) ? res.data.records
+        : Array.isArray(res) ? res : [];
+      set({ monthRecords: records, monthTotal: res.data?.total ?? records.length, isLoadingMonth: false });
+    } catch (_) {
+      set({ isLoadingMonth: false });
+    }
+  },
+
+  refreshMonthRecords: async (salespersonId = null) => {
+    const { month, year } = get().monthYear;
+    set({ isRefreshingMonth: true });
+    try {
+      const params = { month, year, limit: 500 };
+      const res = salespersonId
+        ? await attendanceApi.getBySalesperson(salespersonId, params)
+        : await attendanceApi.getAll(params);
+      const records = Array.isArray(res.data?.records) ? res.data.records
+        : Array.isArray(res) ? res : [];
+      set({ monthRecords: records, monthTotal: res.data?.total ?? records.length, isRefreshingMonth: false });
+    } catch (_) {
+      set({ isRefreshingMonth: false });
+    }
+  },
+
+  prevMonth: () => {
+    const { month, year } = get().monthYear;
+    const d = dayjs(`${year}-${String(month).padStart(2, '0')}-01`).subtract(1, 'month');
+    set({ monthYear: { month: d.month() + 1, year: d.year() }, monthRecords: [], monthTotal: 0 });
+  },
+
+  nextMonth: () => {
+    const { month, year } = get().monthYear;
+    const d = dayjs(`${year}-${String(month).padStart(2, '0')}-01`).add(1, 'month');
+    if (d.isAfter(dayjs(), 'month')) return;
+    set({ monthYear: { month: d.month() + 1, year: d.year() }, monthRecords: [], monthTotal: 0 });
+  },
+
+  resetMonthYear: () => {
+    set({
+      monthYear: { month: dayjs().month() + 1, year: dayjs().year() },
+      monthRecords: [],
+      monthTotal: 0,
     });
   },
 }));

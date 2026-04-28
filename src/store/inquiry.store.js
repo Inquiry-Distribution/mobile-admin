@@ -66,6 +66,13 @@ const useInquiryStore = create((set, get) => ({
   isMutating:    false,   // distribute / reassign in progress
   error:         null,
 
+  // ─── Dashboard summary refresh trigger ────────────────────────
+  // Increment this after any mutation that should cause Dashboard
+  // KPI cards to re-fetch (create, distribute, reassign, status-change, etc.)
+  summaryRefreshKey: 0,
+  bumpSummaryRefresh: () =>
+    set((state) => ({ summaryRefreshKey: state.summaryRefreshKey + 1 })),
+
   // ─── Fetch (first page) ───────────────────────────────────────
   fetchInquiries: async (extraParams = {}) => {
     set({ isLoading: true, error: null, page: 1 });

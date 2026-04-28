@@ -30,7 +30,7 @@ import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 
 import { locationApi } from '@api/location.api';
-import { setLocationListener, clearLocationListener } from '@services/socket.service';
+import { setLocationListener } from '@services/socket.service';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.3;
@@ -54,9 +54,9 @@ export default function LiveMapScreen() {
     let mounted = true;
     (async () => {
       try {
-        const res  = await locationApi.getLive();
-        const data = res.data ?? res ?? [];
-        if (mounted) setLocations(normalise(data));
+        // const res  = await locationApi.getLive();
+        // const data = res.data ?? res ?? [];
+        // if (mounted) setLocations(normalise(data));
       } catch (_) {
         // silently fail — socket will populate
       } finally {
@@ -64,42 +64,42 @@ export default function LiveMapScreen() {
       }
     })();
 
-    // ── Socket real-time updates ──────────────────────────
-    setLocationListener((update) => {
-      // update shape: { salespersonId, name, lat, lng, lastLocatedAt }
-      setLocations((prev) => {
-        const idx = prev.findIndex((l) => l.salespersonId === update.salespersonId);
-        if (idx === -1) return [...prev, normaliseOne(update)];
-        const next = [...prev];
-        next[idx] = { ...next[idx], ...normaliseOne(update) };
-        return next;
-      });
-    });
+    // // ── Socket real-time updates ──────────────────────────
+    // setLocationListener((update) => {
+    //   // update shape: { salespersonId, name, lat, lng, lastLocatedAt }
+    //   setLocations((prev) => {
+    //     const idx = prev.findIndex((l) => l.salespersonId === update.salespersonId);
+    //     if (idx === -1) return [...prev, normaliseOne(update)];
+    //     const next = [...prev];
+    //     next[idx] = { ...next[idx], ...normaliseOne(update) };
+    //     return next;
+    //   });
+    // });
 
     return () => {
       mounted = false;
-      clearLocationListener();
+      // clearLocationListener();
     };
   }, []);
 
   // ── Fit all markers ───────────────────────────────────────
   const fitAll = useCallback(() => {
-    const valid = locations.filter((l) => l.lat && l.lng);
-    if (!valid.length || !mapRef.current) return;
+    // const valid = locations.filter((l) => l.lat && l.lng);
+    // if (!valid.length || !mapRef.current) return;
 
-    if (valid.length === 1) {
-      mapRef.current.animateToRegion({
-        latitude:      valid[0].lat,
-        longitude:     valid[0].lng,
-        latitudeDelta:  0.05,
-        longitudeDelta: 0.05,
-      }, 400);
-    } else {
-      mapRef.current.fitToCoordinates(
-        valid.map((l) => ({ latitude: l.lat, longitude: l.lng })),
-        { edgePadding: { top: 80, right: 40, bottom: SHEET_HEIGHT + 40, left: 40 }, animated: true },
-      );
-    }
+    // if (valid.length === 1) {
+    //   mapRef.current.animateToRegion({
+    //     latitude:      valid[0].lat,
+    //     longitude:     valid[0].lng,
+    //     latitudeDelta:  0.05,
+    //     longitudeDelta: 0.05,
+    //   }, 400);
+    // } else {
+    //   mapRef.current.fitToCoordinates(
+    //     valid.map((l) => ({ latitude: l.lat, longitude: l.lng })),
+    //     { edgePadding: { top: 80, right: 40, bottom: SHEET_HEIGHT + 40, left: 40 }, animated: true },
+    //   );
+    // }
   }, [locations]);
 
   // ── Centre on selected ────────────────────────────────────
@@ -114,6 +114,7 @@ export default function LiveMapScreen() {
 
   const withLocation = locations.filter((l) => l.lat && l.lng);
   const noLocation   = locations.filter((l) => !l.lat && !l.lng);
+  const onlineCount  = locations.filter((l) => l.isOnline).length;
 
   return (
     <View style={styles.container}>
@@ -135,19 +136,38 @@ export default function LiveMapScreen() {
             coordinate={{ latitude: loc.lat, longitude: loc.lng }}
             onPress={() => setSelected(loc.salespersonId)}
           >
-            {/* Custom marker pin */}
+            {/* Custom marker pin — green ring when online, grey when offline */}
             <View style={[
-              styles.markerPin,
-              selected === loc.salespersonId && styles.markerPinSelected,
+              styles.markerWrap,
+              loc.isOnline ? styles.markerWrapOnline : styles.markerWrapOffline,
+              selected === loc.salespersonId && styles.markerWrapSelected,
             ]}>
-              <Text style={styles.markerInitials}>{getInitials(loc.name)}</Text>
+              <View style={[
+                styles.markerPin,
+                !loc.isOnline && styles.markerPinOffline,
+                selected === loc.salespersonId && styles.markerPinSelected,
+              ]}>
+                <Text style={styles.markerInitials}>{getInitials(loc.name)}</Text>
+              </View>
+              {/* Online pulse dot */}
+              {loc.isOnline && <View style={styles.markerOnlineDot} />}
             </View>
 
             <Callout tooltip>
               <View style={styles.callout}>
-                <Text style={styles.calloutName}>{loc.name}</Text>
+                <View style={styles.calloutHeader}>
+                  <Text style={styles.calloutName}>{loc.name}</Text>
+                  <View style={[
+                    styles.calloutStatusDot,
+                    { backgroundColor: loc.isOnline ? '#22C55E' : COLORS.textMuted },
+                  ]} />
+                </View>
                 {loc.lastLocatedAt ? (
-                  <Text style={styles.calloutTime}>
+                  <Text style={[
+                    styles.calloutTime,
+                    { color: loc.isOnline ? '#22C55E' : COLORS.textMuted },
+                  ]}>
+                    {loc.isOnline ? 'Online · ' : 'Last seen · '}
                     {dayjs(loc.lastLocatedAt).fromNow()}
                   </Text>
                 ) : null}
@@ -175,7 +195,9 @@ export default function LiveMapScreen() {
       {/* ── Live count badge ─────────────────────────────── */}
       <View style={styles.liveBadge}>
         <View style={styles.liveDot} />
-        <Text style={styles.liveText}>{withLocation.length} live</Text>
+        <Text style={styles.liveText}>
+          {onlineCount} online · {withLocation.length} tracked
+        </Text>
       </View>
 
       {/* ── Bottom sheet ─────────────────────────────────── */}
@@ -220,14 +242,33 @@ function LocationCard({ loc, isSelected, onPress }) {
       onPress={onPress}
       activeOpacity={hasPos ? 0.78 : 1}
     >
-      <View style={[styles.locAvatar, isSelected && { backgroundColor: COLORS.primary }]}>
-        <Text style={[styles.locInitials, isSelected && { color: COLORS.white }]}>
-          {getInitials(loc.name)}
-        </Text>
+      {/* Avatar with online ring */}
+      <View style={styles.locAvatarWrap}>
+        <View style={[
+          styles.locAvatar,
+          isSelected && { backgroundColor: COLORS.primary },
+          loc.isOnline && styles.locAvatarOnline,
+        ]}>
+          <Text style={[styles.locInitials, isSelected && { color: COLORS.white }]}>
+            {getInitials(loc.name)}
+          </Text>
+        </View>
+        {/* Online / offline dot */}
+        <View style={[
+          styles.locStatusDot,
+          { backgroundColor: loc.isOnline ? '#22C55E' : '#9CA3AF' },
+        ]} />
       </View>
+
       <Text style={styles.locName} numberOfLines={1}>{loc.name}</Text>
+
       {hasPos ? (
-        <Text style={styles.locTime}>{dayjs(loc.lastLocatedAt).fromNow()}</Text>
+        <Text style={[
+          styles.locTime,
+          loc.isOnline && { color: '#22C55E', fontWeight: '600' },
+        ]}>
+          {loc.isOnline ? '● ' : ''}{dayjs(loc.lastLocatedAt).fromNow()}
+        </Text>
       ) : (
         <Text style={[styles.locTime, { color: COLORS.textMuted }]}>No location</Text>
       )}
@@ -240,10 +281,13 @@ function normaliseOne(raw) {
   return {
     salespersonId: raw.salespersonId ?? raw.id,
     name:          raw.salespersonName ?? raw.name ?? raw.salesperson?.name ?? 'Unknown',
-    lat:           raw.lat ?? raw.lastLat ?? raw.latitude ?? null,
-    lng:           raw.lng ?? raw.lastLng ?? raw.longitude ?? null,
+    lat:           raw.lat   ?? raw.lastLat  ?? raw.latitude  ?? null,
+    lng:           raw.lng   ?? raw.lastLng  ?? raw.longitude ?? null,
     address:       raw.address ?? raw.lastAddress ?? null,
     lastLocatedAt: raw.lastLocatedAt ?? raw.recordedAt ?? raw.updatedAt ?? null,
+    // isOnline comes from the DB query (15-min threshold) or from
+    // user:online / user:offline socket events and location:update pushes
+    isOnline:      raw.isOnline ?? false,
   };
 }
 
@@ -293,6 +337,18 @@ const styles = StyleSheet.create({
   liveDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
   liveText: { ...TYPOGRAPHY.caption, color: COLORS.white, fontWeight: '700' },
 
+  // Marker wrapper (carries the online ring)
+  markerWrap: {
+    position:  'relative',
+    padding:   2,
+    borderRadius: 22,
+    borderWidth:  2,
+    borderColor:  'transparent',
+  },
+  markerWrapOnline:   { borderColor: '#22C55E' },
+  markerWrapOffline:  { borderColor: '#9CA3AF' },
+  markerWrapSelected: { borderColor: COLORS.error },
+
   // Marker pin
   markerPin: {
     width:           36,
@@ -301,27 +357,46 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems:      'center',
     justifyContent:  'center',
-    borderWidth:     2,
-    borderColor:     COLORS.white,
     ...SHADOW.md,
   },
-  markerPinSelected: {
-    backgroundColor: COLORS.error,
-    width:           44,
-    height:          44,
-    borderRadius:    22,
+  markerPinOffline:  { backgroundColor: '#9CA3AF' },
+  markerPinSelected: { backgroundColor: COLORS.error },
+  markerInitials:    { fontSize: 12, fontWeight: '800', color: COLORS.white },
+
+  // Green pulse dot on online markers
+  markerOnlineDot: {
+    position:        'absolute',
+    bottom:          0,
+    right:           0,
+    width:           10,
+    height:          10,
+    borderRadius:    5,
+    backgroundColor: '#22C55E',
+    borderWidth:     2,
+    borderColor:     COLORS.white,
   },
-  markerInitials: { fontSize: 12, fontWeight: '800', color: COLORS.white },
 
   // Callout
   callout: {
     backgroundColor: COLORS.white,
     borderRadius:    BORDER_RADIUS.lg,
     padding:         SPACING.sm,
-    minWidth:        140,
+    minWidth:        160,
     ...SHADOW.md,
   },
-  calloutName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700', marginBottom: 2 },
+  calloutHeader: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginBottom:   2,
+  },
+  calloutStatusDot: {
+    width:        8,
+    height:       8,
+    borderRadius: 4,
+    marginLeft:   6,
+  },
+  calloutName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
   calloutTime:    { ...TYPOGRAPHY.caption, color: COLORS.primary },
   calloutAddress: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 2 },
 
@@ -381,6 +456,10 @@ const styles = StyleSheet.create({
     borderColor:     COLORS.primary,
     backgroundColor: COLORS.primaryLight,
   },
+  locAvatarWrap: {
+    position:     'relative',
+    marginBottom: 4,
+  },
   locAvatar: {
     width:           40,
     height:          40,
@@ -388,7 +467,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
     alignItems:      'center',
     justifyContent:  'center',
-    marginBottom:    4,
+  },
+  locAvatarOnline: {
+    borderWidth:  2,
+    borderColor:  '#22C55E',
+  },
+  // Online / offline dot badge on avatar
+  locStatusDot: {
+    position:     'absolute',
+    bottom:       0,
+    right:        0,
+    width:        10,
+    height:       10,
+    borderRadius: 5,
+    borderWidth:  2,
+    borderColor:  COLORS.background,
   },
   locInitials: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
   locName:     { ...TYPOGRAPHY.caption, color: COLORS.textPrimary, fontWeight: '600', textAlign: 'center' },

@@ -199,6 +199,14 @@ export default function UserDetailScreen({ navigation, route }) {
               }
             />
             <ActionTile
+              icon="calendar-month-outline"
+              label="Monthly"
+              color={'#8B5CF6'}
+              onPress={() =>
+                navigation.navigate('AttendanceMonth', { salespersonId: user.id, name: user.name })
+              }
+            />
+            <ActionTile
               icon="clipboard-text-outline"
               label="Inquiries"
               color={COLORS.primary}
@@ -235,6 +243,9 @@ export default function UserDetailScreen({ navigation, route }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Employment</Text>
           <SectionRows>
+            {user.company ? (
+              <InfoRow icon="domain" label="Company" value={user.company.name} />
+            ) : null}
             {user.employeeId ? (
               <InfoRow icon="badge-account-outline" label="Employee ID"   value={user.employeeId} />
             ) : null}
