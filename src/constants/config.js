@@ -12,10 +12,10 @@ import Config from 'react-native-config';
 
 export const CONFIG = {
   // ── API & Socket ──────────────────────────────────────────────
-  // API_BASE_URL: Config.API_BASE_URL  || 'http://145.223.102.253:5001/api/v1',
-  // SOCKET_URL:   Config.SOCKET_URL    || 'http://145.223.102.253:5001',
-  API_BASE_URL: Config.API_BASE_URL  || 'http://192.168.31.184:5000/api/v1',
-  SOCKET_URL:   Config.SOCKET_URL    || 'http://192.168.31.184:5000',
+  API_BASE_URL: Config.API_BASE_URL  || 'http://145.223.102.253:5001/api/v1',
+  SOCKET_URL:   Config.SOCKET_URL    || 'http://145.223.102.253:5001',
+  // API_BASE_URL: Config.API_BASE_URL  || 'http://192.168.31.184:5000/api/v1',
+  // SOCKET_URL:   Config.SOCKET_URL    || 'http://192.168.31.184:5000',
 
   // ── Google Maps ───────────────────────────────────────────────
   GOOGLE_MAPS_API_KEY: Config.GOOGLE_MAPS_API_KEY || '',
