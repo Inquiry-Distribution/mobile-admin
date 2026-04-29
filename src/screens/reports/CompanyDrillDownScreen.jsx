@@ -10,6 +10,7 @@
  * Tap a salesperson row → SalespersonReportScreen
  */
 import React, { useState, useEffect, useCallback } from "react";
+import { CommonActions } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -32,6 +33,29 @@ import EmptyState from "@components/common/EmptyState";
 
 export default function CompanyDrillDownScreen({ route, navigation }) {
   const { companyId, companyName, from, to } = route.params ?? {};
+
+  // Navigate to Team tab with a clean stack [UserList → target].
+  // Uses getParent() because this screen lives inside MoreStack, not the Tab directly.
+  const goToTeamScreen = useCallback((screenName, params) => {
+    navigation.getParent()?.dispatch((state) => {
+      const routes = state.routes.map((r) =>
+        r.name === 'Team'
+          ? {
+              ...r,
+              state: {
+                routes: [{ name: 'UserList' }, { name: screenName, params }],
+                index: 1,
+              },
+            }
+          : r
+      );
+      return CommonActions.reset({
+        ...state,
+        routes,
+        index: state.routes.findIndex((r) => r.name === 'Team'),
+      });
+    });
+  }, [navigation]);
 
   const [rows, setRows] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -138,12 +162,9 @@ export default function CompanyDrillDownScreen({ route, navigation }) {
               rank={index + 1}
               grandTotal={grandTotal}
               onPress={() =>
-                navigation.navigate("Team", {
-                  screen: "SalespersonReport",
-                  params: {
-                    salespersonId: item.id,
-                    name: item.name,
-                  },
+                goToTeamScreen('SalespersonReport', {
+                  salespersonId: item.id,
+                  name: item.name,
                 })
               }
             />

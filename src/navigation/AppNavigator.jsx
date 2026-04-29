@@ -468,8 +468,10 @@ function TabNavigator({ navigation }) {
         component={InquiryNavigator}
         options={{ headerShown: false }}
         listeners={({ navigation: nav }) => ({
-          tabPress: () =>
-            nav.reset({ index: 0, routes: [{ name: 'Inquiries', state: { routes: [{ name: 'InquiryList' }] } }] }),
+          tabPress: (e) => {
+            e.preventDefault();
+            nav.navigate('Inquiries', { screen: 'InquiryList' });
+          },
         })}
       />
 
@@ -483,8 +485,10 @@ function TabNavigator({ navigation }) {
           tabBarBadgeStyle: { backgroundColor: COLORS.error },
         }}
         listeners={({ navigation: nav }) => ({
-          tabPress: () =>
-            nav.reset({ index: 0, routes: [{ name: 'Groups', state: { routes: [{ name: 'GroupList' }] } }] }),
+          tabPress: (e) => {
+            e.preventDefault();
+            nav.navigate('Groups', { screen: 'GroupList' });
+          },
         })}
       />
 
@@ -494,8 +498,10 @@ function TabNavigator({ navigation }) {
         component={TeamNavigator}
         options={{ headerShown: false }}
         listeners={({ navigation: nav }) => ({
-          tabPress: () =>
-            nav.reset({ index: 0, routes: [{ name: 'Team', state: { routes: [{ name: 'UserList' }] } }] }),
+          tabPress: (e) => {
+            e.preventDefault();
+            nav.navigate('Team', { screen: 'UserList' });
+          },
         })}
       />
 
@@ -509,8 +515,10 @@ function TabNavigator({ navigation }) {
           tabBarBadgeStyle: { backgroundColor: COLORS.error },
         }}
         listeners={({ navigation: nav }) => ({
-          tabPress: () =>
-            nav.reset({ index: 0, routes: [{ name: 'More', state: { routes: [{ name: 'MoreMenu' }] } }] }),
+          tabPress: (e) => {
+            e.preventDefault();
+            nav.navigate('More', { screen: 'MoreMenu' });
+          },
         })}
       />
     </Tab.Navigator>

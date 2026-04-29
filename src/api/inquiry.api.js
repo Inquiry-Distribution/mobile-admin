@@ -4,6 +4,7 @@
  * All endpoints require role: admin | superuser.
  * Routes: /api/v1/inquiries/*
  */
+import { Platform } from 'react-native';
 import client from './client';
 import { buildQuery } from '@utils/helpers';
 import { CONFIG } from '@constants/config';
@@ -71,6 +72,27 @@ export const inquiryApi = {
         'Content-Type': 'multipart/form-data',
       },
       body: form,
+    });
+    const json = await res.json();
+    if (!json.success) throw { message: json.message };
+    return json.data;
+  },
+
+  /**
+   * Upload a voice note audio file to an inquiry (multipart/form-data).
+   * @param {string} inquiryId
+   * @param {string} filePath  — local file path returned by AudioRecorderPlayer
+   */
+  uploadAudio: async (inquiryId, filePath) => {
+    const uri      = filePath.startsWith('file://') ? filePath : `file://${filePath}`;
+    const filename = filePath.split('/').pop() || `inquiry_audio_${Date.now()}.mp4`;
+    const form     = new FormData();
+    form.append('audio', { uri, type: 'audio/mp4', name: filename });
+    const token = getAccessToken();
+    const res = await fetch(`${CONFIG.API_BASE_URL}/inquiries/${inquiryId}/audio`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+      body:    form,
     });
     const json = await res.json();
     if (!json.success) throw { message: json.message };

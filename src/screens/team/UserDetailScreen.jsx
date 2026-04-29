@@ -30,10 +30,11 @@ import { TYPOGRAPHY } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials, formatDateTime } from '@utils/helpers';
 
-import useUserStore from '@store/user.store';
-import useAuthStore from '@store/auth.store';
-import Loader       from '@components/common/Loader';
-import SetPinModal  from '@components/team/SetPinModal';
+import useUserStore    from '@store/user.store';
+import useAuthStore    from '@store/auth.store';
+import { deviceApi }  from '@api/device.api';
+import Loader         from '@components/common/Loader';
+import SetPinModal    from '@components/team/SetPinModal';
 
 export default function UserDetailScreen({ navigation, route }) {
   const { id } = route.params;
@@ -41,9 +42,10 @@ export default function UserDetailScreen({ navigation, route }) {
   const { selectedUser, isLoadingDetail, fetchUser, toggleStatus, removeUser } = useUserStore();
   const { isSuperuser } = useAuthStore();
 
-  const [pinModalVisible, setPinModalVisible] = useState(false);
-  const [isRefreshing,    setIsRefreshing]    = useState(false);
-  const [deleteError,     setDeleteError]     = useState(null);
+  const [pinModalVisible,  setPinModalVisible]  = useState(false);
+  const [isRefreshing,     setIsRefreshing]     = useState(false);
+  const [deleteError,      setDeleteError]      = useState(null);
+  const [isDeviceMutating, setIsDeviceMutating] = useState(false);
 
   useEffect(() => {
     fetchUser(id);
@@ -97,6 +99,85 @@ export default function UserDetailScreen({ navigation, route }) {
               navigation.goBack();
             } else {
               setDeleteError(result.message ?? 'Failed to delete user.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleBlockDevice = () => {
+    const device = selectedUser?.device;
+    if (!device) return;
+    Alert.alert(
+      'Block Device',
+      `Block ${selectedUser.name}'s device? They will not be able to log in until unblocked.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeviceMutating(true);
+            try {
+              await deviceApi.block(device.id);
+              await fetchUser(id);
+            } catch (e) {
+              Alert.alert('Error', e?.message ?? 'Failed to block device.');
+            } finally {
+              setIsDeviceMutating(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleUnblockDevice = () => {
+    const device = selectedUser?.device;
+    if (!device) return;
+    Alert.alert(
+      'Unblock Device',
+      `Allow ${selectedUser.name}'s device to log in again?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          onPress: async () => {
+            setIsDeviceMutating(true);
+            try {
+              await deviceApi.unblock(device.id);
+              await fetchUser(id);
+            } catch (e) {
+              Alert.alert('Error', e?.message ?? 'Failed to unblock device.');
+            } finally {
+              setIsDeviceMutating(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleResetDevice = () => {
+    if (!selectedUser?.device) return;
+    Alert.alert(
+      'Reset Device',
+      `Remove ${selectedUser.name}'s registered device? They will need to log in on a new device to re-register.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeviceMutating(true);
+            try {
+              await deviceApi.resetBySalesperson(selectedUser.id);
+              await fetchUser(id);
+            } catch (e) {
+              Alert.alert('Error', e?.message ?? 'Failed to reset device.');
+            } finally {
+              setIsDeviceMutating(false);
             }
           },
         },
@@ -304,10 +385,12 @@ export default function UserDetailScreen({ navigation, route }) {
         </View>
 
         {/* ── Device card ───────────────────────────────── */}
-        {device ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Registered Device</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Registered Device</Text>
+
+          {device ? (
             <View style={styles.deviceCard}>
+              {/* ── Info row ── */}
               <View style={styles.deviceRow}>
                 <Icon
                   name={device.platform === 'ios' ? 'apple' : 'android'}
@@ -348,21 +431,78 @@ export default function UserDetailScreen({ navigation, route }) {
                   Last seen: {formatDateTime(device.lastSeen)}
                 </Text>
               ) : null}
-
               {device.appVersion ? (
                 <Text style={styles.deviceAppVer}>v{device.appVersion}</Text>
               ) : null}
+
+              {/* ── Device action buttons ── */}
+              <View style={styles.deviceActions}>
+                {/* Block / Unblock */}
+                {device.isBlocked ? (
+                  <TouchableOpacity
+                    style={[styles.deviceActionBtn, styles.deviceActionUnblock]}
+                    onPress={handleUnblockDevice}
+                    disabled={isDeviceMutating}
+                    activeOpacity={0.8}
+                  >
+                    {isDeviceMutating ? (
+                      <ActivityIndicator size="small" color={COLORS.success} />
+                    ) : (
+                      <>
+                        <Icon name="lock-open-outline" size={15} color={COLORS.success} />
+                        <Text style={[styles.deviceActionText, { color: COLORS.success }]}>
+                          Unblock
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.deviceActionBtn, styles.deviceActionBlock]}
+                    onPress={handleBlockDevice}
+                    disabled={isDeviceMutating}
+                    activeOpacity={0.8}
+                  >
+                    {isDeviceMutating ? (
+                      <ActivityIndicator size="small" color={COLORS.warning} />
+                    ) : (
+                      <>
+                        <Icon name="lock-outline" size={15} color={COLORS.warning} />
+                        <Text style={[styles.deviceActionText, { color: COLORS.warning }]}>
+                          Block
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {/* Reset */}
+                <TouchableOpacity
+                  style={[styles.deviceActionBtn, styles.deviceActionReset]}
+                  onPress={handleResetDevice}
+                  disabled={isDeviceMutating}
+                  activeOpacity={0.8}
+                >
+                  {isDeviceMutating ? (
+                    <ActivityIndicator size="small" color={COLORS.error} />
+                  ) : (
+                    <>
+                      <Icon name="cellphone-remove" size={15} color={COLORS.error} />
+                      <Text style={[styles.deviceActionText, { color: COLORS.error }]}>
+                        Reset Device
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ) : (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Registered Device</Text>
+          ) : (
             <View style={styles.noDevice}>
               <Icon name="cellphone-off" size={20} color={COLORS.textMuted} />
               <Text style={styles.noDeviceText}>No device registered</Text>
             </View>
-          </View>
-        )}
+          )}
+        </View>
 
       </ScrollView>
 
@@ -557,6 +697,32 @@ const styles = StyleSheet.create({
   deviceBadgeText: { fontSize: 10, fontWeight: '700' },
   deviceLastSeen:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 6 },
   deviceAppVer:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
+
+  deviceActions: {
+    flexDirection:  'row',
+    gap:            SPACING.sm,
+    marginTop:      SPACING.md,
+    paddingTop:     SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  deviceActionBtn: {
+    flex:            1,
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             6,
+    paddingVertical: SPACING.sm,
+    borderRadius:    BORDER_RADIUS.md,
+    borderWidth:     1.5,
+  },
+  deviceActionBlock:   { borderColor: COLORS.warning,  backgroundColor: COLORS.warning  + '10' },
+  deviceActionUnblock: { borderColor: COLORS.success,  backgroundColor: COLORS.success  + '10' },
+  deviceActionReset:   { borderColor: COLORS.error,    backgroundColor: COLORS.error    + '10' },
+  deviceActionText: {
+    ...TYPOGRAPHY.small,
+    fontWeight: '700',
+  },
 
   deleteErrorBanner: {
     flexDirection:    'row',

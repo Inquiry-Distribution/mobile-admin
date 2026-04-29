@@ -11,7 +11,14 @@ export default function StatsCard({ stats, isLoading, person }) {
     { label: 'Assigned',    value: stats?.total          ?? '—', icon: 'inbox-outline',        color: COLORS.primary },
     { label: 'In Progress', value: stats?.inProgress     ?? '—', icon: 'progress-clock',       color: COLORS.warning },
     { label: 'Closed',      value: stats?.closed         ?? '—', icon: 'check-circle-outline', color: COLORS.success },
-    { label: 'Converted',   value: stats?.conversionRate ?? '—', icon: 'trending-up',          color: '#8B5CF6' },
+    {
+      label: 'Converted',
+      value: stats?.conversionRate != null
+        ? `${Math.round(Number(stats.conversionRate))}%`
+        : '—',
+      icon:  'trending-up',
+      color: '#8B5CF6',
+    },
   ];
 
   return (

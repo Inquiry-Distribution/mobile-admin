@@ -5,7 +5,8 @@ apply plugin: "com.facebook.react"
 // ── react-native-config (.env → BuildConfig fields + manifestPlaceholders) ────
 apply from: "../../node_modules/react-native-config/android/dotenv.gradle"
 
-// ── react-native-vector-icons (copies .ttf font files into assets) ─────────────
+// ── react-native-vector-icons — only ship fonts the app actually uses ──────────
+project.ext.vectoricons_fontnames = ["MaterialCommunityIcons"]
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 
 // ── Firebase Google Services ───────────────────────────────────────────────────
@@ -82,6 +83,15 @@ android {
             signingConfig   signingConfigs.release
         }
     }
+
+    splits {
+        abi {
+            reset()
+            enable true
+            universalApk false
+            include "arm64-v8a", "armeabi-v7a"
+        }
+    }
 }
 
 dependencies {
@@ -106,5 +116,4 @@ dependencies {
     // Firebase BoM — manages all Firebase library versions in one place
     implementation platform("com.google.firebase:firebase-bom:33.5.1")
     implementation("com.google.firebase:firebase-messaging")
-    implementation("com.google.firebase:firebase-analytics")
 }

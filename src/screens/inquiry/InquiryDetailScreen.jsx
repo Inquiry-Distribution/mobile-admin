@@ -13,7 +13,7 @@
  *  • Notes (read-only — sales adds notes)
  *  • Status timeline
  */
-import React, { useEffect, useLayoutEffect, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 
 import { COLORS, STATUS_COLORS, PRIORITY_COLORS } from '@constants/colors';
 import { TYPOGRAPHY }    from '@constants/typography';
-import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
+import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import { formatDateTime, getInitials } from '@utils/helpers';
 
 import useAuthStore    from '@store/auth.store';
@@ -43,6 +43,7 @@ import StatusBadge     from '@components/common/StatusBadge';
 import PriorityBadge   from '@components/common/PriorityBadge';
 import { Menu } from 'react-native-paper';
 
+import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import DistributeModal from '@components/inquiry/DistributeModal';
 import ReassignModal   from '@components/inquiry/ReassignModal';
 
@@ -65,6 +66,19 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const [menuVisible,     setMenuVisible]     = useState(false);
   const [callSupported,   setCallSupported]   = useState(true);
 
+  // ── Audio playback ────────────────────────────────────────────
+  const audioPlayer  = useRef(new AudioRecorderPlayer()).current;
+  const [isPlaying,   setIsPlaying]   = useState(false);
+  const [isPaused,    setIsPaused]    = useState(false);
+  const [playPosition, setPlayPosition] = useState('00:00:00');
+  const [playDuration, setPlayDuration] = useState('00:00:00');
+
+  // Stop audio on unmount
+  useEffect(() => () => {
+    audioPlayer.stopPlayer().catch(() => {});
+    audioPlayer.removePlayBackListener();
+  }, []);
+
   // Check once whether this device can make phone calls
   useEffect(() => {
     Linking.canOpenURL('tel:0').then(setCallSupported).catch(() => setCallSupported(false));
@@ -75,6 +89,43 @@ export default function InquiryDetailScreen({ route, navigation }) {
   }, [id]);
 
   const refetch = useCallback(() => selectInquiry(id), [id]);
+
+  const handlePlayAudio = useCallback(async (url) => {
+    try {
+      if (isPaused) {
+        await audioPlayer.resumePlayer();
+        setIsPlaying(true); setIsPaused(false);
+        return;
+      }
+      const fullUrl = url.startsWith('http') ? url : `${CONFIG.SOCKET_URL}/${url}`;
+      await audioPlayer.startPlayer(fullUrl);
+      audioPlayer.addPlayBackListener((e) => {
+        setPlayPosition(audioPlayer.mmssss(Math.floor(e.currentPosition)));
+        setPlayDuration(audioPlayer.mmssss(Math.floor(e.duration)));
+        if (e.currentPosition >= e.duration) {
+          audioPlayer.stopPlayer();
+          audioPlayer.removePlayBackListener();
+          setIsPlaying(false); setIsPaused(false);
+          setPlayPosition('00:00:00');
+        }
+      });
+      setIsPlaying(true); setIsPaused(false);
+    } catch (err) {
+      Alert.alert('Playback Error', err.message ?? 'Could not play audio.');
+    }
+  }, [isPaused]);
+
+  const handlePauseAudio = useCallback(async () => {
+    await audioPlayer.pausePlayer();
+    setIsPlaying(false); setIsPaused(true);
+  }, []);
+
+  const handleStopAudio = useCallback(async () => {
+    await audioPlayer.stopPlayer();
+    audioPlayer.removePlayBackListener();
+    setIsPlaying(false); setIsPaused(false);
+    setPlayPosition('00:00:00');
+  }, []);
 
   // ── Unassign ──────────────────────────────────────────────────
   const handleUnassign = useCallback(() => {
@@ -210,7 +261,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
     description, title, mobile, source, type, status, priority,
     createdAt, assignedAt, assignedTo, uploadedBy, assignedBy,
     notes = [], images = [], statusHistory = [],
-    isConverted, convertedAt,
+    isConverted, convertedAt, audioUrl,
   } = inquiry;
 
   const priorityColor = PRIORITY_COLORS[priority]?.text ?? COLORS.primary;
@@ -484,6 +535,44 @@ export default function InquiryDetailScreen({ route, navigation }) {
               </ScrollView>
             )}
           </View>
+
+          {/* ── Voice Note ──────────────────────────────── */}
+          {audioUrl ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Voice Note</Text>
+              <View style={styles.audioPlayer}>
+                <TouchableOpacity
+                  style={styles.audioPlayBtn}
+                  onPress={isPlaying ? handlePauseAudio : () => handlePlayAudio(audioUrl)}
+                  activeOpacity={0.8}
+                >
+                  <Icon
+                    name={isPlaying ? 'pause' : 'play'}
+                    size={22}
+                    color={COLORS.white}
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.audioInfo}>
+                  <View style={styles.audioTimeRow}>
+                    <Text style={styles.audioPosition}>{playPosition}</Text>
+                    {playDuration !== '00:00:00' && (
+                      <Text style={styles.audioDuration}> / {playDuration}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.audioStateLabel}>
+                    {isPlaying ? 'Playing…' : isPaused ? 'Paused' : 'Tap to play'}
+                  </Text>
+                </View>
+
+                {(isPlaying || isPaused) && (
+                  <TouchableOpacity style={styles.audioStopBtn} onPress={handleStopAudio}>
+                    <Icon name="stop" size={16} color={COLORS.error} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ) : null}
 
           {/* ── Notes (read-only for admin) ───────────────── */}
           <View style={styles.section}>
@@ -965,6 +1054,53 @@ const styles = StyleSheet.create({
     fontSize:   10,
     fontWeight: '700',
     color:      COLORS.warning,
+  },
+
+  // Audio player
+  audioPlayer: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    backgroundColor: COLORS.background,
+    borderRadius:  BORDER_RADIUS.lg,
+    padding:       SPACING.md,
+    gap:           SPACING.md,
+    borderWidth:   1,
+    borderColor:   COLORS.border,
+  },
+  audioPlayBtn: {
+    width:          48,
+    height:         48,
+    borderRadius:   24,
+    backgroundColor: COLORS.primary,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  audioInfo:    { flex: 1, gap: 4 },
+  audioTimeRow: { flexDirection: 'row', alignItems: 'baseline' },
+  audioPosition: {
+    fontSize:    16,
+    fontWeight:  '700',
+    color:       COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  audioDuration: {
+    fontSize:    12,
+    color:       COLORS.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  audioStateLabel: {
+    fontSize:      11,
+    color:         COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  audioStopBtn: {
+    width:          36,
+    height:         36,
+    borderRadius:   18,
+    backgroundColor: '#fee2e2',
+    alignItems:     'center',
+    justifyContent: 'center',
   },
 
   // Timeline

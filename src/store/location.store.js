@@ -20,12 +20,22 @@ import { CONFIG } from '@constants/config';
 const STALE_MS = CONFIG.MAP_LIVE_REFRESH_MS ?? 30_000;
 
 // ─── Normalise any incoming shape to the canonical location object ──
+// Prisma $queryRaw returns DECIMAL/NUMERIC columns as strings, so we
+// always parse lat/lng/accuracy to float to satisfy react-native-maps.
+function toFloat(v) {
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
 function normaliseOne(raw) {
+  const lat = toFloat(raw.lat   ?? raw.lastLat  ?? raw.latitude  ?? null);
+  const lng = toFloat(raw.lng   ?? raw.lastLng  ?? raw.longitude ?? null);
   return {
     salespersonId: raw.salespersonId ?? raw.id,
     name:          raw.salespersonName ?? raw.name ?? raw.salesperson?.name ?? 'Unknown',
-    lat:           raw.lat   ?? raw.lastLat  ?? raw.latitude  ?? null,
-    lng:           raw.lng   ?? raw.lastLng  ?? raw.longitude ?? null,
+    lat,
+    lng,
     address:       raw.address ?? raw.lastAddress ?? null,
     lastLocatedAt: raw.lastLocatedAt ?? raw.recordedAt ?? raw.updatedAt ?? null,
     isOnline:      raw.isOnline ?? false,

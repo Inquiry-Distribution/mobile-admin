@@ -23,7 +23,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView }    from 'react-native-safe-area-context';
-import { useFocusEffect }  from '@react-navigation/native';
+import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import Icon                from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast               from 'react-native-toast-message';
 import dayjs               from 'dayjs';
@@ -82,6 +82,25 @@ function getGreeting() {
 
 // ─── Screen ───────────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
+  // ── Navigate to a tab with a clean nested stack ──────────────
+  // Resets the target tab's stack so pressing Back never leads to
+  // a stale deep screen left over from a previous session in that tab.
+  // screens = array of { name, params? } defining the exact stack to set.
+  const goToTab = useCallback((tabName, screens) => {
+    navigation.dispatch((state) => {
+      const routes = state.routes.map((r) =>
+        r.name === tabName
+          ? { ...r, state: { routes: screens, index: screens.length - 1 } }
+          : r
+      );
+      return CommonActions.reset({
+        ...state,
+        routes,
+        index: state.routes.findIndex((r) => r.name === tabName),
+      });
+    });
+  }, [navigation]);
+
   const { user, isSuperuser } = useAuthStore();
   const {
     unassigned,
@@ -316,7 +335,7 @@ export default function DashboardScreen({ navigation }) {
             value={s.totalInquiries ?? '—'}
             icon="clipboard-list-outline"
             color={COLORS.primary}
-            onPress={() => navigation.navigate('Inquiries')}
+            onPress={() => navigation.navigate('Inquiries', { screen: 'InquiryList' })}
           />
           <StatCard compact
             label="Unassigned"
@@ -360,7 +379,7 @@ export default function DashboardScreen({ navigation }) {
             icon="cellphone-check"
             color={COLORS.info}
             onPress={() =>
-              navigation.navigate('Team', { screen: 'DeviceList' })
+              goToTab('Team', [{ name: 'UserList' }, { name: 'DeviceList' }])
             }
           />
           <StatCard compact
@@ -369,7 +388,7 @@ export default function DashboardScreen({ navigation }) {
             icon="cellphone-lock"
             color={COLORS.error}
             onPress={() =>
-              navigation.navigate('Team', { screen: 'DeviceList' })
+              goToTab('Team', [{ name: 'UserList' }, { name: 'DeviceList' }])
             }
           />
         </View>
@@ -386,7 +405,7 @@ export default function DashboardScreen({ navigation }) {
             value={s.totalSales ?? '—'}
             icon="account-group-outline"
             color={COLORS.primary}
-            onPress={() => navigation.navigate('Team')}
+            onPress={() => navigation.navigate('Team', { screen: 'UserList' })}
           />
           <StatCard
             label="Attendance"
@@ -394,7 +413,7 @@ export default function DashboardScreen({ navigation }) {
             icon="calendar-check-outline"
             color={COLORS.secondary}
             onPress={() =>
-              navigation.navigate('Team', { screen: 'Attendance' })
+              goToTab('Team', [{ name: 'UserList' }, { name: 'Attendance' }])
             }
           />
         </View>
@@ -442,7 +461,7 @@ export default function DashboardScreen({ navigation }) {
             label="Devices"
             color={COLORS.info}
             onPress={() =>
-              navigation.navigate('Team', { screen: 'DeviceList' })
+              goToTab('Team', [{ name: 'UserList' }, { name: 'DeviceList' }])
             }
           />
         </View>

@@ -156,6 +156,8 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
             <FlatList
               data={filtered}
               keyExtractor={(item) => item.id}
+              extraData={selected?.id}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <SalespersonRow
                   sp={item}
@@ -184,9 +186,16 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
           {selected ? (
             <View style={styles.selectedPreview}>
               <Icon name="account-check-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.selectedName} numberOfLines={1}>
-                {selected.name}
-              </Text>
+              <View style={styles.selectedInfo}>
+                <Text style={styles.selectedName} numberOfLines={1}>
+                  {selected.name}
+                </Text>
+                {selected.company?.name ? (
+                  <Text style={styles.selectedCompany} numberOfLines={1}>
+                    {selected.company.name}
+                  </Text>
+                ) : null}
+              </View>
             </View>
           ) : (
             <Text style={styles.footerHint}>Select a salesperson above</Text>
@@ -308,11 +317,18 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     gap:           6,
   },
+  selectedInfo: {
+    flex: 1,
+  },
   selectedName: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.primary,
     fontWeight: '700',
-    flex:       1,
+  },
+  selectedCompany: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.textMuted,
+    marginTop:  1,
   },
   footerHint: {
     flex: 1,

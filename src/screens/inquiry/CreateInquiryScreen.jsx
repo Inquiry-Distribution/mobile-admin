@@ -4,7 +4,7 @@
  * Fields: images, description, mobile, time, priority, source, distribute
  * Flow:   create → uploadImages (if any) → distribute (if salesperson selected)
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,8 @@ import Icon                from 'react-native-vector-icons/MaterialCommunityIcon
 import { launchImageLibrary } from 'react-native-image-picker';
 import { Menu, Modal, Portal } from 'react-native-paper';
 import Toast               from 'react-native-toast-message';
+import AudioRecorderPlayer from 'react-native-audio-recorder-player';
+import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 
 import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
 import { TYPOGRAPHY }                             from '@constants/typography';
@@ -108,6 +110,14 @@ export default function CreateInquiryScreen({ navigation }) {
   const [spStats,        setSpStats]        = useState(null);
   const [spStatsLoading, setSpStatsLoading] = useState(false);
 
+  // Audio recording
+  const audioRecorderPlayer = useRef(new AudioRecorderPlayer()).current;
+  const [recordingState,  setRecordingState]  = useState('idle'); // 'idle' | 'recording' | 'recorded'
+  const [audioPath,       setAudioPath]       = useState(null);
+  const [recordDuration,  setRecordDuration]  = useState('00:00');
+  const [isPlaying,       setIsPlaying]       = useState(false);
+  const [playPosition,    setPlayPosition]    = useState('00:00');
+
   useEffect(() => {
     fetchSalespersons();
   }, []);
@@ -136,6 +146,85 @@ export default function CreateInquiryScreen({ navigation }) {
     fetchStats();
     return () => { cancelled = true; };
   }, [selectedSp]);
+
+  // Stop recorder/player if screen unmounts mid-session
+  useEffect(() => {
+    return () => {
+      audioRecorderPlayer.stopRecorder().catch(() => {});
+      audioRecorderPlayer.stopPlayer().catch(() => {});
+    };
+  }, []);
+
+  // ─── Audio recording ──────────────────────────────────────────
+  const startRecording = async () => {
+    const permission = await request(
+      Platform.OS === 'android'
+        ? PERMISSIONS.ANDROID.RECORD_AUDIO
+        : PERMISSIONS.IOS.MICROPHONE,
+    );
+    if (permission !== RESULTS.GRANTED) {
+      Alert.alert('Permission Required', 'Allow microphone access to record a voice note.');
+      return;
+    }
+    try {
+      const path = await audioRecorderPlayer.startRecorder();
+      audioRecorderPlayer.addRecordBackListener((e) => {
+        const secs = Math.floor(e.currentPosition / 1000);
+        const mm   = String(Math.floor(secs / 60)).padStart(2, '0');
+        const ss   = String(secs % 60).padStart(2, '0');
+        setRecordDuration(`${mm}:${ss}`);
+      });
+      setAudioPath(path);
+      setRecordingState('recording');
+    } catch {
+      Alert.alert('Error', 'Could not start recording. Check microphone access.');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      await audioRecorderPlayer.stopRecorder();
+      audioRecorderPlayer.removeRecordBackListener();
+      setRecordingState('recorded');
+    } catch {
+      setRecordingState('idle');
+    }
+  };
+
+  const togglePlayback = async () => {
+    if (isPlaying) {
+      await audioRecorderPlayer.pausePlayer();
+      setIsPlaying(false);
+    } else {
+      await audioRecorderPlayer.startPlayer(audioPath);
+      audioRecorderPlayer.addPlayBackListener((e) => {
+        if (e.currentPosition >= e.duration) {
+          audioRecorderPlayer.stopPlayer();
+          audioRecorderPlayer.removePlayBackListener();
+          setIsPlaying(false);
+          setPlayPosition('00:00');
+          return;
+        }
+        const secs = Math.floor(e.currentPosition / 1000);
+        const mm   = String(Math.floor(secs / 60)).padStart(2, '0');
+        const ss   = String(secs % 60).padStart(2, '0');
+        setPlayPosition(`${mm}:${ss}`);
+      });
+      setIsPlaying(true);
+    }
+  };
+
+  const deleteRecording = async () => {
+    if (isPlaying) {
+      await audioRecorderPlayer.stopPlayer();
+      audioRecorderPlayer.removePlayBackListener();
+      setIsPlaying(false);
+    }
+    setAudioPath(null);
+    setRecordingState('idle');
+    setRecordDuration('00:00');
+    setPlayPosition('00:00');
+  };
 
   // ─── Image picker ────────────────────────────────────────────
   const handlePickImages = async () => {
@@ -228,6 +317,11 @@ export default function CreateInquiryScreen({ navigation }) {
     setSelectedSp(null);
     setSpSearch('');
     setSpStats(null);
+    setAudioPath(null);
+    setRecordingState('idle');
+    setRecordDuration('00:00');
+    setPlayPosition('00:00');
+    setIsPlaying(false);
   };
 
   // ─── Submit ──────────────────────────────────────────────────
@@ -261,7 +355,12 @@ export default function CreateInquiryScreen({ navigation }) {
         await inquiryApi.uploadImages(inquiryId, images);
       }
 
-      // 4. Distribute to salesperson
+      // 4. Upload voice note
+      if (audioPath) {
+        await inquiryApi.uploadAudio(inquiryId, audioPath);
+      }
+
+      // 5. Distribute to salesperson
       if (selectedSp) {
         await inquiryApi.distribute(inquiryId, { salesPersonId: selectedSp.id });
       }
@@ -350,6 +449,68 @@ export default function CreateInquiryScreen({ navigation }) {
                 <Text style={[styles.uploadHint, { marginTop: SPACING.xs }]}>
                   {images.length}/{MAX_IMAGES} images selected
                 </Text>
+              </View>
+            )}
+          </View>
+
+          {/* ── Voice Note ───────────────────────────────── */}
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>VOICE NOTE</Text>
+
+            {recordingState === 'idle' && (
+              <TouchableOpacity
+                style={styles.audioIdle}
+                onPress={startRecording}
+                activeOpacity={0.75}
+              >
+                <View style={styles.audioMicBox}>
+                  <Icon name="microphone" size={24} color={COLORS.primary} />
+                </View>
+                <Text style={styles.audioIdleText}>Tap to record a voice note</Text>
+                <Text style={styles.audioIdleHint}>Optional · stored with the inquiry</Text>
+              </TouchableOpacity>
+            )}
+
+            {recordingState === 'recording' && (
+              <View style={styles.audioRecording}>
+                <View style={styles.audioRecordingLeft}>
+                  <View style={styles.audioRecordDot} />
+                  <Text style={styles.audioTimer}>{recordDuration}</Text>
+                  <Text style={styles.audioRecordingLabel}>Recording…</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.audioStopBtn}
+                  onPress={stopRecording}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="stop" size={18} color={COLORS.white} />
+                  <Text style={styles.audioStopText}>Stop</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {recordingState === 'recorded' && (
+              <View style={styles.audioRecorded}>
+                <TouchableOpacity
+                  style={styles.audioPlayBtn}
+                  onPress={togglePlayback}
+                  activeOpacity={0.8}
+                >
+                  <Icon name={isPlaying ? 'pause' : 'play'} size={20} color={COLORS.white} />
+                </TouchableOpacity>
+                <View style={styles.audioInfo}>
+                  <Text style={styles.audioInfoLabel}>Voice note recorded</Text>
+                  <Text style={styles.audioInfoTime}>
+                    {isPlaying ? playPosition : recordDuration}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.audioDeleteBtn}
+                  onPress={deleteRecording}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Icon name="delete-outline" size={20} color={COLORS.error} />
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -1351,6 +1512,114 @@ const styles = StyleSheet.create({
     color:     COLORS.textMuted,
     marginTop: 4,
     textAlign: 'center',
+  },
+
+  // ── Voice note ────────────────────────────────────────────────
+  audioIdle: {
+    borderWidth:     1.5,
+    borderColor:     COLORS.border,
+    borderStyle:     'dashed',
+    borderRadius:    BORDER_RADIUS.md,
+    paddingVertical: SPACING.lg,
+    alignItems:      'center',
+    gap:             SPACING.xs,
+  },
+  audioMicBox: {
+    width:           52,
+    height:          52,
+    borderRadius:    26,
+    backgroundColor: COLORS.primaryLight,
+    alignItems:      'center',
+    justifyContent:  'center',
+    marginBottom:    SPACING.xs,
+  },
+  audioIdleText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.textPrimary,
+    fontWeight: '600',
+  },
+  audioIdleHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+  },
+  audioRecording: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'space-between',
+    backgroundColor: '#FEF2F2',
+    borderRadius:    BORDER_RADIUS.md,
+    borderWidth:     1,
+    borderColor:     '#FECACA',
+    padding:         SPACING.md,
+  },
+  audioRecordingLeft: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           SPACING.sm,
+  },
+  audioRecordDot: {
+    width:           10,
+    height:          10,
+    borderRadius:    5,
+    backgroundColor: COLORS.error,
+  },
+  audioTimer: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.error,
+    fontWeight: '700',
+  },
+  audioRecordingLabel: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.error,
+  },
+  audioStopBtn: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    backgroundColor:   COLORS.error,
+    borderRadius:      BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.xs + 2,
+  },
+  audioStopText: {
+    ...TYPOGRAPHY.small,
+    color:      COLORS.white,
+    fontWeight: '700',
+  },
+  audioRecorded: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             SPACING.sm,
+    backgroundColor: COLORS.primaryLight,
+    borderRadius:    BORDER_RADIUS.md,
+    borderWidth:     1,
+    borderColor:     COLORS.primaryMid,
+    padding:         SPACING.sm,
+  },
+  audioPlayBtn: {
+    width:           40,
+    height:          40,
+    borderRadius:    20,
+    backgroundColor: COLORS.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
+  },
+  audioInfo: { flex: 1 },
+  audioInfoLabel: {
+    ...TYPOGRAPHY.small,
+    color:      COLORS.primary,
+    fontWeight: '600',
+  },
+  audioInfoTime: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.primary,
+    fontWeight: '700',
+    marginTop:  2,
+  },
+  audioDeleteBtn: {
+    padding:    SPACING.xs,
+    flexShrink: 0,
   },
 
   // Time picker modal
