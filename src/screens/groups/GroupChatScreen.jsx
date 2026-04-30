@@ -2,15 +2,18 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Modal, Alert,
+  ActivityIndicator, Modal, Alert, Image, ScrollView,
+  PermissionsAndroid, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import DocumentPicker from 'react-native-document-picker';
 import dayjs from 'dayjs';
 
 import { COLORS }                         from '@constants/colors';
 import { TYPOGRAPHY }                     from '@constants/typography';
-import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
+import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import useGroupStore from '@store/group.store';
 import useAuthStore  from '@store/auth.store';
 import socketService from '@services/socket.service';
@@ -33,6 +36,10 @@ export default function GroupChatScreen({ route, navigation }) {
   const [isPrivate,      setIsPrivate]      = useState(false);
   const [targetUser,     setTargetUser]     = useState(null);
   const [pickerOpen,     setPickerOpen]     = useState(false);
+  const [attachOpen,      setAttachOpen]      = useState(false);
+  const [attachedFiles,   setAttachedFiles]   = useState([]); // [{ uri, type, name, localUri }]
+  const [isMultiSending,  setIsMultiSending]  = useState(false);
+  const [fullScreenImg,   setFullScreenImg]   = useState(null); // URL string
   const [menuOpen,       setMenuOpen]       = useState(false);
   const [editingMessage, setEditingMessage] = useState(null);
   const [editText,       setEditText]       = useState('');
@@ -128,16 +135,131 @@ export default function GroupChatScreen({ route, navigation }) {
 
   const handleSend = async () => {
     const trimmed = text.trim();
-    if (!trimmed || isSending) return;
+    if ((!trimmed && attachedFiles.length === 0) || isSending || isMultiSending) return;
 
-    const payload = {
-      text:         trimmed,
-      isPrivate:    isPrivate,
-      targetUserId: isPrivate && targetUser ? targetUser.id : null,
-    };
-
+    const filesToSend = [...attachedFiles];
     setText('');
-    await sendMessage(groupId, payload);
+    setAttachedFiles([]);
+
+    setIsMultiSending(true);
+    try {
+      if (filesToSend.length === 0) {
+        // Text-only message
+        await sendMessage(groupId, {
+          text:         trimmed || undefined,
+          isPrivate,
+          targetUserId: isPrivate && targetUser ? targetUser.id : null,
+        });
+      } else {
+        // Send one message per file; text goes with the first only
+        for (let i = 0; i < filesToSend.length; i++) {
+          await sendMessage(groupId, {
+            text:         i === 0 ? (trimmed || undefined) : undefined,
+            isPrivate,
+            targetUserId: isPrivate && targetUser ? targetUser.id : null,
+            file:         filesToSend[i],
+          });
+        }
+      }
+    } finally {
+      setIsMultiSending(false);
+    }
+  };
+
+  // ── File picker (all types, multiple) ───────────────────────
+  const pickFile = async () => {
+    setAttachOpen(false);
+    try {
+      const results = await DocumentPicker.pick({
+        type:               [DocumentPicker.types.allFiles],
+        allowMultiSelection: true,
+        copyTo:             'cachesDirectory',
+      });
+      const newFiles = results.map((r) => ({
+        uri:      r.fileCopyUri ?? r.uri,
+        type:     r.type ?? 'application/octet-stream',
+        name:     r.name ?? `file_${Date.now()}`,
+        localUri: r.fileCopyUri ?? r.uri,
+      }));
+      setAttachedFiles((prev) => [...prev, ...newFiles].slice(0, 10));
+    } catch (e) {
+      if (!DocumentPicker.isCancel(e)) {
+        Alert.alert('Error', 'Could not open file picker.');
+        console.warn('Document picker error:', e);
+      }
+    }
+  };
+
+  // ── Request camera permission (Android only) ─────────────────
+  const ensureCameraPermission = async () => {
+    if (Platform.OS !== 'android') return true;
+    try {
+      const already = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      );
+      if (already) return true;
+      const result = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        {
+          title:         'Camera Permission',
+          message:       'Allow the app to use your camera to take photos.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Deny',
+        },
+      );
+      return result === PermissionsAndroid.RESULTS.GRANTED;
+    } catch {
+      return false;
+    }
+  };
+
+  // ── Image picker (v7 Promise API) ────────────────────────────
+  const pickImage = async (source) => {
+    setAttachOpen(false);
+
+    if (source === 'camera') {
+      const granted = await ensureCameraPermission();
+      if (!granted) {
+        Alert.alert(
+          'Permission Denied',
+          'Camera permission is required to take photos. Please enable it in your device settings.',
+        );
+        return;
+      }
+    }
+
+    const options = {
+      mediaType:      'photo',
+      quality:        0.8,
+      maxWidth:       1200,
+      maxHeight:      1200,
+      saveToPhotos:   false,
+      includeBase64:  false,
+      selectionLimit: source === 'camera' ? 1 : 10,
+    };
+    try {
+      const response = source === 'camera'
+        ? await launchCamera(options)
+        : await launchImageLibrary(options);
+
+      if (response.didCancel) return;
+      if (response.errorCode) {
+        Alert.alert('Error', response.errorMessage ?? 'Could not open image picker.');
+        return;
+      }
+      const assets = response.assets ?? [];
+      if (!assets.length) return;
+      const newFiles = assets.map((asset) => ({
+        uri:      asset.uri,
+        type:     asset.type     ?? 'image/jpeg',
+        name:     asset.fileName ?? `photo_${Date.now()}.jpg`,
+        localUri: asset.uri,
+      }));
+      setAttachedFiles((prev) => [...prev, ...newFiles].slice(0, 10));
+    } catch (e) {
+      Alert.alert('Error', 'Could not open image picker.');
+      console.warn('Image picker error:', e);
+    }
   };
 
   const handleLoadMore = () => {
@@ -200,6 +322,7 @@ export default function GroupChatScreen({ route, navigation }) {
                 prevMessage={messages[index - 1]}
                 isEditing={editingMessage?.id === item.id}
                 onLongPress={isSuperuser && item.senderId === userId ? () => startEdit(item) : null}
+                onImagePress={setFullScreenImg}
               />
             )}
             onEndReached={handleLoadMore}
@@ -316,7 +439,52 @@ export default function GroupChatScreen({ route, navigation }) {
                 <Text style={styles.privateIndicatorText}>Private → {targetUser.name.split(' ')[0]}</Text>
               </View>
             )}
+
+            {/* Attached files preview strip */}
+            {attachedFiles.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.attachStrip}
+                contentContainerStyle={styles.attachStripContent}
+              >
+                {attachedFiles.map((file, index) => {
+                  const fi = getFileInfo(file.type);
+                  return (
+                    <View key={index} style={styles.attachStripItem}>
+                      {fi.isImage ? (
+                        <Image source={{ uri: file.localUri }} style={styles.attachStripThumb} />
+                      ) : (
+                        <View style={[styles.attachStripIcon, { backgroundColor: fi.color + '18' }]}>
+                          <Icon name={fi.icon} size={26} color={fi.color} />
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={styles.attachStripRemove}
+                        onPress={() => setAttachedFiles((prev) => prev.filter((_, i) => i !== index))}
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                      >
+                        <Icon name="close-circle" size={18} color="#fff" />
+                      </TouchableOpacity>
+                      {!fi.isImage && (
+                        <Text style={styles.attachStripName} numberOfLines={1}>{file.name}</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+
             <View style={styles.inputRow}>
+              {/* Attach button */}
+              <TouchableOpacity
+                style={styles.attachBtn}
+                onPress={() => setAttachOpen(true)}
+                activeOpacity={0.7}
+              >
+                <Icon name="paperclip" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+
               <TextInput
                 style={styles.input}
                 placeholder={isPrivate ? `Private to ${targetUser?.name?.split(' ')[0] ?? '…'}` : 'Send to all members…'}
@@ -327,12 +495,12 @@ export default function GroupChatScreen({ route, navigation }) {
                 maxLength={1000}
               />
               <TouchableOpacity
-                style={[styles.sendBtn, (!text.trim() || isSending) && styles.sendBtnDisabled]}
+                style={[styles.sendBtn, ((!text.trim() && attachedFiles.length === 0) || isSending || isMultiSending) && styles.sendBtnDisabled]}
                 onPress={handleSend}
-                disabled={!text.trim() || isSending}
+                disabled={(!text.trim() && attachedFiles.length === 0) || isSending || isMultiSending}
                 activeOpacity={0.8}
               >
-                {isSending
+                {(isSending || isMultiSending)
                   ? <ActivityIndicator size={18} color={COLORS.white} />
                   : <Icon name="send" size={18} color={COLORS.white} />
                 }
@@ -396,6 +564,74 @@ export default function GroupChatScreen({ route, navigation }) {
             }
             contentContainerStyle={{ paddingBottom: 40 }}
           />
+        </View>
+      </Modal>
+
+      {/* ── Full-screen image viewer ──────────────────── */}
+      <Modal
+        visible={!!fullScreenImg}
+        transparent={false}
+        animationType="fade"
+        onRequestClose={() => setFullScreenImg(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.fullScreenBg}>
+          <StatusBar backgroundColor="#000" barStyle="light-content" />
+          {fullScreenImg && (
+            <Image
+              source={{ uri: fullScreenImg }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          )}
+          <TouchableOpacity
+            style={styles.fullScreenClose}
+            onPress={() => setFullScreenImg(null)}
+            activeOpacity={0.8}
+          >
+            <Icon name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/* ── Attachment picker sheet ──────────────────── */}
+      <Modal
+        visible={attachOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAttachOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={() => setAttachOpen(false)}
+        />
+        <View style={styles.attachSheet}>
+          <View style={styles.attachSheetHandle} />
+          <Text style={styles.attachSheetTitle}>Send Image</Text>
+          <View style={styles.attachOptions}>
+            <TouchableOpacity style={styles.attachOption} onPress={() => pickImage('camera')}>
+              <View style={[styles.attachOptionIcon, { backgroundColor: COLORS.primary + '18' }]}>
+                <Icon name="camera-outline" size={26} color={COLORS.primary} />
+              </View>
+              <Text style={styles.attachOptionLabel}>Camera</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.attachOption} onPress={() => pickImage('library')}>
+              <View style={[styles.attachOptionIcon, { backgroundColor: COLORS.secondary + '18' }]}>
+                <Icon name="image-multiple-outline" size={26} color={COLORS.secondary} />
+              </View>
+              <Text style={styles.attachOptionLabel}>Gallery</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.attachOption} onPress={pickFile}>
+              <View style={[styles.attachOptionIcon, { backgroundColor: '#7c3aed18' }]}>
+                <Icon name="file-outline" size={26} color="#7c3aed" />
+              </View>
+              <Text style={styles.attachOptionLabel}>File</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.attachCancel} onPress={() => setAttachOpen(false)}>
+            <Text style={styles.attachCancelText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
       </Modal>
 
@@ -463,14 +699,21 @@ export default function GroupChatScreen({ route, navigation }) {
 }
 
 // ─── Message bubble ───────────────────────────────────────────
-function MessageBubble({ message, userId, isSuperuser, prevMessage, isEditing, onLongPress }) {
+function MessageBubble({ message, userId, isSuperuser, prevMessage, isEditing, onLongPress, onImagePress }) {
   const isMe        = message.senderId === userId;
   const isPrivate   = message.isPrivate;
   const senderName  = isMe
     ? 'You'
     : isSuperuser
-    ? message.sender?.name ?? 'Member'   // admin sees real name
+    ? message.sender?.name ?? 'Member'
     : 'Support Team';
+
+  const hasImage  = message.fileUrl && message.fileType?.startsWith('image/');
+  const hasFile   = message.fileUrl && !hasImage;   // any non-image attachment
+  const fileUrl   = message.fileUrl
+    ? (message.fileUrl.startsWith('http') ? message.fileUrl : `${CONFIG.SOCKET_URL}${message.fileUrl}`)
+    : null;
+  const fi = hasFile ? getFileInfo(message.fileType) : null;
 
   const showDateSep = !prevMessage ||
     !dayjs(message.createdAt).isSame(dayjs(prevMessage.createdAt), 'day');
@@ -497,6 +740,7 @@ function MessageBubble({ message, userId, isSuperuser, prevMessage, isEditing, o
             isMe      ? styles.bubbleMe    : styles.bubbleThem,
             isPrivate && styles.bubblePrivate,
             isEditing && styles.bubbleEditing,
+            (hasImage || hasFile) && styles.bubbleFile,
           ]}
         >
           {isPrivate && (
@@ -509,7 +753,40 @@ function MessageBubble({ message, userId, isSuperuser, prevMessage, isEditing, o
               </Text>
             </View>
           )}
-          <Text style={[styles.bubbleText, isMe && styles.bubbleTextMe]}>{message.text}</Text>
+
+          {/* Image — tap to full-screen */}
+          {hasImage && (
+            <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress?.(fileUrl)}>
+              <Image source={{ uri: fileUrl }} style={styles.msgImage} resizeMode="cover" />
+            </TouchableOpacity>
+          )}
+
+          {/* Generic file card (PDF, Word, Excel, etc.) */}
+          {hasFile && fi && (
+            <View style={[styles.fileCard, isMe && styles.fileCardMe]}>
+              <View style={[styles.fileIconWrap, { backgroundColor: fi.color + '22' }]}>
+                <Icon name={fi.icon} size={30} color={fi.color} />
+              </View>
+              <View style={styles.fileInfo}>
+                <Text style={[styles.fileName, isMe && styles.fileNameMe]} numberOfLines={2}>
+                  {message.fileName ?? 'File'}
+                </Text>
+                <Text style={[styles.fileLabel, isMe && styles.fileLabelMe]}>{fi.label}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Text / caption */}
+          {message.text ? (
+            <Text style={[
+              styles.bubbleText,
+              isMe && styles.bubbleTextMe,
+              (hasImage || hasFile) && styles.bubbleCaption,
+            ]}>
+              {message.text}
+            </Text>
+          ) : null}
+
           <Text style={[styles.bubbleTime, isMe && styles.bubbleTimeMe]}>
             {dayjs(message.createdAt).format('hh:mm A')}
             {isPrivate && !isMe && (
@@ -520,6 +797,23 @@ function MessageBubble({ message, userId, isSuperuser, prevMessage, isEditing, o
       </View>
     </>
   );
+}
+
+// ─── File type → icon / label / color ────────────────────────
+function getFileInfo(mimeType) {
+  if (!mimeType) return { icon: 'file-outline', color: '#6b7280', label: 'File', isImage: false };
+  if (mimeType.startsWith('image/'))                                          return { icon: 'image-outline',              color: '#2563eb', label: 'Image',       isImage: true  };
+  if (mimeType === 'application/pdf')                                         return { icon: 'file-pdf-box',               color: '#dc2626', label: 'PDF',         isImage: false };
+  if (mimeType === 'application/msword' ||
+      mimeType.includes('wordprocessingml'))                                  return { icon: 'file-word-outline',          color: '#1d4ed8', label: 'Word',        isImage: false };
+  if (mimeType === 'application/vnd.ms-excel' ||
+      mimeType.includes('spreadsheetml'))                                     return { icon: 'file-excel-outline',         color: '#16a34a', label: 'Excel',       isImage: false };
+  if (mimeType === 'application/vnd.ms-powerpoint' ||
+      mimeType.includes('presentationml'))                                    return { icon: 'file-powerpoint-outline',    color: '#ea580c', label: 'PowerPoint',  isImage: false };
+  if (mimeType === 'text/plain')                                              return { icon: 'file-document-outline',     color: '#6b7280', label: 'Text',        isImage: false };
+  if (mimeType === 'text/csv')                                                return { icon: 'file-delimited-outline',    color: '#16a34a', label: 'CSV',         isImage: false };
+  if (mimeType.includes('zip') || mimeType.includes('rar'))                  return { icon: 'folder-zip-outline',        color: '#ca8a04', label: 'Archive',     isImage: false };
+  return                                                                             { icon: 'file-outline',              color: '#6b7280', label: 'File',        isImage: false };
 }
 
 const styles = StyleSheet.create({
@@ -675,6 +969,10 @@ const styles = StyleSheet.create({
   },
   privateIndicatorText: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600' },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.sm },
+  attachBtn: {
+    width: 36, height: 36,
+    alignItems: 'center', justifyContent: 'center',
+  },
   input: {
     flex: 1, minHeight: 40, maxHeight: 100,
     backgroundColor: COLORS.background,
@@ -684,6 +982,173 @@ const styles = StyleSheet.create({
   },
   sendBtn:         { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   sendBtnDisabled: { backgroundColor: COLORS.border },
+
+  // Attached files strip (horizontal, multi-file)
+  attachStrip: {
+    marginBottom: SPACING.xs,
+  },
+  attachStripContent: {
+    gap:             SPACING.sm,
+    paddingHorizontal: 2,
+    paddingVertical:   4,
+  },
+  attachStripItem: {
+    width:      72,
+    alignItems: 'center',
+    position:   'relative',
+  },
+  attachStripThumb: {
+    width:           64,
+    height:          64,
+    borderRadius:    BORDER_RADIUS.md,
+    backgroundColor: COLORS.border,
+  },
+  attachStripIcon: {
+    width:          64,
+    height:         64,
+    borderRadius:   BORDER_RADIUS.md,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  attachStripRemove: {
+    position:        'absolute',
+    top:             -6,
+    right:           2,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius:    10,
+  },
+  attachStripName: {
+    ...TYPOGRAPHY.caption,
+    fontSize:  9,
+    color:     COLORS.textPrimary,
+    textAlign: 'center',
+    marginTop: 3,
+    width:     68,
+  },
+
+  // Attach picker sheet
+  attachSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius:  20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+  },
+  attachSheetHandle: {
+    width:           40,
+    height:          4,
+    backgroundColor: COLORS.border,
+    borderRadius:    2,
+    alignSelf:       'center',
+    marginTop:       10,
+    marginBottom:    8,
+  },
+  attachSheetTitle: {
+    ...TYPOGRAPHY.bodyMedium,
+    fontWeight:   '700',
+    color:        COLORS.textPrimary,
+    textAlign:    'center',
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  attachOptions: {
+    flexDirection:  'row',
+    justifyContent: 'center',
+    gap:            SPACING.xl,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+  },
+  attachOption: {
+    alignItems: 'center',
+    gap:        SPACING.sm,
+  },
+  attachOptionIcon: {
+    width:          72,
+    height:         72,
+    borderRadius:   20,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  attachOptionLabel: {
+    ...TYPOGRAPHY.small,
+    fontWeight: '600',
+    color:      COLORS.textPrimary,
+  },
+  attachCancel: {
+    marginHorizontal: SPACING.lg,
+    paddingVertical:  14,
+    backgroundColor:  COLORS.background,
+    borderRadius:     BORDER_RADIUS.lg,
+    alignItems:       'center',
+    borderWidth:      1,
+    borderColor:      COLORS.border,
+  },
+  attachCancelText: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '600',
+    color:      COLORS.textSecondary,
+  },
+
+  // File bubble (image or PDF)
+  bubbleFile: { padding: 4 },
+  msgImage: {
+    width:        220,
+    height:       180,
+    borderRadius: BORDER_RADIUS.md,
+  },
+  bubbleCaption: {
+    marginTop:        6,
+    marginHorizontal: 4,
+  },
+
+  // Generic file card inside bubble
+  fileCard: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             SPACING.sm,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius:    BORDER_RADIUS.md,
+    padding:         SPACING.sm,
+    minWidth:        190,
+    maxWidth:        240,
+  },
+  fileCardMe:  { backgroundColor: 'rgba(255,255,255,0.18)' },
+  fileIconWrap: {
+    width:           44,
+    height:          44,
+    borderRadius:    BORDER_RADIUS.sm,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
+  },
+  fileInfo:    { flex: 1 },
+  fileName:    { ...TYPOGRAPHY.caption, fontWeight: '700', color: COLORS.textPrimary },
+  fileNameMe:  { color: COLORS.white },
+  fileLabel:   { fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
+  fileLabelMe: { color: 'rgba(255,255,255,0.65)' },
+
+  // Full-screen image viewer
+  fullScreenBg: {
+    flex:            1,
+    backgroundColor: '#000',
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  fullScreenImage: {
+    width:  '100%',
+    height: '100%',
+  },
+  fullScreenClose: {
+    position:        'absolute',
+    top:             44,
+    right:           16,
+    width:           40,
+    height:          40,
+    borderRadius:    20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
 
   // Picker modal
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },

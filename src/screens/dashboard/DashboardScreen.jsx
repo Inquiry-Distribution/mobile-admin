@@ -328,7 +328,7 @@ export default function DashboardScreen({ navigation }) {
           )}
         </View>
 
-        {/* Improvement #2 — 6 KPI cards (added Devices + Blocked) */}
+        {/* KPI cards — one card per status so counts always match the list */}
         <View style={styles.statsGrid}>
           <StatCard compact
             label="Total"
@@ -350,6 +350,18 @@ export default function DashboardScreen({ navigation }) {
             }
           />
           <StatCard compact
+            label="Assigned"
+            value={s.assigned ?? '—'}
+            icon="account-check-outline"
+            color={COLORS.warning}
+            onPress={() =>
+              navigation.navigate('Inquiries', {
+                screen: 'InquiryList',
+                params: { filterStatus: 'assigned' },
+              })
+            }
+          />
+          <StatCard compact
             label="In Progress"
             value={s.inProgress ?? '—'}
             icon="progress-clock"
@@ -358,6 +370,18 @@ export default function DashboardScreen({ navigation }) {
               navigation.navigate('Inquiries', {
                 screen: 'InquiryList',
                 params: { filterStatus: 'in_progress' },
+              })
+            }
+          />
+          <StatCard compact
+            label="Follow Up"
+            value={s.followUp ?? '—'}
+            icon="calendar-clock-outline"
+            color={COLORS.info}
+            onPress={() =>
+              navigation.navigate('Inquiries', {
+                screen: 'InquiryList',
+                params: { filterStatus: 'follow_up' },
               })
             }
           />

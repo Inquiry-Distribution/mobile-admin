@@ -108,21 +108,37 @@ const useGroupStore = create((set, get) => ({
     }
   },
 
-  // ─── Send message ───────────────────────────────────────────
+  // ─── Send message (text and/or image) ──────────────────────
+  // payload: { text?, isPrivate?, targetUserId?, file? }
+  // file: { uri, type, name }  — from react-native-image-picker
   sendMessage: async (groupId, payload) => {
     set({ isSending: true });
     try {
-      const res = await groupApi.sendMessage(groupId, payload);
+      let res;
+      if (payload.file) {
+        const formData = new FormData();
+        if (payload.text?.trim()) formData.append('text', payload.text.trim());
+        if (payload.isPrivate)    formData.append('isPrivate', 'true');
+        if (payload.targetUserId) formData.append('targetUserId', payload.targetUserId);
+        formData.append('file', {
+          uri:  payload.file.uri,
+          type: payload.file.type,
+          name: payload.file.name,
+        });
+        res = await groupApi.sendMessageWithFile(groupId, formData);
+      } else {
+        res = await groupApi.sendMessage(groupId, payload);
+      }
+
       const msg = res.data;
-      // Socket may have already added this message before the API resolved —
-      // only append if it isn't in the list yet (dedup by id)
+      // Socket may have already added this message — dedup by id
       set((state) => {
         const exists = state.messages.some((m) => m.id === msg.id);
         return exists
           ? { isSending: false }
           : { messages: [...state.messages, msg], isSending: false };
       });
-      // Bump lastMessage regardless
+      // Bump lastMessage for inbox sort
       set((state) => ({
         groups: state.groups.map((g) =>
           g.id === groupId ? { ...g, lastMessage: msg } : g

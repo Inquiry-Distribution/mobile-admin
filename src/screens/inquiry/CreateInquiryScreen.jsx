@@ -253,19 +253,37 @@ export default function CreateInquiryScreen({ navigation }) {
   // ─── Time picker (custom modal) ───────────────────────────────
   const [tempHour, setTempHour]     = useState('');
   const [tempMinute, setTempMinute] = useState('');
+  const hourRef        = useRef(null);
+  const minuteRef      = useRef(null);
+  const descriptionRef = useRef(null);
+  const mobileRef      = useRef(null);
 
   const openTimePicker = () => {
     const [h = '', m = ''] = inquiryTime ? inquiryTime.split(':') : [];
     setTempHour(h);
     setTempMinute(m);
     setTimePickerOpen(true);
+    // Auto-focus hour field after modal animation settles
+    setTimeout(() => hourRef.current?.focus(), 120);
   };
 
-  const confirmTime = () => {
-    const h = Math.min(23, Math.max(0, parseInt(tempHour) || 0));
-    const m = Math.min(59, Math.max(0, parseInt(tempMinute) || 0));
+  const confirmTime = (overrideMinute) => {
+    const h = Math.min(23, Math.max(0, parseInt(tempHour)                        || 0));
+    const m = Math.min(59, Math.max(0, parseInt(overrideMinute ?? tempMinute)    || 0));
     setInquiryTime(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
     setTimePickerOpen(false);
+  };
+
+  // Auto-advance: 2 digits in hour → jump to minute
+  const handleHourChange = (val) => {
+    setTempHour(val);
+    if (val.length === 2) minuteRef.current?.focus();
+  };
+
+  // Auto-confirm: 2 digits in minute → close & save
+  const handleMinuteChange = (val) => {
+    setTempMinute(val);
+    if (val.length === 2) confirmTime(val);
   };
 
   // ─── Source picker ───────────────────────────────────────────
@@ -328,6 +346,11 @@ export default function CreateInquiryScreen({ navigation }) {
   const handleSubmit = async () => {
     if (!description.trim() && !mobile.trim()) {
       Alert.alert('Required', 'Please enter a description or mobile number.');
+      if (!description.trim()) {
+        descriptionRef.current?.focus();
+      } else {
+        mobileRef.current?.focus();
+      }
       return;
     }
 
@@ -519,6 +542,7 @@ export default function CreateInquiryScreen({ navigation }) {
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>INQUIRY DESCRIPTION</Text>
             <TextInput
+              ref={descriptionRef}
               style={styles.descInput}
               placeholder="Description"
               placeholderTextColor={COLORS.textMuted}
@@ -535,6 +559,7 @@ export default function CreateInquiryScreen({ navigation }) {
             <View style={styles.halfField}>
               <Text style={styles.fieldLabel}>MOBILE</Text>
               <TextInput
+                ref={mobileRef}
                 style={styles.input}
                 placeholder="9876543210"
                 placeholderTextColor={COLORS.textMuted}

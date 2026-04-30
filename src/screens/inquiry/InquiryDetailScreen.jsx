@@ -369,33 +369,103 @@ export default function InquiryDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* ── Inquiry stats strip ─────────────────────── */}
-          <View style={styles.statsStrip}>
-            <StatCell
-              icon="clock-outline"
-              label="Created"
-              value={dayjs(createdAt).format('DD MMM, hh:mm A')}
-            />
-            <View style={styles.statsDivider} />
-            <StatCell
-              icon="send-check-outline"
-              label="Distributed"
-              value={distributeEntry
-                ? dayjs(distributeEntry.changedAt).format('DD MMM, hh:mm A')
-                : '—'}
-            />
-            <View style={styles.statsDivider} />
-            <StatCell
-              icon="note-text-outline"
-              label="Notes"
-              value={String(notes.length)}
-            />
-            <View style={styles.statsDivider} />
-            <StatCell
-              icon="account-convert-outline"
-              label="Reassigned"
-              value={reassignCount > 0 ? `${reassignCount}×` : '—'}
-            />
+          {/* ── Timeline card ───────────────────────────── */}
+          <View style={styles.timelineCard}>
+
+            {/* ── Created row ── */}
+            <View style={styles.tlDateRow}>
+              <View style={[styles.tlDateIcon, { backgroundColor: COLORS.primaryLight }]}>
+                <Icon name="calendar-outline" size={16} color={COLORS.primary} />
+              </View>
+              <View style={styles.tlDateBody}>
+                <Text style={styles.tlDateLabel}>Created</Text>
+                <Text style={styles.tlDateValue}>
+                  {dayjs(createdAt).format('DD MMM YYYY')}
+                </Text>
+                <Text style={styles.tlDateTime}>
+                  {dayjs(createdAt).format('hh:mm A')}
+                </Text>
+              </View>
+              <View style={styles.tlDateRight}>
+                <Text style={styles.tlDateAgo}>
+                  {dayjs().diff(dayjs(createdAt), 'day') === 0
+                    ? 'Today'
+                    : `${dayjs().diff(dayjs(createdAt), 'day')}d ago`}
+                </Text>
+              </View>
+            </View>
+
+            {/* connector */}
+            <View style={styles.tlConnectorWrap}>
+              <View style={styles.tlConnectorLine} />
+            </View>
+
+            {/* ── Distributed row ── */}
+            <View style={styles.tlDateRow}>
+              <View style={[
+                styles.tlDateIcon,
+                distributeEntry
+                  ? { backgroundColor: '#dcfce7' }
+                  : { backgroundColor: COLORS.background },
+              ]}>
+                <Icon
+                  name="account-arrow-right-outline"
+                  size={16}
+                  color={distributeEntry ? '#16a34a' : COLORS.textMuted}
+                />
+              </View>
+              <View style={styles.tlDateBody}>
+                <Text style={styles.tlDateLabel}>Distributed</Text>
+                {distributeEntry ? (
+                  <>
+                    <Text style={[styles.tlDateValue, { color: '#16a34a' }]}>
+                      {dayjs(distributeEntry.changedAt).format('DD MMM YYYY')}
+                    </Text>
+                    <Text style={styles.tlDateTime}>
+                      {dayjs(distributeEntry.changedAt).format('hh:mm A')}
+                      {distributeEntry.changedBy?.name
+                        ? `  ·  ${distributeEntry.changedBy.name}`
+                        : ''}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.tlDatePending}>Not yet distributed</Text>
+                )}
+              </View>
+              {distributeEntry && (
+                <View style={styles.tlDateRight}>
+                  <Text style={[styles.tlDateAgo, { color: '#16a34a' }]}>
+                    {dayjs().diff(dayjs(distributeEntry.changedAt), 'day') === 0
+                      ? 'Today'
+                      : `${dayjs().diff(dayjs(distributeEntry.changedAt), 'day')}d ago`}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* ── Stats footer ── */}
+            <View style={styles.tlStatsRow}>
+              <View style={styles.tlStat}>
+                <Icon name="note-text-outline" size={13} color={COLORS.primary} />
+                <Text style={styles.tlStatValue}>{notes.length}</Text>
+                <Text style={styles.tlStatLabel}>Notes</Text>
+              </View>
+              <View style={styles.tlStatDivider} />
+              <View style={styles.tlStat}>
+                <Icon name="account-switch-outline" size={13} color={COLORS.warning} />
+                <Text style={styles.tlStatValue}>
+                  {reassignCount > 0 ? `${reassignCount}×` : '0'}
+                </Text>
+                <Text style={styles.tlStatLabel}>Reassigned</Text>
+              </View>
+              <View style={styles.tlStatDivider} />
+              <View style={styles.tlStat}>
+                <Icon name="image-multiple-outline" size={13} color={COLORS.secondary} />
+                <Text style={styles.tlStatValue}>{images.length}</Text>
+                <Text style={styles.tlStatLabel}>Photos</Text>
+              </View>
+            </View>
+
           </View>
 
           {/* ── Admin action buttons ─────────────────────── */}
@@ -673,16 +743,6 @@ function PersonChip({ label, person, color, subtitle }) {
   );
 }
 
-function StatCell({ icon, label, value }) {
-  return (
-    <View style={styles.statCell}>
-      <Icon name={icon} size={14} color={COLORS.primary} />
-      <Text style={styles.statValue} numberOfLines={1}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function TimingRow({ icon, label, by, at, color }) {
   return (
     <View style={styles.timingRow}>
@@ -954,35 +1014,101 @@ const styles = StyleSheet.create({
   noteTime:      { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   // Stats strip
-  statsStrip: {
-    flexDirection:   'row',
-    backgroundColor: COLORS.surface,
-    borderRadius:    BORDER_RADIUS.lg,
+  // Timeline card (replaces plain stats strip)
+  timelineCard: {
+    backgroundColor:  COLORS.surface,
+    borderRadius:     BORDER_RADIUS.lg,
     marginHorizontal: SPACING.md,
-    marginBottom:    SPACING.sm,
-    paddingVertical: SPACING.md,
+    marginBottom:     SPACING.sm,
+    overflow:         'hidden',
     ...SHADOW.sm,
   },
-  statCell: {
-    flex:           1,
+  tlDateRow: {
+    flexDirection:  'row',
     alignItems:     'center',
-    gap:            3,
+    gap:            SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.sm + 2,
   },
-  statValue: {
-    ...TYPOGRAPHY.caption,
-    fontWeight:  '700',
-    color:       COLORS.textPrimary,
-    fontSize:    12,
-    textAlign:   'center',
+  tlDateIcon: {
+    width:          40,
+    height:         40,
+    borderRadius:   12,
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
   },
-  statLabel: {
-    fontSize:   9,
-    fontWeight: '600',
+  tlDateBody:  { flex: 1 },
+  tlDateLabel: {
+    fontSize:      10,
+    fontWeight:    '600',
+    color:         COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom:  2,
+  },
+  tlDateValue: {
+    fontSize:   15,
+    fontWeight: '700',
+    color:      COLORS.textPrimary,
+    lineHeight: 20,
+  },
+  tlDateTime: {
+    fontSize:   11,
+    fontWeight: '500',
     color:      COLORS.textMuted,
+    marginTop:  1,
+  },
+  tlDatePending: {
+    fontSize:  13,
+    color:     COLORS.textMuted,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  tlDateRight: {
+    alignItems:  'flex-end',
+    flexShrink:  0,
+  },
+  tlDateAgo: {
+    fontSize:      11,
+    fontWeight:    '700',
+    color:         COLORS.textMuted,
+    letterSpacing: 0.2,
+  },
+  tlConnectorWrap: {
+    paddingLeft: SPACING.md + 20,   // icon center: md + icon/2
+    paddingVertical: 0,
+  },
+  tlConnectorLine: {
+    width:           2,
+    height:          18,
+    backgroundColor: COLORS.divider,
+    borderRadius:    1,
+  },
+  tlStatsRow: {
+    flexDirection:    'row',
+    borderTopWidth:   1,
+    borderTopColor:   COLORS.divider,
+    paddingVertical:  SPACING.sm,
+  },
+  tlStat: {
+    flex:        1,
+    alignItems:  'center',
+    gap:         3,
+  },
+  tlStatValue: {
+    fontSize:   13,
+    fontWeight: '800',
+    color:      COLORS.textPrimary,
+  },
+  tlStatLabel: {
+    fontSize:      9,
+    fontWeight:    '600',
+    color:         COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  statsDivider: {
+  tlStatDivider: {
     width:           1,
     backgroundColor: COLORS.divider,
     marginVertical:  4,

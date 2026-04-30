@@ -13,7 +13,16 @@ export const groupApi = {
 
   // ── Messages ──────────────────────────────────────────────
   getMessages:  (id, cursor)        => client.get(`/groups/${id}/messages${cursor ? `?cursor=${cursor}` : ''}`),
-  sendMessage:  (id, payload)       => client.post(`/groups/${id}/messages`, payload),
+
+  // Text-only message
+  sendMessage: (id, payload) => client.post(`/groups/${id}/messages`, payload),
+
+  // Message with an image/file attached (FormData)
+  sendMessageWithFile: (id, formData) =>
+    client.post(`/groups/${id}/messages`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+
   markAllRead:  (id)                => client.post(`/groups/${id}/messages/read`),
   editMessage:  (id, msgId, text)   => client.patch(`/groups/${id}/messages/${msgId}`, { text }),
   getReadReceipts: (id, msgId)      => client.get(`/groups/${id}/messages/${msgId}/reads`),

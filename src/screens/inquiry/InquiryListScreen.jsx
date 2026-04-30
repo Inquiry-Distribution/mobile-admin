@@ -453,30 +453,26 @@ function InquiryRow({ inquiry, onPress }) {
     ? assignedTo.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
     : null;
 
-  const timeLabel = assignedAt
-    ? dayjs(assignedAt).format('DD MMM · hh:mm A')
-    : dayjs(createdAt).format('DD MMM · hh:mm A');
-  const timeColor = isUrgent ? COLORS.error : COLORS.textMuted;
+  const dateLabel = dayjs(createdAt).format('DD MMM');
+  const timeLabel = dayjs(assignedAt ?? createdAt).format('hh:mm A');
 
   return (
     <TouchableOpacity
       style={[styles.card, isUrgent && styles.cardUrgent]}
       onPress={onPress}
-      activeOpacity={0.74}
+      activeOpacity={0.72}
     >
-      {/* Left priority strip */}
-      <View style={[styles.strip, { backgroundColor: pc.text }]} />
+      {/* ── Top priority accent bar ── */}
+      <View style={[styles.cardAccent, { backgroundColor: pc.text }]} />
 
       <View style={styles.cardBody}>
 
-        {/* ── Badge row: priority pill + status pill ── */}
-        <View style={styles.badgeRow}>
+        {/* ── Row 1: Priority · Status · Date ── */}
+        <View style={styles.cardTopRow}>
           <View style={[styles.priorityPill, { backgroundColor: pc.bg }]}>
-            <View style={[styles.priorityDotSmall, { backgroundColor: pc.text }]} />
+            <View style={[styles.priorityDot, { backgroundColor: pc.text }]} />
             <Text style={[styles.priorityPillText, { color: pc.text }]}>
-              {priority
-                ? priority.charAt(0).toUpperCase() + priority.slice(1)
-                : 'No Priority'}
+              {priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'None'}
             </Text>
           </View>
 
@@ -485,14 +481,18 @@ function InquiryRow({ inquiry, onPress }) {
               {STATUS_LABEL[status] ?? status}
             </Text>
           </View>
+
+          <View style={{ flex: 1 }} />
+
+          <Text style={styles.cardDate}>{dateLabel}</Text>
         </View>
 
-        {/* ── Description ── */}
+        {/* ── Row 2: Description ── */}
         <Text style={styles.cardDesc} numberOfLines={2}>
-          {description || title || 'No description'}
+          {description || title || 'No description provided.'}
         </Text>
 
-        {/* ── Meta chips: phone + source ── */}
+        {/* ── Row 3: Meta chips ── */}
         {(mobile || source) ? (
           <View style={styles.metaRow}>
             {mobile ? (
@@ -502,11 +502,24 @@ function InquiryRow({ inquiry, onPress }) {
               </View>
             ) : null}
             {source ? (
-              <View style={[styles.metaChip, { backgroundColor: COLORS.secondaryLight }]}>
+              <View style={[styles.metaChip, styles.metaChipSource]}>
                 <Icon name="map-marker-outline" size={11} color={COLORS.secondary} />
                 <Text style={[styles.metaChipText, { color: COLORS.secondary }]}>{source}</Text>
               </View>
             ) : null}
+            {isUrgent ? (
+              <View style={styles.urgentChip}>
+                <Icon name="alert-circle-outline" size={11} color={COLORS.error} />
+                <Text style={styles.urgentChipText}>Overdue</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : isUrgent ? (
+          <View style={styles.metaRow}>
+            <View style={styles.urgentChip}>
+              <Icon name="alert-circle-outline" size={11} color={COLORS.error} />
+              <Text style={styles.urgentChipText}>Overdue</Text>
+            </View>
           </View>
         ) : null}
 
@@ -515,46 +528,38 @@ function InquiryRow({ inquiry, onPress }) {
 
         {/* ── Footer: assignee + time ── */}
         <View style={styles.cardFooter}>
-          {/* Left: avatar + name + company */}
           {assignedTo ? (
             <View style={styles.footerAssignee}>
               <View style={styles.avatarBubble}>
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
               <View style={styles.footerAssigneeInfo}>
-                <Text style={styles.assigneeName} numberOfLines={1}>
-                  {assignedTo.name}
-                </Text>
+                <Text style={styles.assigneeName} numberOfLines={1}>{assignedTo.name}</Text>
                 {companyName ? (
-                  <Text style={styles.assigneeCompany} numberOfLines={1}>
-                    {companyName}
-                  </Text>
+                  <Text style={styles.assigneeCompany} numberOfLines={1}>{companyName}</Text>
                 ) : null}
               </View>
             </View>
           ) : (
             <View style={styles.footerAssignee}>
-              <View style={[styles.avatarBubble, styles.avatarBubbleEmpty]}>
-                <Icon name="account-question-outline" size={13} color={COLORS.textMuted} />
+              <View style={styles.avatarBubbleEmpty}>
+                <Icon name="account-off-outline" size={14} color={COLORS.textMuted} />
               </View>
-              <Text style={styles.unassignedLabel}>Not assigned</Text>
+              <Text style={styles.unassignedLabel}>Unassigned</Text>
             </View>
           )}
 
-          {/* Right: time */}
-          <View style={styles.footerTime}>
+          <View style={styles.footerRight}>
             <Icon
-              name={assignedAt ? 'send-outline' : 'clock-outline'}
-              size={11}
-              color={timeColor}
+              name={assignedAt ? 'send-check-outline' : 'clock-outline'}
+              size={12}
+              color={COLORS.textMuted}
             />
-            <Text style={[styles.timeText, { color: timeColor }]}>{timeLabel}</Text>
+            <Text style={styles.timeText}>{timeLabel}</Text>
           </View>
         </View>
 
       </View>
-
-      <Icon name="chevron-right" size={15} color={COLORS.border} style={styles.cardChevron} />
     </TouchableOpacity>
   );
 }
@@ -811,106 +816,123 @@ const styles = StyleSheet.create({
 
   // ── Card ───────────────────────────────────────────────────
   card: {
-    flexDirection:    'row',
-    alignItems:       'stretch',
     backgroundColor:  COLORS.surface,
-    borderRadius:     16,
+    borderRadius:     18,
     marginHorizontal: SPACING.md,
-    marginBottom:     10,
+    marginBottom:     12,
     overflow:         'hidden',
-    // subtle shadow
-    shadowColor:      '#5B21B6',
-    shadowOffset:     { width: 0, height: 2 },
-    shadowOpacity:    0.07,
-    shadowRadius:     6,
+    shadowColor:      '#4C1D95',
+    shadowOffset:     { width: 0, height: 3 },
+    shadowOpacity:    0.08,
+    shadowRadius:     8,
     elevation:        3,
   },
   cardUrgent: {
-    borderWidth:  1,
-    borderColor:  '#FECACA',   // red-200 — flags stale unassigned
-    backgroundColor: '#FFFBFB',
+    borderWidth:     1,
+    borderColor:     '#FCA5A5',
+    backgroundColor: '#FFFAFA',
   },
-  strip: {
-    width:  5,
-    alignSelf: 'stretch',
+  cardAccent: {
+    height: 3,
+    width:  '100%',
   },
   cardBody: {
-    flex:    1,
-    padding: SPACING.md,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
+    paddingTop:        SPACING.sm + 2,
+    paddingBottom:     SPACING.sm + 4,
+    gap:               10,
   },
 
-  // Badge row
-  badgeRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    marginBottom:   8,
+  // Top row: priority · status · spacer · date
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           6,
   },
   priorityPill: {
     flexDirection:     'row',
     alignItems:        'center',
     gap:               5,
     paddingHorizontal: 9,
-    paddingVertical:   3,
+    paddingVertical:   4,
     borderRadius:      BORDER_RADIUS.full,
   },
-  priorityDotSmall: {
+  priorityDot: {
     width: 6, height: 6, borderRadius: 3,
   },
   priorityPillText: {
-    fontSize:   11,
-    fontWeight: '700',
+    fontSize:      11,
+    fontWeight:    '700',
     letterSpacing: 0.2,
   },
   statusPill: {
     paddingHorizontal: 9,
-    paddingVertical:   3,
+    paddingVertical:   4,
     borderRadius:      BORDER_RADIUS.full,
   },
   statusPillText: {
-    fontSize:   11,
-    fontWeight: '700',
+    fontSize:      11,
+    fontWeight:    '700',
     letterSpacing: 0.2,
+  },
+  cardDate: {
+    fontSize:   11,
+    fontWeight: '500',
+    color:      COLORS.textMuted,
+    flexShrink: 0,
   },
 
   // Description
   cardDesc: {
-    fontSize:     14,
-    fontWeight:   '700',
-    color:        COLORS.textPrimary,
-    lineHeight:   20,
-    marginBottom: 8,
+    fontSize:      14,
+    fontWeight:    '600',
+    color:         COLORS.textPrimary,
+    lineHeight:    21,
     letterSpacing: 0.1,
   },
 
   // Meta chips
   metaRow: {
-    flexDirection:  'row',
-    flexWrap:       'wrap',
-    gap:            6,
-    marginBottom:   10,
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           6,
   },
   metaChip: {
     flexDirection:     'row',
     alignItems:        'center',
     gap:               4,
-    paddingHorizontal: 8,
-    paddingVertical:   3,
+    paddingHorizontal: 9,
+    paddingVertical:   4,
     borderRadius:      BORDER_RADIUS.full,
     backgroundColor:   COLORS.primaryLight,
+  },
+  metaChipSource: {
+    backgroundColor: COLORS.secondaryLight,
   },
   metaChipText: {
     fontSize:   11,
     fontWeight: '600',
     color:      COLORS.primary,
   },
+  urgentChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    paddingHorizontal: 9,
+    paddingVertical:   4,
+    borderRadius:      BORDER_RADIUS.full,
+    backgroundColor:   '#FEE2E2',
+  },
+  urgentChipText: {
+    fontSize:   11,
+    fontWeight: '700',
+    color:      COLORS.error,
+  },
 
   // Divider
   cardDivider: {
     height:          1,
     backgroundColor: COLORS.divider,
-    marginBottom:    8,
   },
 
   // Footer
@@ -922,21 +944,29 @@ const styles = StyleSheet.create({
   footerAssignee: {
     flexDirection: 'row',
     alignItems:    'center',
-    gap:           7,
+    gap:           8,
     flex:          1,
     marginRight:   8,
   },
   avatarBubble: {
-    width:           30,
-    height:          30,
-    borderRadius:    15,
+    width:           32,
+    height:          32,
+    borderRadius:    16,
     backgroundColor: COLORS.primaryLight,
     alignItems:      'center',
     justifyContent:  'center',
     flexShrink:      0,
   },
   avatarBubbleEmpty: {
+    width:           32,
+    height:          32,
+    borderRadius:    16,
     backgroundColor: COLORS.background,
+    borderWidth:     1,
+    borderColor:     COLORS.border,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
   },
   avatarText: {
     fontSize:   11,
@@ -950,18 +980,17 @@ const styles = StyleSheet.create({
     color:      COLORS.textPrimary,
   },
   assigneeCompany: {
-    fontSize:   10,
-    fontWeight: '500',
-    color:      COLORS.textMuted,
-    marginTop:  1,
+    fontSize:  10,
+    fontWeight:'500',
+    color:     COLORS.textMuted,
+    marginTop: 1,
   },
   unassignedLabel: {
-    fontSize:   12,
-    fontWeight: '500',
-    color:      COLORS.textMuted,
-    fontStyle:  'italic',
+    fontSize:  12,
+    color:     COLORS.textMuted,
+    fontStyle: 'italic',
   },
-  footerTime: {
+  footerRight: {
     flexDirection: 'row',
     alignItems:    'center',
     gap:           4,
@@ -970,10 +999,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize:   11,
     fontWeight: '600',
-  },
-  cardChevron: {
-    alignSelf:   'center',
-    marginRight: SPACING.sm,
+    color:      COLORS.textMuted,
   },
 
   // Footer
@@ -981,7 +1007,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.lg,
     alignItems:      'center',
   },
-  listContent:  { paddingBottom: SPACING.xxl + 64 },  // extra room for FAB
+  listContent:  { paddingTop: SPACING.xs, paddingBottom: SPACING.xxl + 64 },  // extra room for FAB
   emptyContent: { flexGrow: 1 },
 
   // FAB

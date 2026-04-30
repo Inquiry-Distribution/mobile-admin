@@ -10,9 +10,10 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
 
 import { COLORS } from '@constants/colors';
-import RootNavigator from '@navigation/index';
-import ErrorBoundary from '@components/common/ErrorBoundary';
-import OfflineBanner from '@components/common/OfflineBanner';
+import RootNavigator  from '@navigation/index';
+import ErrorBoundary  from '@components/common/ErrorBoundary';
+import OfflineBanner  from '@components/common/OfflineBanner';
+import { toastConfig } from '@components/toast/ToastConfig';
 
 export default function App() {
   return (
@@ -27,7 +28,7 @@ export default function App() {
             <RootNavigator />
             {/* OfflineBanner sits above Toast so it appears under toasts */}
             <OfflineBanner />
-            <Toast />
+            <Toast config={toastConfig} visibilityTime={3500} />
           </ErrorBoundary>
         </PaperProvider>
       </SafeAreaProvider>
