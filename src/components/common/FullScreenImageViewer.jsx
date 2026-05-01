@@ -4,13 +4,14 @@ import {
   StyleSheet, Animated, StatusBar, Dimensions,
   Platform, ScrollView,
 } from 'react-native';
-import { PinchGestureHandler, State } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, PinchGestureHandler, State } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 import { COLORS } from '@constants/colors';
 import { BORDER_RADIUS } from '@constants/config';
 
-const { width: W, height: H } = Dimensions.get('window');
+const { width: W, height: H } = Dimensions.get('screen'); // screen includes status bar + nav bar
 
 // Distinct soft colors for avatars based on first letter
 const AVATAR_COLORS = [
@@ -24,6 +25,7 @@ function avatarColor(name) {
 }
 
 export default function FullScreenImageViewer({ visible, url, senderName, time, onClose }) {
+  const insets  = useSafeAreaInsets();
   const initials = senderName
     ? senderName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : '?';
@@ -68,13 +70,20 @@ export default function FullScreenImageViewer({ visible, url, senderName, time, 
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <View style={styles.bg}>
+      {/*
+        GestureHandlerRootView must wrap content INSIDE the Modal.
+        Android's Modal renders in a separate window outside the app's
+        GestureHandlerRootView, so PinchGestureHandler gets no events
+        unless we provide a new root here.
+      */}
+      <GestureHandlerRootView style={StyleSheet.absoluteFillObject}>
+        <View style={styles.bg}>
         <StatusBar backgroundColor="#000" barStyle="light-content" />
 
         {/* ── Zoomable image ───────────────────────────────── */}
         {Platform.OS === 'ios' ? (
           <ScrollView
-            style={styles.flex}
+            style={StyleSheet.absoluteFillObject}
             contentContainerStyle={styles.scrollContent}
             maximumZoomScale={5}
             minimumZoomScale={1}
@@ -103,7 +112,7 @@ export default function FullScreenImageViewer({ visible, url, senderName, time, 
         )}
 
         {/* ── Header overlay ───────────────────────────────── */}
-        <View style={styles.header} pointerEvents="box-none">
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]} pointerEvents="box-none">
           {/* Left: avatar + sender info */}
           <View style={styles.senderRow}>
             <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
@@ -133,7 +142,7 @@ export default function FullScreenImageViewer({ visible, url, senderName, time, 
         </View>
 
         {/* ── Footer overlay ───────────────────────────────── */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           <TouchableOpacity
             style={styles.zoomResetBtn}
             onPress={resetZoom}
@@ -148,7 +157,9 @@ export default function FullScreenImageViewer({ visible, url, senderName, time, 
             <Text style={styles.footerHint}>Pinch to zoom</Text>
           </View>
         </View>
-      </View>
+
+        </View>{/* styles.bg */}
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -169,7 +180,7 @@ const styles = StyleSheet.create({
 
   // Android gesture wrapper
   imageWrap: {
-    flex:           1,
+    ...StyleSheet.absoluteFillObject,
     alignItems:     'center',
     justifyContent: 'center',
   },
@@ -186,7 +197,6 @@ const styles = StyleSheet.create({
     left:             0,
     right:            0,
     backgroundColor:  'rgba(0,0,0,0.72)',
-    paddingTop:       Platform.OS === 'android' ? 44 : 54,
     paddingBottom:    14,
     paddingHorizontal: 16,
     flexDirection:    'row',
@@ -249,7 +259,6 @@ const styles = StyleSheet.create({
     right:            0,
     backgroundColor:  'rgba(0,0,0,0.60)',
     paddingTop:       12,
-    paddingBottom:    Platform.OS === 'android' ? 20 : 32,
     paddingHorizontal: 20,
     flexDirection:    'row',
     alignItems:       'center',

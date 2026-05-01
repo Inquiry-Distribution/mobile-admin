@@ -18,6 +18,7 @@ import {
   View,
   Text,
   ScrollView,
+  Image,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -38,9 +39,9 @@ import useAuthStore    from '@store/auth.store';
 import useInquiryStore from '@store/inquiry.store';
 import { inquiryApi }  from '@api/inquiry.api';
 
-import Loader          from '@components/common/Loader';
-import StatusBadge     from '@components/common/StatusBadge';
-import PriorityBadge   from '@components/common/PriorityBadge';
+import Loader                from '@components/common/Loader';
+import StatusBadge           from '@components/common/StatusBadge';
+import PriorityBadge         from '@components/common/PriorityBadge';
 import { Menu } from 'react-native-paper';
 
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
@@ -594,14 +595,30 @@ export default function InquiryDetailScreen({ route, navigation }) {
               <EmptyBox icon="image-off-outline" label="No photos attached" />
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {images.map((img, i) => (
-                  <View key={img.id ?? i} style={styles.photoThumb}>
-                    <Icon name="image-outline" size={28} color={COLORS.primaryMid} />
-                    <Text style={styles.photoLabel} numberOfLines={1}>
-                      {img.filename ?? `Photo ${i + 1}`}
-                    </Text>
-                  </View>
-                ))}
+                {images.map((img, i) => {
+                  const fullUrl = `${CONFIG.SOCKET_URL}/uploads/${img.url}`;
+                  return (
+                    <TouchableOpacity
+                      key={img.id ?? i}
+                      style={styles.photoThumb}
+                      onPress={() => navigation.navigate('ImageViewer', {
+                        images:       images.map((m) => ({
+                          url:  `${CONFIG.SOCKET_URL}/uploads/${m.url}`,
+                          time: m.createdAt,
+                        })),
+                        initialIndex: i,
+                        sender:       uploadedBy?.name ?? title ?? 'Image',
+                      })}
+                      activeOpacity={0.85}
+                    >
+                      <Image
+                        source={{ uri: fullUrl }}
+                        style={styles.photoImage}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             )}
           </View>
@@ -985,14 +1002,16 @@ const styles = StyleSheet.create({
 
   // Photos
   photoThumb: {
-    width: 80, height: 80,
+    width: 90, height: 90,
     borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
     marginRight: SPACING.sm,
-    gap: 4,
+    overflow: 'hidden',
   },
-  photoLabel: { fontSize: 9, color: COLORS.textMuted, maxWidth: 72, textAlign: 'center' },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
 
   emptyBox:     { alignItems: 'center', paddingVertical: SPACING.lg, gap: SPACING.xs },
   emptyBoxText: { ...TYPOGRAPHY.small, color: COLORS.textMuted, fontStyle: 'italic' },

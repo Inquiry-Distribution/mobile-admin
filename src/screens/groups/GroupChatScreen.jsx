@@ -3,7 +3,7 @@ import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
   ActivityIndicator, Modal, Alert, Image, ScrollView,
-  PermissionsAndroid, StatusBar,
+  PermissionsAndroid,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -39,7 +39,6 @@ export default function GroupChatScreen({ route, navigation }) {
   const [attachOpen,      setAttachOpen]      = useState(false);
   const [attachedFiles,   setAttachedFiles]   = useState([]); // [{ uri, type, name, localUri }]
   const [isMultiSending,  setIsMultiSending]  = useState(false);
-  const [fullScreenImg,   setFullScreenImg]   = useState(null); // URL string
   const [menuOpen,       setMenuOpen]       = useState(false);
   const [editingMessage, setEditingMessage] = useState(null);
   const [editText,       setEditText]       = useState('');
@@ -322,7 +321,11 @@ export default function GroupChatScreen({ route, navigation }) {
                 prevMessage={messages[index - 1]}
                 isEditing={editingMessage?.id === item.id}
                 onLongPress={isSuperuser && item.senderId === userId ? () => startEdit(item) : null}
-                onImagePress={setFullScreenImg}
+                onImagePress={(imgData) => navigation.navigate('ImageViewer', {
+                  images:       [{ url: imgData.url, time: imgData.time, fileName: imgData.fileName }],
+                  initialIndex: 0,
+                  sender:       imgData.sender,
+                })}
               />
             )}
             onEndReached={handleLoadMore}
@@ -567,33 +570,6 @@ export default function GroupChatScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* ── Full-screen image viewer ──────────────────── */}
-      <Modal
-        visible={!!fullScreenImg}
-        transparent={false}
-        animationType="fade"
-        onRequestClose={() => setFullScreenImg(null)}
-        statusBarTranslucent
-      >
-        <View style={styles.fullScreenBg}>
-          <StatusBar backgroundColor="#000" barStyle="light-content" />
-          {fullScreenImg && (
-            <Image
-              source={{ uri: fullScreenImg }}
-              style={styles.fullScreenImage}
-              resizeMode="contain"
-            />
-          )}
-          <TouchableOpacity
-            style={styles.fullScreenClose}
-            onPress={() => setFullScreenImg(null)}
-            activeOpacity={0.8}
-          >
-            <Icon name="close" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </Modal>
-
       {/* ── Attachment picker sheet ──────────────────── */}
       <Modal
         visible={attachOpen}
@@ -756,7 +732,15 @@ function MessageBubble({ message, userId, isSuperuser, prevMessage, isEditing, o
 
           {/* Image — tap to full-screen */}
           {hasImage && (
-            <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress?.(fileUrl)}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => onImagePress?.({
+                url:      fileUrl,
+                sender:   senderName,
+                time:     message.createdAt,
+                fileName: message.fileName ?? null,
+              })}
+            >
               <Image source={{ uri: fileUrl }} style={styles.msgImage} resizeMode="cover" />
             </TouchableOpacity>
           )}
@@ -1127,28 +1111,6 @@ const styles = StyleSheet.create({
   fileLabel:   { fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
   fileLabelMe: { color: 'rgba(255,255,255,0.65)' },
 
-  // Full-screen image viewer
-  fullScreenBg: {
-    flex:            1,
-    backgroundColor: '#000',
-    alignItems:      'center',
-    justifyContent:  'center',
-  },
-  fullScreenImage: {
-    width:  '100%',
-    height: '100%',
-  },
-  fullScreenClose: {
-    position:        'absolute',
-    top:             44,
-    right:           16,
-    width:           40,
-    height:          40,
-    borderRadius:    20,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems:      'center',
-    justifyContent:  'center',
-  },
 
   // Picker modal
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },

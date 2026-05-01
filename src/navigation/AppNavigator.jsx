@@ -21,7 +21,7 @@ import {
   Platform,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator }     from '@react-navigation/stack';
+import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { useNavigation }            from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -60,6 +60,7 @@ import GroupListScreen        from '@screens/groups/GroupListScreen';
 import GroupChatScreen        from '@screens/groups/GroupChatScreen';
 import CreateGroupScreen      from '@screens/groups/CreateGroupScreen';
 import GroupMembersScreen     from '@screens/groups/GroupMembersScreen';
+import ImageViewerScreen      from '@screens/groups/ImageViewerScreen';
 import ComplaintListScreen    from '@screens/complaints/ComplaintListScreen';
 import ComplaintDetailScreen  from '@screens/complaints/ComplaintDetailScreen';
 import CompanyListScreen      from '@screens/companies/CompanyListScreen';
@@ -530,6 +531,19 @@ export default function AppNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       <RootStack.Screen name="Tabs" component={TabNavigator} />
+
+      {/* ── Full-screen image viewer (above tab bar, no modal layering issues) ── */}
+      <RootStack.Screen
+        name="ImageViewer"
+        component={ImageViewerScreen}
+        options={{
+          headerShown:           false,
+          cardStyle:             { backgroundColor: '#000' },
+          cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+          gestureEnabled:        false, // swipe-back conflicts with pinch zoom
+        }}
+      />
+
       {/* Full-screen Profile modal accessible from any tab's avatar button */}
       <RootStack.Screen
         name="Profile"
