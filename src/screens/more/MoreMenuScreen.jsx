@@ -118,6 +118,24 @@ export default function MoreMenuScreen({ navigation }) {
             onPress={() => navigation.navigate('CompanyList')}
           />
 
+          <MenuItem
+            icon="map-marker-radius-outline"
+            label="Office Locations"
+            subtitle="Manage attendance geofence locations"
+            color="#059669"
+            onPress={() => navigation.navigate('BusinessLocationList')}
+          />
+
+          {isSuperuser() && (
+            <MenuItem
+              icon="cog-outline"
+              label="System Config"
+              subtitle="Login security & platform settings"
+              color="#64748B"
+              onPress={() => navigation.navigate('SystemConfig')}
+            />
+          )}
+
         </View>
 
         <View style={{ height: SPACING.xxl }} />

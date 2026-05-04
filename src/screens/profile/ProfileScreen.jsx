@@ -23,9 +23,8 @@ import { COLORS, ROLE_COLORS }               from '@constants/colors';
 import { TYPOGRAPHY }                         from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW }     from '@constants/config';
 import { getInitials, formatDateTime }        from '@utils/helpers';
+import DeviceInfo  from 'react-native-device-info';
 import useAuthStore from '@store/auth.store';
-
-const APP_VERSION = '1.0.0';
 
 export default function ProfileScreen() {
   const { user, logout, isSuperuser } = useAuthStore();
@@ -100,8 +99,7 @@ export default function ProfileScreen() {
 
         {/* ── App ───────────────────────────────────── */}
         <SectionCard title="App">
-          <ProfileRow icon="information-outline" label="Version" value={`v${APP_VERSION}`} />
-          <ProfileRow icon="api"                 label="API"     value="Inquiry Desk API"  />
+          <ProfileRow icon="information-outline" label="Version" value={`v${DeviceInfo.getVersion()}`} />
         </SectionCard>
 
         {/* ── Session ───────────────────────────────── */}

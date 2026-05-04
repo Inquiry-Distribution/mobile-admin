@@ -63,8 +63,11 @@ import GroupMembersScreen     from '@screens/groups/GroupMembersScreen';
 import ImageViewerScreen      from '@screens/groups/ImageViewerScreen';
 import ComplaintListScreen    from '@screens/complaints/ComplaintListScreen';
 import ComplaintDetailScreen  from '@screens/complaints/ComplaintDetailScreen';
-import CompanyListScreen      from '@screens/companies/CompanyListScreen';
-import CompanyFormScreen      from '@screens/companies/CompanyFormScreen';
+import CompanyListScreen           from '@screens/companies/CompanyListScreen';
+import CompanyFormScreen           from '@screens/companies/CompanyFormScreen';
+import BusinessLocationListScreen  from '@screens/settings/BusinessLocationListScreen';
+import BusinessLocationFormScreen  from '@screens/settings/BusinessLocationFormScreen';
+import SystemConfigScreen          from '@screens/settings/SystemConfigScreen';
 
 const Tab           = createBottomTabNavigator();
 const InquiryStack  = createStackNavigator();
@@ -405,6 +408,32 @@ function MoreNavigator() {
         component={CompanyFormScreen}
         options={{
           headerTitle: () => <HeaderTitle icon="domain" title="Edit Company" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      {isSuperuser && (
+        <MoreStack.Screen
+          name="SystemConfig"
+          component={SystemConfigScreen}
+          options={{
+            headerTitle: () => <HeaderTitle icon="cog-outline" title="System Config" />,
+            headerLeft:  () => <BackButton />,
+          }}
+        />
+      )}
+      <MoreStack.Screen
+        name="BusinessLocationList"
+        component={BusinessLocationListScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="map-marker-radius-outline" title="Office Locations" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <MoreStack.Screen
+        name="BusinessLocationForm"
+        component={BusinessLocationFormScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="map-marker-plus-outline" title="Location" />,
           headerLeft:  () => <BackButton />,
         }}
       />
