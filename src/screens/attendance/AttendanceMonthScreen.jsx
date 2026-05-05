@@ -458,6 +458,21 @@ function DayRow({ dateStr, record, onPress }) {
             </View>
           ) : null}
         </View>
+        {/* Day-level flags */}
+        {(record.dayIsLate || record.dayIsEarlyExit) && (
+          <View style={styles.flagRow}>
+            {record.dayIsLate && (
+              <View style={[styles.flagChip, { backgroundColor: COLORS.warning + '22' }]}>
+                <Text style={[styles.flagChipText, { color: COLORS.warning }]}>Late</Text>
+              </View>
+            )}
+            {record.dayIsEarlyExit && (
+              <View style={[styles.flagChip, { backgroundColor: COLORS.error + '22' }]}>
+                <Text style={[styles.flagChipText, { color: COLORS.error }]}>Early Exit</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Chevron (only when tappable) */}
@@ -662,6 +677,9 @@ const styles = StyleSheet.create({
   },
   timeItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   timeText:  { ...TYPOGRAPHY.caption, color: COLORS.textSecondary },
+  flagRow: { flexDirection: 'row', gap: 4, marginTop: 4, flexWrap: 'wrap' },
+  flagChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 99 },
+  flagChipText: { fontSize: 9, fontWeight: '700' },
 
   noRecordText: { ...TYPOGRAPHY.small, color: COLORS.textMuted, fontStyle: 'italic' },
 

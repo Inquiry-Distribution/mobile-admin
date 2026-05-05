@@ -140,6 +140,22 @@ export default function AttendanceDayDetailScreen({ route }) {
               </>
             )}
           </View>
+
+          {/* Day-level flags */}
+          {(record.dayIsLate || record.dayIsEarlyExit) && (
+            <View style={styles.dayFlagsRow}>
+              {record.dayIsLate && (
+                <View style={[styles.flagChip, { backgroundColor: COLORS.warning + '22' }]}>
+                  <Text style={[styles.flagChipText, { color: COLORS.warning }]}>Late</Text>
+                </View>
+              )}
+              {record.dayIsEarlyExit && (
+                <View style={[styles.flagChip, { backgroundColor: COLORS.error + '22' }]}>
+                  <Text style={[styles.flagChipText, { color: COLORS.error }]}>Early Exit</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
         {/* ── Session breakdown ── */}
@@ -405,6 +421,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   statusBadgeText: { fontSize: 11, fontWeight: '700' },
+
+  dayFlagsRow: { flexDirection: 'row', gap: 6, marginTop: SPACING.sm, flexWrap: 'wrap' },
+  flagChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 99 },
+  flagChipText: { fontSize: 10, fontWeight: '700' },
 
   statsRow: {
     flexDirection: 'row',

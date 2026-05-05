@@ -395,6 +395,22 @@ function AttendanceRow({ record, onPress }) {
             </View>
           ) : null}
         </View>
+
+        {/* Day-level flags */}
+        {(record.dayIsLate || record.dayIsEarlyExit) && (
+          <View style={styles.flagRow}>
+            {record.dayIsLate && (
+              <View style={[styles.flagChip, { backgroundColor: COLORS.warning + '22' }]}>
+                <Text style={[styles.flagChipText, { color: COLORS.warning }]}>Late</Text>
+              </View>
+            )}
+            {record.dayIsEarlyExit && (
+              <View style={[styles.flagChip, { backgroundColor: COLORS.error + '22' }]}>
+                <Text style={[styles.flagChipText, { color: COLORS.error }]}>Early Exit</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Chevron */}
@@ -617,6 +633,9 @@ const styles = StyleSheet.create({
   addressText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flex: 1 },
 
   rowChevron: { alignSelf: 'center', marginLeft: SPACING.xs },
+  flagRow: { flexDirection: 'row', gap: 5, marginTop: 5, flexWrap: 'wrap' },
+  flagChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
+  flagChipText: { fontSize: 9, fontWeight: '700' },
 
   list: { flex: 1, backgroundColor: COLORS.background },
   listContent: { paddingTop: SPACING.sm, paddingBottom: SPACING.xxl },
