@@ -5,10 +5,11 @@
  * Navigated to from AttendanceScreen by tapping a row.
  * route.params: { record }  — full Attendance with sessions[] and salesperson
  */
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
 } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
@@ -32,9 +33,37 @@ function sessionDur(session) {
   return formatDuration(session.checkInTime, session.checkOutTime);
 }
 
+function parseCoord(v) {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function getMapRegion(inLat, inLng, outLat, outLng) {
+  const hasIn  = inLat  != null && inLng  != null;
+  const hasOut = outLat != null && outLng != null;
+
+  if (hasIn && hasOut) {
+    const minLat = Math.min(inLat, outLat);
+    const maxLat = Math.max(inLat, outLat);
+    const minLng = Math.min(inLng, outLng);
+    const maxLng = Math.max(inLng, outLng);
+    return {
+      latitude:      (minLat + maxLat) / 2,
+      longitude:     (minLng + maxLng) / 2,
+      latitudeDelta:  Math.max((maxLat - minLat) * 2.5, 0.005),
+      longitudeDelta: Math.max((maxLng - minLng) * 2.5, 0.005),
+    };
+  }
+
+  const lat = hasIn ? inLat : outLat;
+  const lng = hasIn ? inLng : outLng;
+  return { latitude: lat, longitude: lng, latitudeDelta: 0.005, longitudeDelta: 0.005 };
+}
+
 // ─────────────────────────────────────────────────────────────
 export default function AttendanceDayDetailScreen({ route }) {
-  const { record } = route.params;
+  const { record }  = route.params;
+  const scrollRef   = useRef(null);
 
   const sessions      = record.sessions ?? [];
   const totalWorked   = formatMinutes(record.totalMinutes);
@@ -51,7 +80,7 @@ export default function AttendanceDayDetailScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ── Salesperson + day header card ── */}
         <View style={styles.headerCard}>
@@ -129,6 +158,7 @@ export default function AttendanceDayDetailScreen({ route }) {
                 session={session}
                 index={idx}
                 isLast={idx === sessions.length - 1}
+                scrollRef={scrollRef}
               />
             ))}
           </View>
@@ -151,9 +181,20 @@ function StatBox({ icon, label, value, color }) {
 }
 
 // ── Session card ──────────────────────────────────────────────
-function SessionCard({ session, index, isLast }) {
+function SessionCard({ session, index, isLast, scrollRef }) {
   const dur    = sessionDur(session);
   const isOpen = !session.checkOutTime;
+
+  const inLat  = parseCoord(session.checkInLat);
+  const inLng  = parseCoord(session.checkInLng);
+  const outLat = parseCoord(session.checkOutLat);
+  const outLng = parseCoord(session.checkOutLng);
+  const hasMap = (inLat != null && inLng != null) || (outLat != null && outLng != null);
+
+  const region      = hasMap ? getMapRegion(inLat, inLng, outLat, outLng) : null;
+  const polyPoints  = (inLat != null && inLng != null && outLat != null && outLng != null)
+    ? [{ latitude: inLat, longitude: inLng }, { latitude: outLat, longitude: outLng }]
+    : null;
 
   return (
     <View style={styles.timelineRow}>
@@ -236,6 +277,80 @@ function SessionCard({ session, index, isLast }) {
                 </Text>
               </View>
             ) : null}
+          </View>
+        )}
+
+        {/* Embedded map */}
+        {hasMap && (
+          <View style={styles.mapSection}>
+            <View
+              style={styles.mapWrap}
+              onTouchStart={() => scrollRef?.current?.setNativeProps({ scrollEnabled: false })}
+              onTouchEnd={() => scrollRef?.current?.setNativeProps({ scrollEnabled: true })}
+              onTouchCancel={() => scrollRef?.current?.setNativeProps({ scrollEnabled: true })}
+            >
+              <MapView
+                style={styles.map}
+                provider={PROVIDER_GOOGLE}
+                region={region}
+                scrollEnabled
+                zoomEnabled
+                rotateEnabled={false}
+                pitchEnabled={false}
+                toolbarEnabled={false}
+                showsUserLocation={false}
+                showsMyLocationButton={false}
+                showsCompass={false}
+                showsScale={false}
+              >
+                {polyPoints && (
+                  <Polyline
+                    coordinates={polyPoints}
+                    strokeColor={COLORS.primary}
+                    strokeWidth={2}
+                    lineDashPattern={[6, 4]}
+                  />
+                )}
+
+                {inLat != null && inLng != null && (
+                  <Marker
+                    coordinate={{ latitude: inLat, longitude: inLng }}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                  >
+                    <View style={styles.pinIn}>
+                      <Icon name="login" size={10} color={COLORS.white} />
+                    </View>
+                  </Marker>
+                )}
+
+                {outLat != null && outLng != null && (
+                  <Marker
+                    coordinate={{ latitude: outLat, longitude: outLng }}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                  >
+                    <View style={styles.pinOut}>
+                      <Icon name="logout" size={10} color={COLORS.white} />
+                    </View>
+                  </Marker>
+                )}
+              </MapView>
+
+              {/* Legend */}
+              <View style={styles.mapLegend}>
+                {inLat != null && (
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#059669' }]} />
+                    <Text style={styles.legendText}>Check In</Text>
+                  </View>
+                )}
+                {outLat != null && (
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: '#DC2626' }]} />
+                    <Text style={styles.legendText}>Check Out</Text>
+                  </View>
+                )}
+              </View>
+            </View>
           </View>
         )}
       </View>
@@ -425,4 +540,59 @@ const styles = StyleSheet.create({
   },
   locationLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontWeight: '700', width: 22 },
   locationText:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flex: 1 },
+
+  // Map section
+  mapSection: {
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  mapWrap: {
+    marginTop:    SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow:     'hidden',
+    ...SHADOW.sm,
+  },
+  map: {
+    height: 160,
+  },
+  pinIn: {
+    width:           24,
+    height:          24,
+    borderRadius:    12,
+    backgroundColor: '#059669',
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderWidth:     2,
+    borderColor:     COLORS.white,
+  },
+  pinOut: {
+    width:           24,
+    height:          24,
+    borderRadius:    12,
+    backgroundColor: '#DC2626',
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderWidth:     2,
+    borderColor:     COLORS.white,
+  },
+  mapLegend: {
+    flexDirection:     'row',
+    gap:               SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   6,
+    backgroundColor:   COLORS.surface,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           4,
+  },
+  legendDot: {
+    width:        8,
+    height:       8,
+    borderRadius: 4,
+  },
+  legendText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 });

@@ -38,7 +38,7 @@ import useLocationStore     from '@store/location.store';
 import { CONFIG }           from '@constants/config';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.3;
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.35;
 
 const INIT_REGION = {
   latitude:       CONFIG.MAP_DEFAULT_LATITUDE  ?? 20.5937,
@@ -208,8 +208,7 @@ export default function LiveMapScreen() {
           <FlatList
             data={locations}
             keyExtractor={(item) => item.salespersonId}
-            horizontal
-            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
             style={styles.sheetFlatList}
             contentContainerStyle={styles.sheetList}
             renderItem={({ item }) => (
@@ -238,8 +237,8 @@ function LocationCard({ loc, isSelected, onPress }) {
       <View style={styles.locAvatarWrap}>
         <View style={[
           styles.locAvatar,
-          isSelected      && { backgroundColor: COLORS.primary },
-          loc.isOnline    && styles.locAvatarOnline,
+          isSelected   && { backgroundColor: COLORS.primary },
+          loc.isOnline && styles.locAvatarOnline,
         ]}>
           <Text style={[styles.locInitials, isSelected && { color: COLORS.white }]}>
             {getInitials(loc.name)}
@@ -251,14 +250,19 @@ function LocationCard({ loc, isSelected, onPress }) {
         ]} />
       </View>
 
-      <Text style={styles.locName} numberOfLines={1}>{loc.name}</Text>
+      <View style={styles.locInfo}>
+        <Text style={styles.locName} numberOfLines={1}>{loc.name}</Text>
+        {hasPos ? (
+          <Text style={[styles.locTime, loc.isOnline && styles.locTimeOnline]}>
+            {loc.isOnline ? '● ' : ''}{dayjs(loc.lastLocatedAt).fromNow()}
+          </Text>
+        ) : (
+          <Text style={[styles.locTime, styles.locTimeNoPos]}>No location</Text>
+        )}
+      </View>
 
-      {hasPos ? (
-        <Text style={[styles.locTime, loc.isOnline && styles.locTimeOnline]}>
-          {loc.isOnline ? '● ' : ''}{dayjs(loc.lastLocatedAt).fromNow()}
-        </Text>
-      ) : (
-        <Text style={[styles.locTime, styles.locTimeNoPos]}>No location</Text>
+      {hasPos && (
+        <Icon name="chevron-right" size={18} color={isSelected ? COLORS.primary : COLORS.textMuted} />
       )}
     </TouchableOpacity>
   );
@@ -401,14 +405,12 @@ const styles = StyleSheet.create({
     marginBottom:      SPACING.sm,
   },
   sheetFlatList: {
-    flexGrow:  0,      // prevents the list from stretching to fill the sheet
-    flexShrink: 1,
+    flex: 1,
   },
   sheetList: {
     paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.xs,
-    gap:               SPACING.sm,
-    alignItems:        'flex-start', // cards size to their own content, not the row height
+    paddingBottom:     SPACING.md,
+    gap:               SPACING.xs,
   },
   noData: {
     alignItems: 'center',
@@ -417,13 +419,14 @@ const styles = StyleSheet.create({
   },
   noDataText: { ...TYPOGRAPHY.small, color: COLORS.textMuted },
 
-  // Location card
+  // Location list row
   locCard: {
-    width:           130,
+    flexDirection:   'row',
     alignItems:      'center',
     backgroundColor: COLORS.background,
     borderRadius:    BORDER_RADIUS.lg,
-    padding:         SPACING.sm,
+    paddingVertical:   SPACING.sm,
+    paddingHorizontal: SPACING.sm,
     borderWidth:     1.5,
     borderColor:     'transparent',
     ...SHADOW.sm,
@@ -433,8 +436,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
   },
   locAvatarWrap: {
-    position:     'relative',
-    marginBottom: 4,
+    position:    'relative',
+    marginRight: SPACING.sm,
   },
   locAvatar: {
     width:           40,
@@ -455,11 +458,11 @@ const styles = StyleSheet.create({
     width:        10,
     height:       10,
     borderRadius: 5,
-    // No border — avoids background-colour mismatch on selected cards
   },
+  locInfo:        { flex: 1 },
   locInitials:    { fontSize: 14, fontWeight: '700', color: COLORS.primary },
-  locName:        { ...TYPOGRAPHY.caption, color: COLORS.textPrimary, fontWeight: '600', textAlign: 'center' },
-  locTime:        { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, textAlign: 'center', marginTop: 2 },
+  locName:        { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600' },
+  locTime:        { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginTop: 1 },
   locTimeOnline:  { color: '#22C55E', fontWeight: '600' },
   locTimeNoPos:   { color: COLORS.textMuted },
 });

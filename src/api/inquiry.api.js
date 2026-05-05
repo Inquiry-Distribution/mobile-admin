@@ -55,13 +55,18 @@ export const inquiryApi = {
    * Upload images to an inquiry (multipart/form-data).
    * Uses native fetch so FormData is handled by RN's XMLHttpRequest layer.
    */
+  /**
+   * Upload images or document files to an inquiry (multipart/form-data).
+   * Accepts both react-native-image-picker assets (fileName) and
+   * react-native-document-picker assets (name) in the same call.
+   */
   uploadImages: async (inquiryId, assets) => {
     const form = new FormData();
     assets.forEach((asset) => {
       form.append('images', {
         uri:  asset.uri,
-        type: asset.type || 'image/jpeg',
-        name: asset.fileName || `inquiry_${Date.now()}.jpg`,
+        type: asset.type || 'application/octet-stream',
+        name: asset.fileName || asset.name || `file_${Date.now()}`,
       });
     });
     const token = getAccessToken();

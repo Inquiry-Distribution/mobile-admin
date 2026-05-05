@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Internal cache — RNBlobUtil.fs.dirs.CacheDir -->
+    <cache-path name="cache" path="." />
+    <!-- External cache — fallback -->
+    <external-cache-path name="external_cache" path="." />
+</paths>

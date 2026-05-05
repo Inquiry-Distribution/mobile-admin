@@ -21,6 +21,7 @@ import {
 import { SafeAreaView }    from 'react-native-safe-area-context';
 import Icon                from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
+import DocumentPicker        from 'react-native-document-picker';
 import { Menu, Modal, Portal } from 'react-native-paper';
 import Toast               from 'react-native-toast-message';
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
@@ -56,9 +57,33 @@ const SOURCE_OPTIONS = [
   { label: 'Other',        icon: 'dots-horizontal-circle-outline', color: '#6B7280' },
 ];
 
-const MAX_IMAGES   = 8;
-const MAX_FILE_MB  = 5;
-const MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024;
+const MAX_PHOTOS    = 8;
+const MAX_DOCS      = 5;
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB for all types
+
+const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
+
+function isImageAsset(asset) {
+  const name = asset.fileName || asset.name || '';
+  return IMAGE_EXTS.has(name.split('.').pop().toLowerCase());
+}
+
+const FILE_ICONS = {
+  pdf:  { icon: 'file-pdf-box',           color: '#DC2626' },
+  xls:  { icon: 'file-excel-box',         color: '#16A34A' },
+  xlsx: { icon: 'file-excel-box',         color: '#16A34A' },
+  csv:  { icon: 'file-delimited',         color: '#16A34A' },
+  doc:  { icon: 'file-word-box',          color: '#2563EB' },
+  docx: { icon: 'file-word-box',          color: '#2563EB' },
+  ppt:  { icon: 'file-powerpoint-box',    color: '#EA580C' },
+  pptx: { icon: 'file-powerpoint-box',    color: '#EA580C' },
+  txt:  { icon: 'file-document-outline',  color: '#6B7280' },
+};
+
+function fileIconConfig(name) {
+  const ext = (name ?? '').split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] ?? { icon: 'file-outline', color: '#6B7280' };
+}
 
 const AVATAR_COLORS = [
   '#7C3AED', '#059669', '#EA580C', '#2563EB',
@@ -95,7 +120,7 @@ export default function CreateInquiryScreen({ navigation }) {
   const [inquiryTime, setInquiryTime] = useState(currentTime);  // auto-fill current time
   const [priority,    setPriority]    = useState('medium');
   const [source,      setSource]      = useState('');
-  const [images,      setImages]      = useState([]);
+  const [images,      setImages]      = useState([]); // photos + doc files, unified
   const [selectedSp,  setSelectedSp]  = useState(null);
   const [spSearch,    setSpSearch]    = useState('');
 
@@ -227,27 +252,57 @@ export default function CreateInquiryScreen({ navigation }) {
   };
 
   // ─── Image picker ────────────────────────────────────────────
+  const photoCount = images.filter(isImageAsset).length;
+  const docCount   = images.filter((a) => !isImageAsset(a)).length;
+
   const handlePickImages = async () => {
-    if (images.length >= MAX_IMAGES) {
-      Alert.alert('Limit Reached', `You can upload up to ${MAX_IMAGES} images.`);
+    if (photoCount >= MAX_PHOTOS) {
+      Alert.alert('Limit Reached', `You can upload up to ${MAX_PHOTOS} photos.`);
       return;
     }
     const result = await launchImageLibrary({
       mediaType:      'photo',
       quality:        0.85,
-      selectionLimit: MAX_IMAGES - images.length,
+      selectionLimit: MAX_PHOTOS - photoCount,
     });
     if (!result.assets) return;
-
-    const valid    = result.assets.filter((a) => (a.fileSize ?? 0) <= MAX_FILE_BYTES);
-    const skipped  = result.assets.length - valid.length;
-    if (skipped > 0) {
-      Alert.alert('File Too Large', `${skipped} image(s) exceed ${MAX_FILE_MB} MB and were skipped.`);
-    }
-    setImages((prev) => [...prev, ...valid].slice(0, MAX_IMAGES));
+    const valid   = result.assets.filter((a) => (a.fileSize ?? 0) <= MAX_FILE_BYTES);
+    const skipped = result.assets.length - valid.length;
+    if (skipped > 0) Alert.alert('File Too Large', `${skipped} photo(s) exceed 20 MB and were skipped.`);
+    setImages((prev) => [...prev, ...valid]);
   };
 
-  const removeImage = (index) =>
+  // ─── File picker ─────────────────────────────────────────────
+  const handlePickFiles = async () => {
+    if (docCount >= MAX_DOCS) {
+      Alert.alert('Limit Reached', `You can attach up to ${MAX_DOCS} files.`);
+      return;
+    }
+    try {
+      const results = await DocumentPicker.pick({
+        type: [
+          DocumentPicker.types.pdf,
+          DocumentPicker.types.xls,
+          DocumentPicker.types.xlsx,
+          DocumentPicker.types.doc,
+          DocumentPicker.types.docx,
+          DocumentPicker.types.ppt,
+          DocumentPicker.types.pptx,
+          DocumentPicker.types.plainText,
+          DocumentPicker.types.csv,
+        ],
+        allowMultiSelection: true,
+      });
+      const valid   = results.filter((f) => (f.size ?? 0) <= MAX_FILE_BYTES);
+      const skipped = results.length - valid.length;
+      if (skipped > 0) Alert.alert('File Too Large', `${skipped} file(s) exceed 20 MB and were skipped.`);
+      setImages((prev) => [...prev, ...valid].slice(0, prev.length + MAX_DOCS - docCount));
+    } catch (err) {
+      if (!DocumentPicker.isCancel(err)) Alert.alert('Error', 'Could not open file picker.');
+    }
+  };
+
+  const removeAttachment = (index) =>
     setImages((prev) => prev.filter((_, i) => i !== index));
 
   // ─── Time picker (custom modal) ───────────────────────────────
@@ -356,10 +411,10 @@ export default function CreateInquiryScreen({ navigation }) {
 
     setIsSubmitting(true);
     try {
-      // 1. Determine type
+      // 1. Determine type (based on photos only — docs don't affect InquiryType)
       const hasText   = description.trim().length > 0;
-      const hasImages = images.length > 0;
-      const type = hasImages && hasText ? 'text_image' : hasImages ? 'image' : 'text';
+      const hasPhotos = images.some(isImageAsset);
+      const type = hasPhotos && hasText ? 'text_image' : hasPhotos ? 'image' : 'text';
 
       // 2. Create inquiry
       const res     = await inquiryApi.create({
@@ -373,8 +428,8 @@ export default function CreateInquiryScreen({ navigation }) {
       const inquiry   = res.data ?? res;
       const inquiryId = inquiry.id;
 
-      // 3. Upload images
-      if (hasImages) {
+      // 3. Upload photos + attached files (single call, same endpoint)
+      if (images.length > 0) {
         await inquiryApi.uploadImages(inquiryId, images);
       }
 
@@ -422,57 +477,89 @@ export default function CreateInquiryScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
 
-          {/* ── Upload Images ────────────────────────────── */}
+          {/* ── Upload Photos + Files ────────────────────── */}
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>UPLOAD INQUIRY</Text>
-            {images.length === 0 ? (
-              <TouchableOpacity
-                style={styles.uploadEmpty}
-                onPress={handlePickImages}
-                activeOpacity={0.7}
+
+            {/* Photo thumbnails */}
+            {photoCount > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbRow}
               >
-                <View style={styles.uploadIconBox}>
-                  <Icon name="cloud-upload-outline" size={28} color={COLORS.primary} />
-                </View>
-                <Text style={styles.uploadText}>Tap to browse photos</Text>
-                <Text style={styles.uploadHint}>
-                  .jpg, .jpeg, .png · Max {MAX_FILE_MB} MB · Up to {MAX_IMAGES} files
-                </Text>
-              </TouchableOpacity>
-            ) : (
-              <View>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.thumbRow}
-                >
-                  {images.map((img, i) => (
+                {images.map((img, i) =>
+                  isImageAsset(img) ? (
                     <View key={i} style={styles.thumbWrap}>
                       <Image source={{ uri: img.uri }} style={styles.thumb} />
                       <TouchableOpacity
                         style={styles.thumbRemove}
-                        onPress={() => removeImage(i)}
+                        onPress={() => removeAttachment(i)}
                         hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                       >
                         <Icon name="close-circle" size={20} color={COLORS.error} />
                       </TouchableOpacity>
                     </View>
-                  ))}
+                  ) : null
+                )}
+                {photoCount < MAX_PHOTOS && (
+                  <TouchableOpacity style={styles.thumbAdd} onPress={handlePickImages} activeOpacity={0.7}>
+                    <Icon name="camera-plus-outline" size={22} color={COLORS.primary} />
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            )}
 
-                  {images.length < MAX_IMAGES && (
-                    <TouchableOpacity
-                      style={styles.thumbAdd}
-                      onPress={handlePickImages}
-                      activeOpacity={0.7}
-                    >
-                      <Icon name="plus" size={24} color={COLORS.primary} />
-                    </TouchableOpacity>
-                  )}
-                </ScrollView>
-                <Text style={[styles.uploadHint, { marginTop: SPACING.xs }]}>
-                  {images.length}/{MAX_IMAGES} images selected
-                </Text>
+            {/* Document file rows */}
+            {images.map((f, i) =>
+              !isImageAsset(f) ? (
+                <View key={i} style={[styles.fileRow, photoCount > 0 && i === images.findIndex((a) => !isImageAsset(a)) && { marginTop: SPACING.xs }]}>
+                  <Icon name={fileIconConfig(f.name).icon} size={22} color={fileIconConfig(f.name).color} />
+                  <Text style={styles.fileRowName} numberOfLines={1}>{f.name}</Text>
+                  <TouchableOpacity onPress={() => removeAttachment(i)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                    <Icon name="close-circle" size={18} color={COLORS.error} />
+                  </TouchableOpacity>
+                </View>
+              ) : null
+            )}
+
+            {/* Add buttons — show when nothing yet, or always show as secondary row */}
+            {images.length === 0 ? (
+              <View style={styles.addBtnRow}>
+                <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickImages} activeOpacity={0.7}>
+                  <Icon name="image-plus" size={20} color={COLORS.primary} />
+                  <Text style={styles.addBtnText}>Photos</Text>
+                </TouchableOpacity>
+                <View style={styles.addBtnDivider} />
+                <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickFiles} activeOpacity={0.7}>
+                  <Icon name="paperclip" size={20} color={COLORS.primary} />
+                  <Text style={styles.addBtnText}>Files</Text>
+                </TouchableOpacity>
               </View>
+            ) : (
+              <View style={[styles.addBtnRow, { marginTop: SPACING.sm }]}>
+                {photoCount < MAX_PHOTOS && (
+                  <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickImages} activeOpacity={0.7}>
+                    <Icon name="image-plus" size={18} color={COLORS.primary} />
+                    <Text style={styles.addBtnText}>Add Photos</Text>
+                  </TouchableOpacity>
+                )}
+                {photoCount < MAX_PHOTOS && docCount < MAX_DOCS && <View style={styles.addBtnDivider} />}
+                {docCount < MAX_DOCS && (
+                  <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickFiles} activeOpacity={0.7}>
+                    <Icon name="paperclip" size={18} color={COLORS.primary} />
+                    <Text style={styles.addBtnText}>Attach Files</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {images.length > 0 && (
+              <Text style={[styles.uploadHint, { marginTop: SPACING.xs }]}>
+                {photoCount > 0 ? `${photoCount} photo${photoCount !== 1 ? 's' : ''}` : ''}
+                {photoCount > 0 && docCount > 0 ? ' · ' : ''}
+                {docCount > 0 ? `${docCount} file${docCount !== 1 ? 's' : ''}` : ''}
+              </Text>
             )}
           </View>
 
@@ -1102,6 +1189,48 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     justifyContent:  'center',
     backgroundColor: COLORS.primaryLight,
+  },
+
+  // File attachment rows
+  fileRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.sm,
+    paddingVertical:   SPACING.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  fileRowName: {
+    flex:  1,
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+  },
+
+  // Add photo/file buttons row
+  addBtnRow: {
+    flexDirection:  'row',
+    borderWidth:    1.5,
+    borderColor:    COLORS.border,
+    borderStyle:    'dashed',
+    borderRadius:   BORDER_RADIUS.md,
+    overflow:       'hidden',
+  },
+  addHalfBtn: {
+    flex:            1,
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             SPACING.xs,
+    paddingVertical: SPACING.md,
+  },
+  addBtnText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.primary,
+    fontWeight: '600',
+  },
+  addBtnDivider: {
+    width:           1,
+    backgroundColor: COLORS.border,
   },
 
   // Description

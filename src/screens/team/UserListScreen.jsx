@@ -8,7 +8,7 @@
  *  • Infinite scroll via user.store
  *  • Tap row → UserDetailScreen
  */
-import React, { useEffect, useLayoutEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -36,7 +36,6 @@ import EmptyState from "@components/common/EmptyState";
 
 // ── Filter config ─────────────────────────────────────────────
 const ROLE_CHIPS = [
-  { label: "All", value: "" },
   { label: "Sales", value: "sales" },
   { label: "Admin", value: "admin" },
   { label: "Superuser", value: "superuser" },
@@ -65,6 +64,7 @@ export default function UserListScreen({ navigation }) {
 
   const [menuVisible, setMenuVisible] = useState(false);
   const [isSyncing,   setIsSyncing]   = useState(false);
+  const searchDebounce = useRef(null);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -100,7 +100,10 @@ export default function UserListScreen({ navigation }) {
 
   useEffect(() => {
     fetchUsers();
-    return () => clearFilters();
+    return () => {
+      clearFilters();
+      clearTimeout(searchDebounce.current);
+    };
   }, []);
 
   const onChipPress = (key, value) => {
@@ -132,14 +135,22 @@ export default function UserListScreen({ navigation }) {
             placeholder="Search name, email, employee ID…"
             placeholderTextColor={COLORS.textMuted}
             value={filters.search}
-            onChangeText={(v) => setFilters({ search: v })}
+            onChangeText={(v) => {
+              setFilters({ search: v });
+              clearTimeout(searchDebounce.current);
+              searchDebounce.current = setTimeout(fetchUsers, 400);
+            }}
             returnKeyType="search"
-            onSubmitEditing={fetchUsers}
+            onSubmitEditing={() => {
+              clearTimeout(searchDebounce.current);
+              fetchUsers();
+            }}
             autoCapitalize="none"
           />
           {filters.search.length > 0 && (
             <TouchableOpacity
               onPress={() => {
+                clearTimeout(searchDebounce.current);
                 setFilters({ search: "" });
                 fetchUsers();
               }}

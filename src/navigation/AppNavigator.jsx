@@ -23,6 +23,7 @@ import {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { useNavigation }            from '@react-navigation/native';
+import { useSafeAreaInsets }        from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
@@ -459,6 +460,7 @@ const TAB_ICONS = {
 };
 
 function TabNavigator({ navigation }) {
+  const insets           = useSafeAreaInsets();
   const unreadCount      = useNotificationStore((s) => s.unreadCount);
   const groupUnreadTotal = useGroupStore((s) =>
     s.groups.reduce((sum, g) => sum + (g.unreadCount ?? 0), 0)
@@ -472,7 +474,7 @@ function TabNavigator({ navigation }) {
         headerRight,
         tabBarActiveTintColor:   COLORS.tabActive,
         tabBarInactiveTintColor: COLORS.tabInactive,
-        tabBarStyle:             { paddingBottom: 4, height: 60 },
+        tabBarStyle:             { paddingBottom: Math.max(insets.bottom, 4), height: 60 + insets.bottom },
         tabBarLabelStyle:        { ...TYPOGRAPHY.caption, marginBottom: 4 },
         tabBarHideOnKeyboard:    true,
         tabBarIcon: ({ color, size }) => (

@@ -25,6 +25,7 @@ import {
   Linking,
   Platform,
   Clipboard,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -35,7 +36,7 @@ import { TYPOGRAPHY }    from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import { formatDateTime, getInitials } from '@utils/helpers';
 
-import useAuthStore    from '@store/auth.store';
+import useAuthStore        from '@store/auth.store';
 import useInquiryStore from '@store/inquiry.store';
 import { inquiryApi }  from '@api/inquiry.api';
 
@@ -45,8 +46,22 @@ import PriorityBadge         from '@components/common/PriorityBadge';
 import { Menu } from 'react-native-paper';
 
 import AudioRecorderPlayer from 'react-native-audio-recorder-player';
+import RNBlobUtil  from 'react-native-blob-util';
+import FileViewer  from 'react-native-file-viewer';
 import DistributeModal from '@components/inquiry/DistributeModal';
 import ReassignModal   from '@components/inquiry/ReassignModal';
+
+const MIME_TYPES = {
+  pdf:  'application/pdf',
+  doc:  'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls:  'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt:  'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  csv:  'text/csv',
+  txt:  'text/plain',
+};
 
 const TYPE_ICONS = {
   text:       'text-box-outline',
@@ -74,6 +89,9 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const [playPosition, setPlayPosition] = useState('00:00:00');
   const [playDuration, setPlayDuration] = useState('00:00:00');
 
+  // File download state: fileId → 'downloading' | 'error' | null
+  const [fileStatus, setFileStatus] = useState({});
+
   // Stop audio on unmount
   useEffect(() => () => {
     audioPlayer.stopPlayer().catch(() => {});
@@ -90,6 +108,34 @@ export default function InquiryDetailScreen({ route, navigation }) {
   }, [id]);
 
   const refetch = useCallback(() => selectInquiry(id), [id]);
+
+  const openFile = useCallback(async (fileUrl, filename, fileId) => {
+    setFileStatus((prev) => ({ ...prev, [fileId]: 'downloading' }));
+    try {
+      const ext       = filename.split('.').pop().toLowerCase();
+      const localPath = `${RNBlobUtil.fs.dirs.CacheDir}/${fileId}.${ext}`;
+
+      const res = await RNBlobUtil.config({ path: localPath, overwrite: true })
+        .fetch('GET', fileUrl);
+
+      const status = res.info().status;
+      if (status < 200 || status >= 300) {
+        throw new Error(`HTTP ${status}`);
+      }
+
+      setFileStatus((prev) => ({ ...prev, [fileId]: null }));
+
+      if (Platform.OS === 'android') {
+        // Use RNBlobUtil directly — passes correct MIME type to the Intent
+        await RNBlobUtil.android.actionViewIntent(localPath, MIME_TYPES[ext] ?? 'application/octet-stream');
+      } else {
+        await FileViewer.open(localPath, { showOpenWithDialog: true });
+      }
+    } catch (err) {
+      setFileStatus((prev) => ({ ...prev, [fileId]: 'error' }));
+      Alert.alert('Error', `Could not open file.\n${err?.message ?? ''}`);
+    }
+  }, []);
 
   const handlePlayAudio = useCallback(async (url) => {
     try {
@@ -267,6 +313,26 @@ export default function InquiryDetailScreen({ route, navigation }) {
 
   const priorityColor = PRIORITY_COLORS[priority]?.text ?? COLORS.primary;
   const statusColor   = STATUS_COLORS[status]?.text     ?? COLORS.textMuted;
+
+  const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
+  const photoItems = images.filter((img) => IMAGE_EXTS.has((img.filename ?? img.url ?? '').split('.').pop().toLowerCase()));
+  const fileItems  = images.filter((img) => !IMAGE_EXTS.has((img.filename ?? img.url ?? '').split('.').pop().toLowerCase()));
+
+  const FILE_ICONS = {
+    pdf:  { icon: 'file-pdf-box',          color: '#DC2626' },
+    xls:  { icon: 'file-excel-box',        color: '#16A34A' },
+    xlsx: { icon: 'file-excel-box',        color: '#16A34A' },
+    csv:  { icon: 'file-delimited',        color: '#16A34A' },
+    doc:  { icon: 'file-word-box',         color: '#2563EB' },
+    docx: { icon: 'file-word-box',         color: '#2563EB' },
+    ppt:  { icon: 'file-powerpoint-box',   color: '#EA580C' },
+    pptx: { icon: 'file-powerpoint-box',   color: '#EA580C' },
+    txt:  { icon: 'file-document-outline', color: '#6B7280' },
+  };
+  const fileIconConfig = (name) => {
+    const ext = (name ?? '').split('.').pop().toLowerCase();
+    return FILE_ICONS[ext] ?? { icon: 'file-outline', color: '#6B7280' };
+  };
 
   const canDistribute = status === 'unassigned' || !assignedTo;
   const canReassign   = !!assignedTo && status !== 'closed';
@@ -589,20 +655,20 @@ export default function InquiryDetailScreen({ route, navigation }) {
           {/* ── Photos ───────────────────────────────────── */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Photos{images.length > 0 ? ` (${images.length})` : ''}
+              Photos{photoItems.length > 0 ? ` (${photoItems.length})` : ''}
             </Text>
-            {images.length === 0 ? (
+            {photoItems.length === 0 ? (
               <EmptyBox icon="image-off-outline" label="No photos attached" />
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {images.map((img, i) => {
+                {photoItems.map((img, i) => {
                   const fullUrl = `${CONFIG.SOCKET_URL}/uploads/${img.url}`;
                   return (
                     <TouchableOpacity
                       key={img.id ?? i}
                       style={styles.photoThumb}
                       onPress={() => navigation.navigate('ImageViewer', {
-                        images:       images.map((m) => ({
+                        images:       photoItems.map((m) => ({
                           url:  `${CONFIG.SOCKET_URL}/uploads/${m.url}`,
                           time: m.createdAt,
                         })),
@@ -622,6 +688,44 @@ export default function InquiryDetailScreen({ route, navigation }) {
               </ScrollView>
             )}
           </View>
+
+          {/* ── Files ────────────────────────────────────── */}
+          {fileItems.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Files ({fileItems.length})</Text>
+              {fileItems.map((f, i) => {
+                const cfg        = fileIconConfig(f.filename);
+                const fileUrl    = `${CONFIG.SOCKET_URL}/uploads/${f.url}`;
+                const fileId     = f.id ?? String(i);
+                const isDownloading = fileStatus[fileId] === 'downloading';
+                return (
+                  <TouchableOpacity
+                    key={fileId}
+                    style={styles.fileRow}
+                    activeOpacity={0.7}
+                    disabled={isDownloading}
+                    onPress={() => openFile(fileUrl, f.filename, fileId)}
+                  >
+                    <Icon name={cfg.icon} size={28} color={cfg.color} />
+                    <View style={styles.fileRowInfo}>
+                      <Text style={styles.fileRowName} numberOfLines={1}>{f.filename}</Text>
+                      {f.size ? (
+                        <Text style={styles.fileRowSize}>
+                          {f.size < 1024 * 1024
+                            ? `${(f.size / 1024).toFixed(1)} KB`
+                            : `${(f.size / (1024 * 1024)).toFixed(1)} MB`}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {isDownloading
+                      ? <ActivityIndicator size="small" color={COLORS.primary} />
+                      : <Icon name="open-in-new" size={18} color={COLORS.textMuted} />
+                    }
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* ── Voice Note ──────────────────────────────── */}
           {audioUrl ? (
@@ -1015,6 +1119,19 @@ const styles = StyleSheet.create({
 
   emptyBox:     { alignItems: 'center', paddingVertical: SPACING.lg, gap: SPACING.xs },
   emptyBoxText: { ...TYPOGRAPHY.small, color: COLORS.textMuted, fontStyle: 'italic' },
+
+  // File rows
+  fileRow: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              SPACING.sm,
+    paddingVertical:  SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  fileRowInfo: { flex: 1 },
+  fileRowName: { ...TYPOGRAPHY.body, color: COLORS.textPrimary, fontWeight: '500' },
+  fileRowSize: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 2 },
 
   // Notes
   notesList:    { gap: SPACING.sm },
