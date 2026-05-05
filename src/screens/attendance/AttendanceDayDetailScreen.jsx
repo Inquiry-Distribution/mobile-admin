@@ -72,9 +72,16 @@ export default function AttendanceDayDetailScreen({ route }) {
   const name          = record.salesperson?.name  ?? 'Unknown';
   const email         = record.salesperson?.email ?? '';
 
-  const statusColor = ATTENDANCE_STATUS_COLORS[record.status] ?? {
-    bg: COLORS.border, text: COLORS.textMuted,
-  };
+  const isCheckedIn = !!openSession || !!record.isCheckedIn;
+
+  const effectiveStatus = isCheckedIn ? 'present' : record.status;
+  const statusColor = ATTENDANCE_STATUS_COLORS[effectiveStatus] ?? { bg: COLORS.border, text: COLORS.textMuted };
+
+  const statusLabel = effectiveStatus === 'present'
+    ? 'Present'
+    : effectiveStatus === 'half_day'
+      ? 'Half Day'
+      : (effectiveStatus?.charAt(0).toUpperCase() + effectiveStatus?.slice(1)) ?? '—';
 
   const dateLabel = dayjs(record.date).format('dddd, DD MMMM YYYY');
 
@@ -101,8 +108,7 @@ export default function AttendanceDayDetailScreen({ route }) {
             </View>
             <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
               <Text style={[styles.statusBadgeText, { color: statusColor.text }]}>
-                {record.status === 'half_day' ? 'Half Day'
-                  : (record.status?.charAt(0).toUpperCase() + record.status?.slice(1))}
+                {statusLabel}
               </Text>
             </View>
           </View>

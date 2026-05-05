@@ -76,9 +76,12 @@ export default function AttendanceScreen({ route, navigation }) {
   const isToday = date === dayjs().format("YYYY-MM-DD");
 
   // Quick summary counts from current records
-  const presentCount = records.filter((r) => r.status === "present").length;
-  const absentCount = records.filter((r) => r.status === "absent").length;
-  const halfDayCount = records.filter((r) => r.status === "half_day").length;
+  // A record with an open session counts as present
+  const hasOpenSession = (r) =>
+    r.isCheckedIn || (Array.isArray(r.sessions) && r.sessions.some((s) => !s.checkOutTime));
+  const presentCount = records.filter((r) => r.status === "present" || hasOpenSession(r)).length;
+  const absentCount  = records.filter((r) => r.status === "absent" && !hasOpenSession(r)).length;
+  const halfDayCount = records.filter((r) => r.status === "half_day" && !hasOpenSession(r)).length;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -276,11 +279,6 @@ function SummaryChip({ label, count, color }) {
 function AttendanceRow({ record, onPress }) {
   const { salesperson, sessions = [], totalMinutes = 0, sessionsCount = 0, status } = record;
 
-  const statusColor = ATTENDANCE_STATUS_COLORS[status] ?? {
-    bg: COLORS.border,
-    text: COLORS.textMuted,
-  };
-
   // Derive first check-in and last check-out from sessions array
   const firstSession   = sessions[0] ?? null;
   const openSession    = sessions.find((s) => !s.checkOutTime) ?? null;
@@ -288,7 +286,10 @@ function AttendanceRow({ record, onPress }) {
   const firstCheckIn   = firstSession?.checkInTime  ?? null;
   const lastCheckOut   = lastSession?.checkOutTime  ?? null;
   const firstAddress   = firstSession?.checkInAddress ?? null;
-  const hasOpenSession = !!openSession;
+  const hasOpenSession = !!openSession || !!record.isCheckedIn;
+
+  const effectiveStatus = hasOpenSession ? 'present' : status;
+  const statusColor = ATTENDANCE_STATUS_COLORS[effectiveStatus] ?? { bg: COLORS.border, text: COLORS.textMuted };
 
   // Total worked — prefer server-aggregated totalMinutes, fall back to live calc
   const workedLabel = (() => {
@@ -324,9 +325,9 @@ function AttendanceRow({ record, onPress }) {
           </Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
             <Text style={[styles.statusBadgeText, { color: statusColor.text }]}>
-              {status === "half_day"
+              {effectiveStatus === "half_day"
                 ? "Half"
-                : status.charAt(0).toUpperCase() + status.slice(1)}
+                : effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1)}
             </Text>
           </View>
         </View>

@@ -21,27 +21,140 @@ const CLOSE_VELOCITY  = 600; // px/s flick speed to auto-close
 
 // ── Single zoomable slide ─────────────────────────────────────
 function ZoomableSlide({ uri }) {
-  const scale        = useRef(new Animated.Value(1)).current;
-  const lastScale    = useRef(1);
+  // JS-side committed state (updated only at gesture end, never during)
+  const savedScale = useRef(1);
+  const savedTx    = useRef(0);
+  const savedTy    = useRef(0);
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  // Animated base values (match savedScale/Tx/Ty at rest)
+  const baseScale  = useRef(new Animated.Value(1)).current;
+  const baseTx     = useRef(new Animated.Value(0)).current;
+  const baseTy     = useRef(new Animated.Value(0)).current;
+
+  // Live gesture deltas — reset to identity after every gesture
+  const pinchScale = useRef(new Animated.Value(1)).current;
+  const focalX     = useRef(new Animated.Value(SW / 2)).current;
+  const focalY     = useRef(new Animated.Value(SH / 2)).current;
+  const panDx      = useRef(new Animated.Value(0)).current;
+  const panDy      = useRef(new Animated.Value(0)).current;
+
+  const pinchRef     = useRef(null);
+  const panRef       = useRef(null);
   const doubleTapRef = useRef(null);
 
+  // ── Native-thread derived transforms ─────────────────────────
+  // Focal-point formula keeps the pinch midpoint fixed on screen:
+  //   tx = (focalX - SW/2) + pinchScale*(baseTx + SW/2 - focalX) + panDx
+  const effectiveScale = useRef(Animated.multiply(baseScale, pinchScale)).current;
+  const effectiveTx = useRef(Animated.add(
+    Animated.add(
+      Animated.subtract(focalX, SW / 2),
+      Animated.multiply(pinchScale, Animated.subtract(Animated.add(baseTx, SW / 2), focalX)),
+    ),
+    panDx,
+  )).current;
+  const effectiveTy = useRef(Animated.add(
+    Animated.add(
+      Animated.subtract(focalY, SH / 2),
+      Animated.multiply(pinchScale, Animated.subtract(Animated.add(baseTy, SH / 2), focalY)),
+    ),
+    panDy,
+  )).current;
+
+  // ── Helpers ───────────────────────────────────────────────────
+  const edgeX = (s) => Math.max(0, (s - 1) * SW / 2);
+  const edgeY = (s) => Math.max(0, (s - 1) * SH / 2);
+  const clamp = (v, limit) => Math.min(Math.max(v, -limit), limit);
+
+  // Commit new base state; optionally spring-animate to it
+  const commit = (scale, tx, ty, spring = false) => {
+    savedScale.current = scale;
+    savedTx.current    = tx;
+    savedTy.current    = ty;
+    pinchScale.setValue(1);
+    focalX.setValue(SW / 2);
+    focalY.setValue(SH / 2);
+    panDx.setValue(0);
+    panDy.setValue(0);
+    const cfg = { useNativeDriver: true, bounciness: 5, speed: 22 };
+    if (spring) {
+      Animated.spring(baseScale, { ...cfg, toValue: scale }).start();
+      Animated.spring(baseTx,    { ...cfg, toValue: tx    }).start();
+      Animated.spring(baseTy,    { ...cfg, toValue: ty    }).start();
+    } else {
+      baseScale.setValue(scale);
+      baseTx.setValue(tx);
+      baseTy.setValue(ty);
+    }
+  };
+
+  // ── Pinch gesture ─────────────────────────────────────────────
   const onPinchEvent = Animated.event(
-    [{ nativeEvent: { scale } }],
+    [{ nativeEvent: { scale: pinchScale, focalX, focalY } }],
     { useNativeDriver: true },
   );
 
   const onPinchStateChange = ({ nativeEvent: e }) => {
-    if (e.oldState === State.ACTIVE) {
-      const next = Math.min(Math.max(lastScale.current * e.scale, 1), 5);
-      lastScale.current = next;
-      scale.setValue(next);
+    if (e.oldState !== State.ACTIVE) return;
+    const gs   = e.scale;
+    const raw  = savedScale.current * gs;
+    const next = Math.min(Math.max(raw, 1), 5);
+    const fx   = e.focalX;
+    const fy   = e.focalY;
+
+    let tx = (fx - SW / 2) * (1 - gs) + savedTx.current * gs;
+    let ty = (fy - SH / 2) * (1 - gs) + savedTy.current * gs;
+    if (next <= 1) { tx = 0; ty = 0; }
+    else { tx = clamp(tx, edgeX(next)); ty = clamp(ty, edgeY(next)); }
+
+    setIsZoomed(next > 1);
+    commit(next, tx, ty, raw < 1); // spring back only if user over-pinched out
+  };
+
+  // ── Pan gesture (1-finger drag, only enabled when zoomed) ─────
+  const onPanEvent = Animated.event(
+    [{ nativeEvent: { translationX: panDx, translationY: panDy } }],
+    { useNativeDriver: true },
+  );
+
+  const onPanStateChange = ({ nativeEvent: e }) => {
+    if (e.oldState !== State.ACTIVE) return;
+    const s    = savedScale.current;
+    const rawX = savedTx.current + e.translationX;
+    const rawY = savedTy.current + e.translationY;
+    const tx   = clamp(rawX, edgeX(s));
+    const ty   = clamp(rawY, edgeY(s));
+
+    baseTx.setValue(tx);
+    baseTy.setValue(ty);
+    panDx.setValue(0);
+    panDy.setValue(0);
+    savedTx.current = tx;
+    savedTy.current = ty;
+
+    // Spring back to boundary if the user dragged past the edge
+    if (rawX !== tx || rawY !== ty) {
+      const cfg = { useNativeDriver: true, bounciness: 8, speed: 22 };
+      Animated.spring(baseTx, { ...cfg, toValue: tx }).start();
+      Animated.spring(baseTy, { ...cfg, toValue: ty }).start();
     }
   };
 
+  // ── Double-tap: zoom 2.5× at tap point, or reset ──────────────
   const onDoubleTap = ({ nativeEvent: e }) => {
-    if (e.state === State.ACTIVE) {
-      lastScale.current = 1;
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20 }).start();
+    if (e.state !== State.ACTIVE) return;
+    if (savedScale.current > 1) {
+      setIsZoomed(false);
+      commit(1, 0, 0, true);
+    } else {
+      const target = 2.5;
+      const fx     = e.x ?? SW / 2;
+      const fy     = e.y ?? SH / 2;
+      const tx     = clamp((fx - SW / 2) * (1 - target), edgeX(target));
+      const ty     = clamp((fy - SH / 2) * (1 - target), edgeY(target));
+      setIsZoomed(true);
+      commit(target, tx, ty, true);
     }
   };
 
@@ -53,11 +166,31 @@ function ZoomableSlide({ uri }) {
     >
       <Animated.View style={styles.slide}>
         <PinchGestureHandler
+          ref={pinchRef}
           onGestureEvent={onPinchEvent}
           onHandlerStateChange={onPinchStateChange}
+          simultaneousHandlers={panRef}
         >
-          <Animated.View style={[styles.slideInner, { transform: [{ scale }] }]}>
-            <Image source={{ uri }} style={styles.img} resizeMode="contain" />
+          <Animated.View style={styles.slide}>
+            <PanGestureHandler
+              ref={panRef}
+              enabled={isZoomed}
+              onGestureEvent={onPanEvent}
+              onHandlerStateChange={onPanStateChange}
+              simultaneousHandlers={pinchRef}
+              minPointers={1}
+              maxPointers={1}
+            >
+              <Animated.View style={[styles.slideInner, {
+                transform: [
+                  { translateX: effectiveTx },
+                  { translateY: effectiveTy },
+                  { scale: effectiveScale },
+                ],
+              }]}>
+                <Image source={{ uri }} style={styles.img} resizeMode="contain" />
+              </Animated.View>
+            </PanGestureHandler>
           </Animated.View>
         </PinchGestureHandler>
       </Animated.View>
