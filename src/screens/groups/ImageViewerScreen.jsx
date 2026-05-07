@@ -7,11 +7,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  PinchGestureHandler, TapGestureHandler,
+  TapGestureHandler,
   PanGestureHandler, State,
 } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import dayjs from 'dayjs';
 import { SPACING } from '@constants/config';
 
 const { width: SW, height: SH } = Dimensions.get('screen');
@@ -20,47 +19,47 @@ const CLOSE_THRESHOLD = 100; // px down before auto-close
 const CLOSE_VELOCITY  = 600; // px/s flick speed to auto-close
 
 // ── Single zoomable slide ─────────────────────────────────────
-function ZoomableSlide({ uri }) {
+function ZoomableSlide({ uri, focused, onZoomChange }) {
   // JS-side committed state (updated only at gesture end, never during)
   const savedScale = useRef(1);
   const savedTx    = useRef(0);
   const savedTy    = useRef(0);
   const [isZoomed, setIsZoomed] = useState(false);
 
+  // Notify parent and update local state together
+  const setZoomed = useCallback((v) => {
+    setIsZoomed(v);
+    onZoomChange?.(v);
+  }, [onZoomChange]);
+
+  // Reset zoom when this slide scrolls off-screen
+  useEffect(() => {
+    if (!focused && savedScale.current > 1) {
+      savedScale.current = 1;
+      savedTx.current    = 0;
+      savedTy.current    = 0;
+      baseScale.setValue(1);
+      baseTx.setValue(0);
+      baseTy.setValue(0);
+      panDx.setValue(0);
+      panDy.setValue(0);
+      setZoomed(false);
+    }
+  }, [focused]);
+
   // Animated base values (match savedScale/Tx/Ty at rest)
   const baseScale  = useRef(new Animated.Value(1)).current;
   const baseTx     = useRef(new Animated.Value(0)).current;
   const baseTy     = useRef(new Animated.Value(0)).current;
-
-  // Live gesture deltas — reset to identity after every gesture
-  const pinchScale = useRef(new Animated.Value(1)).current;
-  const focalX     = useRef(new Animated.Value(SW / 2)).current;
-  const focalY     = useRef(new Animated.Value(SH / 2)).current;
   const panDx      = useRef(new Animated.Value(0)).current;
   const panDy      = useRef(new Animated.Value(0)).current;
 
-  const pinchRef     = useRef(null);
   const panRef       = useRef(null);
   const doubleTapRef = useRef(null);
 
-  // ── Native-thread derived transforms ─────────────────────────
-  // Focal-point formula keeps the pinch midpoint fixed on screen:
-  //   tx = (focalX - SW/2) + pinchScale*(baseTx + SW/2 - focalX) + panDx
-  const effectiveScale = useRef(Animated.multiply(baseScale, pinchScale)).current;
-  const effectiveTx = useRef(Animated.add(
-    Animated.add(
-      Animated.subtract(focalX, SW / 2),
-      Animated.multiply(pinchScale, Animated.subtract(Animated.add(baseTx, SW / 2), focalX)),
-    ),
-    panDx,
-  )).current;
-  const effectiveTy = useRef(Animated.add(
-    Animated.add(
-      Animated.subtract(focalY, SH / 2),
-      Animated.multiply(pinchScale, Animated.subtract(Animated.add(baseTy, SH / 2), focalY)),
-    ),
-    panDy,
-  )).current;
+  const effectiveScale = baseScale;
+  const effectiveTx = useRef(Animated.add(baseTx, panDx)).current;
+  const effectiveTy = useRef(Animated.add(baseTy, panDy)).current;
 
   // ── Helpers ───────────────────────────────────────────────────
   const edgeX = (s) => Math.max(0, (s - 1) * SW / 2);
@@ -72,9 +71,6 @@ function ZoomableSlide({ uri }) {
     savedScale.current = scale;
     savedTx.current    = tx;
     savedTy.current    = ty;
-    pinchScale.setValue(1);
-    focalX.setValue(SW / 2);
-    focalY.setValue(SH / 2);
     panDx.setValue(0);
     panDy.setValue(0);
     const cfg = { useNativeDriver: true, bounciness: 5, speed: 22 };
@@ -87,29 +83,6 @@ function ZoomableSlide({ uri }) {
       baseTx.setValue(tx);
       baseTy.setValue(ty);
     }
-  };
-
-  // ── Pinch gesture ─────────────────────────────────────────────
-  const onPinchEvent = Animated.event(
-    [{ nativeEvent: { scale: pinchScale, focalX, focalY } }],
-    { useNativeDriver: true },
-  );
-
-  const onPinchStateChange = ({ nativeEvent: e }) => {
-    if (e.oldState !== State.ACTIVE) return;
-    const gs   = e.scale;
-    const raw  = savedScale.current * gs;
-    const next = Math.min(Math.max(raw, 1), 5);
-    const fx   = e.focalX;
-    const fy   = e.focalY;
-
-    let tx = (fx - SW / 2) * (1 - gs) + savedTx.current * gs;
-    let ty = (fy - SH / 2) * (1 - gs) + savedTy.current * gs;
-    if (next <= 1) { tx = 0; ty = 0; }
-    else { tx = clamp(tx, edgeX(next)); ty = clamp(ty, edgeY(next)); }
-
-    setIsZoomed(next > 1);
-    commit(next, tx, ty, raw < 1); // spring back only if user over-pinched out
   };
 
   // ── Pan gesture (1-finger drag, only enabled when zoomed) ─────
@@ -145,7 +118,7 @@ function ZoomableSlide({ uri }) {
   const onDoubleTap = ({ nativeEvent: e }) => {
     if (e.state !== State.ACTIVE) return;
     if (savedScale.current > 1) {
-      setIsZoomed(false);
+      setZoomed(false);
       commit(1, 0, 0, true);
     } else {
       const target = 2.5;
@@ -153,7 +126,7 @@ function ZoomableSlide({ uri }) {
       const fy     = e.y ?? SH / 2;
       const tx     = clamp((fx - SW / 2) * (1 - target), edgeX(target));
       const ty     = clamp((fy - SH / 2) * (1 - target), edgeY(target));
-      setIsZoomed(true);
+      setZoomed(true);
       commit(target, tx, ty, true);
     }
   };
@@ -165,34 +138,24 @@ function ZoomableSlide({ uri }) {
       numberOfTaps={2}
     >
       <Animated.View style={styles.slide}>
-        <PinchGestureHandler
-          ref={pinchRef}
-          onGestureEvent={onPinchEvent}
-          onHandlerStateChange={onPinchStateChange}
-          simultaneousHandlers={panRef}
+        <PanGestureHandler
+          ref={panRef}
+          enabled={isZoomed}
+          onGestureEvent={onPanEvent}
+          onHandlerStateChange={onPanStateChange}
+          minPointers={1}
+          maxPointers={1}
         >
-          <Animated.View style={styles.slide}>
-            <PanGestureHandler
-              ref={panRef}
-              enabled={isZoomed}
-              onGestureEvent={onPanEvent}
-              onHandlerStateChange={onPanStateChange}
-              simultaneousHandlers={pinchRef}
-              minPointers={1}
-              maxPointers={1}
-            >
-              <Animated.View style={[styles.slideInner, {
-                transform: [
-                  { translateX: effectiveTx },
-                  { translateY: effectiveTy },
-                  { scale: effectiveScale },
-                ],
-              }]}>
-                <Image source={{ uri }} style={styles.img} resizeMode="contain" />
-              </Animated.View>
-            </PanGestureHandler>
+          <Animated.View style={[styles.slideInner, {
+            transform: [
+              { translateX: effectiveTx },
+              { translateY: effectiveTy },
+              { scale: effectiveScale },
+            ],
+          }]}>
+            <Image source={{ uri }} style={styles.img} resizeMode="contain" />
           </Animated.View>
-        </PinchGestureHandler>
+        </PanGestureHandler>
       </Animated.View>
     </TapGestureHandler>
   );
@@ -203,7 +166,6 @@ export default function ImageViewerScreen({ navigation, route }) {
   const {
     images       = [],    // [{ url, time?, fileName? }]
     initialIndex = 0,
-    sender,
   } = route.params ?? {};
 
   const insets  = useSafeAreaInsets();
@@ -213,6 +175,10 @@ export default function ImageViewerScreen({ navigation, route }) {
   const flatRef = useRef(null);
   const [current,   setCurrent]   = useState(initialIndex);
   const [uiVisible, setUiVisible] = useState(true);
+  const [isZoomed,  setIsZoomed]  = useState(false);
+
+  // Clear parent zoom flag whenever the active slide changes
+  useEffect(() => { setIsZoomed(false); }, [current]);
 
   const currentImg = images[current] ?? {};
 
@@ -282,6 +248,7 @@ export default function ImageViewerScreen({ navigation, route }) {
     // activeOffsetY — only activates after 10 px vertical movement.
     // failOffsetX   — hands off to FlatList if finger moves horizontally first.
     <PanGestureHandler
+      enabled={!isZoomed}
       onGestureEvent={onPanEvent}
       onHandlerStateChange={onPanStateChange}
       activeOffsetY={10}
@@ -311,8 +278,15 @@ export default function ImageViewerScreen({ navigation, route }) {
             onViewableItemsChanged={onViewableChanged}
             viewabilityConfig={viewabilityConfig}
             getItemLayout={(_, i) => ({ length: SW, offset: SW * i, index: i })}
+            scrollEnabled={!isZoomed}
             scrollEventThrottle={16}
-            renderItem={({ item }) => <ZoomableSlide uri={item.url} />}
+            renderItem={({ item, index }) => (
+              <ZoomableSlide
+                uri={item.url}
+                focused={index === current}
+                onZoomChange={setIsZoomed}
+              />
+            )}
           />
         </TouchableOpacity>
 
@@ -343,27 +317,24 @@ export default function ImageViewerScreen({ navigation, route }) {
         {/* ── Top bar ── */}
         {uiVisible && (
           <View style={[styles.topBar, { paddingTop: topPad }]}>
-            <View style={styles.senderAvatar}>
-              <Text style={styles.senderInitial}>
-                {(sender ?? '?')[0].toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.senderInfo}>
-              <Text style={styles.senderName} numberOfLines={1}>
-                {sender ?? ''}
-              </Text>
-              {currentImg.time ? (
-                <Text style={styles.timeText}>
-                  {dayjs(currentImg.time).format('DD MMM YYYY · hh:mm A')}
-                </Text>
-              ) : null}
-            </View>
-
             {images.length > 1 && (
               <View style={styles.counterBadge}>
                 <Text style={styles.counterText}>{current + 1} / {images.length}</Text>
               </View>
             )}
+
+            <View style={styles.topCenter}>
+              {currentImg.fileName ? (
+                <Text style={styles.topFileName} numberOfLines={1}>
+                  {currentImg.fileName}
+                </Text>
+              ) : null}
+              {currentImg.time ? (
+                <Text style={styles.topTime}>
+                  {new Date(currentImg.time).toLocaleString()}
+                </Text>
+              ) : null}
+            </View>
 
             <TouchableOpacity
               style={styles.closeBtn}
@@ -392,19 +363,10 @@ export default function ImageViewerScreen({ navigation, route }) {
               </View>
             )}
 
-            {currentImg.fileName ? (
-              <View style={styles.fileRow}>
-                <Icon name="image-outline" size={12} color="rgba(255,255,255,0.5)" />
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {currentImg.fileName}
-                </Text>
-              </View>
-            ) : null}
-
             <Text style={styles.hint}>
               {images.length > 1
-                ? 'Swipe down to close · Swipe left/right · Pinch to zoom'
-                : 'Swipe down to close · Pinch to zoom · Double-tap to reset'}
+                ? 'Swipe down to close · Swipe left/right · Double-tap to zoom'
+                : 'Swipe down to close · Double-tap to zoom'}
             </Text>
           </View>
         )}
@@ -470,30 +432,19 @@ const styles = StyleSheet.create({
     paddingBottom:     SPACING.md,
     backgroundColor:   'rgba(0,0,0,0.65)',
   },
-  senderAvatar: {
-    width:           36,
-    height:          36,
-    borderRadius:    18,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems:      'center',
-    justifyContent:  'center',
-    flexShrink:      0,
+  topCenter: {
+    flex:       1,
+    alignItems: 'center',
   },
-  senderInitial: {
+  topFileName: {
     color:      '#fff',
-    fontSize:   14,
-    fontWeight: '800',
+    fontSize:   13,
+    fontWeight: '600',
+    maxWidth:   SW - 120,
   },
-  senderInfo: { flex: 1 },
-  senderName: {
-    color:      '#fff',
-    fontSize:   14,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-  timeText: {
-    color:     'rgba(255,255,255,0.55)',
-    fontSize:  11,
+  topTime: {
+    color:     'rgba(255,255,255,0.5)',
+    fontSize:  10,
     marginTop: 2,
   },
   counterBadge: {
@@ -546,17 +497,6 @@ const styles = StyleSheet.create({
   dotActive: {
     width:           18,
     backgroundColor: '#fff',
-  },
-  fileRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           5,
-  },
-  fileName: {
-    color:      'rgba(255,255,255,0.55)',
-    fontSize:   11,
-    fontWeight: '500',
-    maxWidth:   SW - 60,
   },
   hint: {
     color:    'rgba(255,255,255,0.28)',

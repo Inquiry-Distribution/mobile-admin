@@ -20,6 +20,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -33,19 +34,22 @@ import { getInitials, formatDateTime } from '@utils/helpers';
 import useUserStore    from '@store/user.store';
 import useAuthStore    from '@store/auth.store';
 import { deviceApi }  from '@api/device.api';
-import Loader         from '@components/common/Loader';
-import SetPinModal    from '@components/team/SetPinModal';
+import Loader                    from '@components/common/Loader';
+import SetPinModal               from '@components/team/SetPinModal';
+import UpdateAdminPasswordModal  from '@components/team/UpdateAdminPasswordModal';
 
 export default function UserDetailScreen({ navigation, route }) {
   const { id } = route.params;
 
-  const { selectedUser, isLoadingDetail, fetchUser, toggleStatus, removeUser } = useUserStore();
+  const { selectedUser, isLoadingDetail, fetchUser, toggleStatus, removeUser, updateUser } = useUserStore();
   const { isSuperuser } = useAuthStore();
 
-  const [pinModalVisible,  setPinModalVisible]  = useState(false);
-  const [isRefreshing,     setIsRefreshing]     = useState(false);
-  const [deleteError,      setDeleteError]      = useState(null);
-  const [isDeviceMutating, setIsDeviceMutating] = useState(false);
+  const [pinModalVisible,      setPinModalVisible]      = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [isRefreshing,       setIsRefreshing]       = useState(false);
+  const [deleteError,        setDeleteError]        = useState(null);
+  const [isDeviceMutating,   setIsDeviceMutating]   = useState(false);
+  const [isRemoteMutating,   setIsRemoteMutating]   = useState(false);
 
   useEffect(() => {
     fetchUser(id);
@@ -185,10 +189,38 @@ export default function UserDetailScreen({ navigation, route }) {
     );
   };
 
+  const handleToggleRemote = () => {
+    if (!selectedUser) return;
+    const enabling = !selectedUser.allowRemote;
+    Alert.alert(
+      enabling ? 'Allow Remote Attendance' : 'Revoke Remote Attendance',
+      enabling
+        ? `${selectedUser.name} will be able to check in and out from outside any registered office location.`
+        : `${selectedUser.name} will only be able to check in and out from registered office locations.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: enabling ? 'Allow' : 'Revoke',
+          style: enabling ? 'default' : 'destructive',
+          onPress: async () => {
+            setIsRemoteMutating(true);
+            const result = await updateUser(selectedUser.id, { allowRemote: enabling });
+            setIsRemoteMutating(false);
+            if (!result.success) {
+              Alert.alert('Error', result.message ?? 'Failed to update remote attendance.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (isLoadingDetail && !selectedUser) return <Loader />;
   if (!selectedUser) return null;
 
   const user      = selectedUser;
+  const isSales   = user.role === 'sales';
+  const isAdmin   = user.role === 'admin';
   const roleColor = ROLE_COLORS[user.role] ?? { bg: COLORS.primaryLight, text: COLORS.primary };
   const device    = user.device;
 
@@ -257,49 +289,53 @@ export default function UserDetailScreen({ navigation, route }) {
               color={user.isActive ? COLORS.warning : COLORS.success}
               onPress={handleToggleActive}
             />
-            <ActionTile
-              icon="chart-bar"
-              label="Report"
-              color={COLORS.info}
-              onPress={() =>
-                navigation.navigate('SalespersonReport', { salespersonId: user.id, name: user.name })
-              }
-            />
-            <ActionTile
-              icon="map-marker-path"
-              label="Location"
-              color={COLORS.secondary}
-              onPress={() =>
-                navigation.navigate('LocationHistory', { salespersonId: user.id, name: user.name })
-              }
-            />
-            <ActionTile
-              icon="calendar-clock-outline"
-              label="Attendance"
-              color={COLORS.primary}
-              onPress={() =>
-                navigation.navigate('Attendance', { salespersonId: user.id, name: user.name })
-              }
-            />
-            <ActionTile
-              icon="calendar-month-outline"
-              label="Monthly"
-              color={'#8B5CF6'}
-              onPress={() =>
-                navigation.navigate('AttendanceMonth', { salespersonId: user.id, name: user.name })
-              }
-            />
-            <ActionTile
-              icon="clipboard-text-outline"
-              label="Inquiries"
-              color={COLORS.primary}
-              onPress={() =>
-                navigation.navigate('Inquiries', {
-                  screen: 'InquiryList',
-                  params: { filterAssignedToId: user.id },
-                })
-              }
-            />
+            {isSales && (
+              <>
+                <ActionTile
+                  icon="chart-bar"
+                  label="Report"
+                  color={COLORS.info}
+                  onPress={() =>
+                    navigation.navigate('SalespersonReport', { salespersonId: user.id, name: user.name })
+                  }
+                />
+                <ActionTile
+                  icon="map-marker-path"
+                  label="Location"
+                  color={COLORS.secondary}
+                  onPress={() =>
+                    navigation.navigate('LocationHistory', { salespersonId: user.id, name: user.name })
+                  }
+                />
+                <ActionTile
+                  icon="calendar-clock-outline"
+                  label="Attendance"
+                  color={COLORS.primary}
+                  onPress={() =>
+                    navigation.navigate('Attendance', { salespersonId: user.id, name: user.name })
+                  }
+                />
+                <ActionTile
+                  icon="calendar-month-outline"
+                  label="Monthly"
+                  color={'#8B5CF6'}
+                  onPress={() =>
+                    navigation.navigate('AttendanceMonth', { salespersonId: user.id, name: user.name })
+                  }
+                />
+                <ActionTile
+                  icon="clipboard-text-outline"
+                  label="Inquiries"
+                  color={COLORS.primary}
+                  onPress={() =>
+                    navigation.navigate('Inquiries', {
+                      screen: 'InquiryList',
+                      params: { filterAssignedToId: user.id },
+                    })
+                  }
+                />
+              </>
+            )}
             {isSuperuser() && (
               <ActionTile
                 icon="delete-outline"
@@ -353,8 +389,70 @@ export default function UserDetailScreen({ navigation, route }) {
           </SectionRows>
         </View>
 
-        {/* ── PIN section ───────────────────────────────── */}
-        <View style={styles.section}>
+        {/* ── Security (admin users, superuser only) ───────── */}
+        {isAdmin && isSuperuser() && (
+          <View style={styles.section}>
+            <View style={styles.sectionRow}>
+              <Text style={styles.sectionTitle}>Security</Text>
+              <TouchableOpacity
+                style={styles.setPinBtn}
+                onPress={() => setPasswordModalVisible(true)}
+              >
+                <Icon name="lock-reset" size={14} color={COLORS.primary} />
+                <Text style={styles.setPinBtnText}>Update Password</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.pinStatus}>
+              <Icon name="shield-account-outline" size={20} color={COLORS.textMuted} />
+              <Text style={[styles.pinStatusText, { color: COLORS.textMuted }]}>
+                Reset this admin's login password.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* ── PIN section (sales only) ──────────────────── */}
+        {/* ── Remote Attendance (sales only) ────────────── */}
+        {isSales && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Remote Attendance</Text>
+            <View style={styles.remoteRow}>
+              <View style={styles.remoteInfo}>
+                <Icon
+                  name="map-marker-off-outline"
+                  size={18}
+                  color={user.allowRemote ? COLORS.success : COLORS.textMuted}
+                />
+                <View style={styles.remoteTexts}>
+                  <Text style={styles.remoteLabel}>
+                    {user.allowRemote ? 'Remote check-in allowed' : 'Office location required'}
+                  </Text>
+                  <Text style={styles.remoteSub}>
+                    {user.allowRemote
+                      ? 'User can check in/out from anywhere'
+                      : 'User must be at a registered office location'}
+                  </Text>
+                </View>
+              </View>
+              {isRemoteMutating ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Switch
+                  value={!!user.allowRemote}
+                  onValueChange={isSuperuser() ? handleToggleRemote : undefined}
+                  disabled={!isSuperuser()}
+                  trackColor={{ false: COLORS.border, true: COLORS.success + '99' }}
+                  thumbColor={user.allowRemote ? COLORS.success : COLORS.textMuted}
+                />
+              )}
+            </View>
+            {!isSuperuser() && (
+              <Text style={styles.remoteNote}>Only superusers can change this setting.</Text>
+            )}
+          </View>
+        )}
+
+        {isSales && <View style={styles.section}>
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>PIN</Text>
             <TouchableOpacity
@@ -382,10 +480,10 @@ export default function UserDetailScreen({ navigation, route }) {
               {user.pin ? 'PIN configured' : 'No PIN set — user cannot log in to mobile app'}
             </Text>
           </View>
-        </View>
+        </View>}
 
-        {/* ── Device card ───────────────────────────────── */}
-        <View style={styles.section}>
+        {/* ── Device card (sales only) ───────────────────── */}
+        {isSales && <View style={styles.section}>
           <Text style={styles.sectionTitle}>Registered Device</Text>
 
           {device ? (
@@ -502,12 +600,12 @@ export default function UserDetailScreen({ navigation, route }) {
               <Text style={styles.noDeviceText}>No device registered</Text>
             </View>
           )}
-        </View>
+        </View>}
 
       </ScrollView>
 
-      {/* ── SetPinModal ───────────────────────────────── */}
-      <SetPinModal
+      {/* ── SetPinModal (sales only) ──────────────────── */}
+      {isSales && <SetPinModal
         visible={pinModalVisible}
         userId={user.id}
         userName={user.name}
@@ -516,7 +614,18 @@ export default function UserDetailScreen({ navigation, route }) {
           setPinModalVisible(false);
           fetchUser(id);
         }}
-      />
+      />}
+
+      {/* ── UpdateAdminPasswordModal (admin users, superuser only) ── */}
+      {isAdmin && isSuperuser() && (
+        <UpdateAdminPasswordModal
+          visible={passwordModalVisible}
+          userId={user.id}
+          userName={user.name}
+          onClose={() => setPasswordModalVisible(false)}
+          onSuccess={() => setPasswordModalVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -781,5 +890,37 @@ const styles = StyleSheet.create({
     fontWeight:  '600',
     textAlign:   'center',
     lineHeight:  16,
+  },
+
+  // ── Remote attendance ─────────────────────────────────────────
+  remoteRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.xs,
+  },
+  remoteInfo: {
+    flexDirection: 'row',
+    alignItems:    'flex-start',
+    gap:           SPACING.sm,
+    flex:          1,
+    marginRight:   SPACING.sm,
+  },
+  remoteTexts: { flex: 1 },
+  remoteLabel: {
+    ...TYPOGRAPHY.body,
+    fontWeight: '600',
+    color:      COLORS.textPrimary,
+  },
+  remoteSub: {
+    ...TYPOGRAPHY.caption,
+    color:     COLORS.textMuted,
+    marginTop: 2,
+  },
+  remoteNote: {
+    ...TYPOGRAPHY.caption,
+    color:     COLORS.textMuted,
+    fontStyle: 'italic',
+    marginTop: SPACING.xs,
   },
 });

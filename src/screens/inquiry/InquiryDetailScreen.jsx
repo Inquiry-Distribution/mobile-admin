@@ -34,7 +34,7 @@ import dayjs from 'dayjs';
 import { COLORS, STATUS_COLORS, PRIORITY_COLORS } from '@constants/colors';
 import { TYPOGRAPHY }    from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
-import { formatDateTime, getInitials } from '@utils/helpers';
+import { formatDateTime, getInitials, stripHtml } from '@utils/helpers';
 
 import useAuthStore        from '@store/auth.store';
 import useInquiryStore from '@store/inquiry.store';
@@ -73,14 +73,14 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const { isSuperuser } = useAuthStore();
 
-  const { selectedInquiry, selectInquiry, isLoading, isMutating } = useInquiryStore();
+  const { selectedInquiry, selectInquiry, isLoading, isMutating, deleteImage, deleteAudio } = useInquiryStore();
 
-  const [showDistribute,  setShowDistribute]  = useState(false);
-  const [showReassign,    setShowReassign]    = useState(false);
-  const [deleteLoading,   setDeleteLoading]   = useState(false);
-  const [unassignLoading, setUnassignLoading] = useState(false);
-  const [menuVisible,     setMenuVisible]     = useState(false);
-  const [callSupported,   setCallSupported]   = useState(true);
+  const [showDistribute,   setShowDistribute]   = useState(false);
+  const [showReassign,     setShowReassign]     = useState(false);
+  const [deleteLoading,    setDeleteLoading]    = useState(false);
+  const [unassignLoading,  setUnassignLoading]  = useState(false);
+  const [extendLoading,    setExtendLoading]    = useState(false);
+  const [menuVisible,      setMenuVisible]      = useState(false);
 
   // ── Audio playback ────────────────────────────────────────────
   const audioPlayer  = useRef(new AudioRecorderPlayer()).current;
@@ -98,16 +98,58 @@ export default function InquiryDetailScreen({ route, navigation }) {
     audioPlayer.removePlayBackListener();
   }, []);
 
-  // Check once whether this device can make phone calls
-  useEffect(() => {
-    Linking.canOpenURL('tel:0').then(setCallSupported).catch(() => setCallSupported(false));
-  }, []);
 
   useEffect(() => {
     selectInquiry(id);
   }, [id]);
 
   const refetch = useCallback(() => selectInquiry(id), [id]);
+
+  const handleDeleteImage = useCallback((imageId, label) => {
+    Alert.alert(
+      'Delete file',
+      `Remove "${label}" from this inquiry? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await deleteImage(id, imageId);
+            if (!result.success) {
+              Alert.alert('Error', result.message ?? 'Failed to delete file.');
+            }
+          },
+        },
+      ],
+    );
+  }, [id, deleteImage]);
+
+  const handleDeleteAudio = useCallback(() => {
+    Alert.alert(
+      'Delete Voice Note',
+      'Remove the voice note from this inquiry? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (isPlaying || isPaused) {
+              await audioPlayer.stopPlayer().catch(() => {});
+              audioPlayer.removePlayBackListener();
+              setIsPlaying(false); setIsPaused(false);
+              setPlayPosition('00:00:00');
+            }
+            const result = await deleteAudio(id);
+            if (!result.success) {
+              Alert.alert('Error', result.message ?? 'Failed to delete voice note.');
+            }
+          },
+        },
+      ],
+    );
+  }, [id, deleteAudio, isPlaying, isPaused, audioPlayer]);
 
   const openFile = useCallback(async (fileUrl, filename, fileId) => {
     setFileStatus((prev) => ({ ...prev, [fileId]: 'downloading' }));
@@ -201,24 +243,83 @@ export default function InquiryDetailScreen({ route, navigation }) {
     );
   }, [selectedInquiry, refetch]);
 
-  // ── Delete (superuser only) ───────────────────────────────────
-  const handleDelete = useCallback(() => {
+  // ── Extend visibility ────────────────────────────────────────
+  const handleExtendVisibility = useCallback(() => {
     if (!selectedInquiry) return;
     Alert.alert(
-      'Delete Inquiry',
-      'This action is permanent and cannot be undone. Are you sure?',
+      'Extend Visibility',
+      `How many extra days should this inquiry stay visible to ${selectedInquiry.assignedTo?.name ?? 'the salesperson'}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: '+1 Day',
+          onPress: async () => {
+            setExtendLoading(true);
+            try {
+              await inquiryApi.extendVisibility(selectedInquiry.id, 1);
+              refetch();
+            } catch (err) {
+              Alert.alert('Error', err.message ?? 'Failed to extend visibility.');
+            } finally {
+              setExtendLoading(false);
+            }
+          },
+        },
+        {
+          text: '+3 Days',
+          onPress: async () => {
+            setExtendLoading(true);
+            try {
+              await inquiryApi.extendVisibility(selectedInquiry.id, 3);
+              refetch();
+            } catch (err) {
+              Alert.alert('Error', err.message ?? 'Failed to extend visibility.');
+            } finally {
+              setExtendLoading(false);
+            }
+          },
+        },
+        {
+          text: '+7 Days',
+          onPress: async () => {
+            setExtendLoading(true);
+            try {
+              await inquiryApi.extendVisibility(selectedInquiry.id, 7);
+              refetch();
+            } catch (err) {
+              Alert.alert('Error', err.message ?? 'Failed to extend visibility.');
+            } finally {
+              setExtendLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [selectedInquiry, refetch]);
+
+  // ── Move to Trash (superuser only) ───────────────────────────
+  const handleDelete = useCallback(() => {
+    if (!selectedInquiry) return;
+    Alert.alert(
+      'Move to Trash',
+      'This inquiry will be moved to trash. You can restore it from the Trash screen.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Move to Trash',
           style: 'destructive',
           onPress: async () => {
             setDeleteLoading(true);
             try {
               await inquiryApi.remove(selectedInquiry.id);
+              useInquiryStore.getState().bumpSummaryRefresh();
+              useInquiryStore.setState((state) => ({
+                inquiries: state.inquiries.filter((i) => i.id !== selectedInquiry.id),
+                total:     Math.max(0, state.total - 1),
+              }));
               navigation.goBack();
             } catch (err) {
-              Alert.alert('Error', err.message ?? 'Failed to delete.');
+              Alert.alert('Error', err.message ?? 'Failed to move to trash.');
             }
             setDeleteLoading(false);
           },
@@ -259,7 +360,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
               setMenuVisible(false);
               handleDelete();
             }}
-            title="Delete Inquiry"
+            title="Move to Trash"
             leadingIcon="trash-can-outline"
             titleStyle={{ color: COLORS.error }}
           />
@@ -272,33 +373,22 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const handleCall = useCallback(() => {
     const number = selectedInquiry?.mobile;
     if (!number) return;
-    const url = `tel:${number}`;
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(url).catch(() =>
-            Alert.alert('Call Failed', 'Could not open the dialer. Please try again.')
-          );
-        } else {
-          Alert.alert(
-            'Cannot Make Calls',
-            'Your device does not support phone calls. You can manually dial:\n\n' + number,
-            [
-              {
-                text: 'Copy Number',
-                onPress: () => {
-                  Clipboard.setString(number);
-                  Alert.alert('Copied', 'Phone number copied to clipboard.');
-                },
-              },
-              { text: 'OK', style: 'cancel' },
-            ]
-          );
-        }
-      })
-      .catch(() =>
-        Alert.alert('Call Failed', 'Could not initiate the call. Please try again.')
-      );
+    Linking.openURL(`tel:${number}`).catch(() =>
+      Alert.alert(
+        'Call Failed',
+        'Could not open the dialer. You can manually dial:\n\n' + number,
+        [
+          {
+            text: 'Copy Number',
+            onPress: () => {
+              Clipboard.setString(number);
+              Alert.alert('Copied', 'Phone number copied to clipboard.');
+            },
+          },
+          { text: 'OK', style: 'cancel' },
+        ]
+      )
+    );
   }, [selectedInquiry?.mobile]);
 
   if (isLoading || !selectedInquiry) return <Loader message="Loading inquiry…" />;
@@ -308,7 +398,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
     description, title, mobile, source, type, status, priority,
     createdAt, assignedAt, assignedTo, uploadedBy, assignedBy,
     notes = [], images = [], statusHistory = [],
-    isConverted, convertedAt, audioUrl,
+    isConverted, convertedAt, audioUrl, visibleUntil,
   } = inquiry;
 
   const priorityColor = PRIORITY_COLORS[priority]?.text ?? COLORS.primary;
@@ -337,6 +427,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const canDistribute = status === 'unassigned' || !assignedTo;
   const canReassign   = !!assignedTo && status !== 'closed';
   const canUnassign   = !!assignedTo && status !== 'closed' && status !== 'unassigned';
+  const canExtend     = !!assignedTo && status !== 'closed';
 
   // ── Distribute / reassign analytics ──────────────────────────
   // statusHistory is ASC — index 0 is the original event, last is the most recent
@@ -377,7 +468,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
 
               {/* Description */}
               <Text style={styles.heroDesc}>
-                {description || title || 'No description provided.'}
+                {stripHtml(description || title) || 'No description provided.'}
               </Text>
 
               {/* Contact */}
@@ -385,29 +476,21 @@ export default function InquiryDetailScreen({ route, navigation }) {
                 <>
                   <View style={styles.heroDivider} />
                   <TouchableOpacity
-                    style={[styles.callCard, !callSupported && styles.callCardDisabled]}
+                    style={styles.callCard}
                     onPress={handleCall}
                     activeOpacity={0.78}
                   >
-                    <View style={[styles.callIcon, !callSupported && styles.callIconDisabled]}>
-                      <Icon name={callSupported ? 'phone' : 'phone-off'} size={18} color={COLORS.white} />
+                    <View style={styles.callIcon}>
+                      <Icon name="phone" size={18} color={COLORS.white} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.callNumber}>{mobile}</Text>
-                      <Text style={[styles.callHint, !callSupported && styles.callHintDisabled]}>
-                        {callSupported ? 'Tap to call' : 'Device cannot make calls'}
-                      </Text>
+                      <Text style={styles.callHint}>Tap to call</Text>
                     </View>
-                    {callSupported ? (
-                      <View style={styles.callBtn}>
-                        <Icon name="phone-outgoing" size={13} color={COLORS.white} />
-                        <Text style={styles.callBtnText}>Call</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.callBtnDisabled}>
-                        <Icon name="phone-off" size={13} color={COLORS.textMuted} />
-                      </View>
-                    )}
+                    <View style={styles.callBtn}>
+                      <Icon name="phone-outgoing" size={13} color={COLORS.white} />
+                      <Text style={styles.callBtnText}>Call</Text>
+                    </View>
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -426,7 +509,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
                 <StatusBadge status={status} />
                 {isConverted && (
                   <View style={styles.convertedBadge}>
-                    <Icon name="check-circle" size={11} color="#16a34a" />
+                    <Icon name="check-circle" size={11} color={COLORS.converted} />
                     <Text style={styles.convertedText}>
                       Converted{convertedAt ? ` · ${dayjs(convertedAt).format('DD MMM')}` : ''}
                     </Text>
@@ -472,20 +555,20 @@ export default function InquiryDetailScreen({ route, navigation }) {
               <View style={[
                 styles.tlDateIcon,
                 distributeEntry
-                  ? { backgroundColor: '#dcfce7' }
+                  ? { backgroundColor: COLORS.assigned + '20' }
                   : { backgroundColor: COLORS.background },
               ]}>
                 <Icon
                   name="account-arrow-right-outline"
                   size={16}
-                  color={distributeEntry ? '#16a34a' : COLORS.textMuted}
+                  color={distributeEntry ? COLORS.assigned : COLORS.textMuted}
                 />
               </View>
               <View style={styles.tlDateBody}>
                 <Text style={styles.tlDateLabel}>Distributed</Text>
                 {distributeEntry ? (
                   <>
-                    <Text style={[styles.tlDateValue, { color: '#16a34a' }]}>
+                    <Text style={[styles.tlDateValue, { color: COLORS.assigned }]}>
                       {dayjs(distributeEntry.changedAt).format('DD MMM YYYY')}
                     </Text>
                     <Text style={styles.tlDateTime}>
@@ -501,7 +584,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
               </View>
               {distributeEntry && (
                 <View style={styles.tlDateRight}>
-                  <Text style={[styles.tlDateAgo, { color: '#16a34a' }]}>
+                  <Text style={[styles.tlDateAgo, { color: COLORS.assigned }]}>
                     {dayjs().diff(dayjs(distributeEntry.changedAt), 'day') === 0
                       ? 'Today'
                       : `${dayjs().diff(dayjs(distributeEntry.changedAt), 'day')}d ago`}
@@ -529,14 +612,14 @@ export default function InquiryDetailScreen({ route, navigation }) {
               <View style={styles.tlStat}>
                 <Icon name="image-multiple-outline" size={13} color={COLORS.secondary} />
                 <Text style={styles.tlStatValue}>{images.length}</Text>
-                <Text style={styles.tlStatLabel}>Photos</Text>
+                <Text style={styles.tlStatLabel}>Attachment</Text>
               </View>
             </View>
 
           </View>
 
           {/* ── Admin action buttons ─────────────────────── */}
-          {(canDistribute || canReassign || canUnassign) && (
+          {(canDistribute || canReassign || canUnassign || canExtend) && (
             <View style={styles.actionSection}>
 
               {/* Primary — Distribute (full width) */}
@@ -591,6 +674,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
                 </View>
               )}
 
+
             </View>
           )}
 
@@ -617,6 +701,30 @@ export default function InquiryDetailScreen({ route, navigation }) {
 
             {!uploadedBy && !assignedTo && (
               <Text style={styles.noData}>Not yet assigned to anyone.</Text>
+            )}
+
+            {/* Visibility window */}
+            {visibleUntil && assignedTo && (
+              <View style={[
+                styles.visibilityRow,
+                dayjs(visibleUntil).isBefore(dayjs())
+                  ? styles.visibilityExpired
+                  : styles.visibilityActive,
+              ]}>
+                <Icon
+                  name={dayjs(visibleUntil).isBefore(dayjs()) ? 'eye-off-outline' : 'clock-outline'}
+                  size={14}
+                  color={dayjs(visibleUntil).isBefore(dayjs()) ? COLORS.error : COLORS.info}
+                />
+                <Text style={[
+                  styles.visibilityText,
+                  { color: dayjs(visibleUntil).isBefore(dayjs()) ? COLORS.error : COLORS.info },
+                ]}>
+                  {dayjs(visibleUntil).isBefore(dayjs())
+                    ? `Expired · ${dayjs(visibleUntil).format('DD MMM · hh:mm A')}`
+                    : `Visible until ${dayjs(visibleUntil).format('DD MMM · hh:mm A')}`}
+                </Text>
+              </View>
             )}
 
             {/* ── Timing rows ─────────────────────── */}
@@ -663,26 +771,34 @@ export default function InquiryDetailScreen({ route, navigation }) {
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {photoItems.map((img, i) => {
                   const fullUrl = `${CONFIG.SOCKET_URL}/uploads/${img.url}`;
+                  const label   = img.filename ?? `Photo ${i + 1}`;
                   return (
-                    <TouchableOpacity
-                      key={img.id ?? i}
-                      style={styles.photoThumb}
-                      onPress={() => navigation.navigate('ImageViewer', {
-                        images:       photoItems.map((m) => ({
-                          url:  `${CONFIG.SOCKET_URL}/uploads/${m.url}`,
-                          time: m.createdAt,
-                        })),
-                        initialIndex: i,
-                        sender:       uploadedBy?.name ?? title ?? 'Image',
-                      })}
-                      activeOpacity={0.85}
-                    >
-                      <Image
-                        source={{ uri: fullUrl }}
-                        style={styles.photoImage}
-                        resizeMode="cover"
-                      />
-                    </TouchableOpacity>
+                    <View key={img.id ?? i} style={styles.photoThumb}>
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('ImageViewer', {
+                          images:       photoItems.map((m) => ({
+                            url:  `${CONFIG.SOCKET_URL}/uploads/${m.url}`,
+                            time: m.createdAt,
+                          })),
+                          initialIndex: i,
+                          sender:       uploadedBy?.name ?? title ?? 'Image',
+                        })}
+                        activeOpacity={0.85}
+                      >
+                        <Image
+                          source={{ uri: fullUrl }}
+                          style={styles.photoImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.photoDeleteBtn}
+                        onPress={() => handleDeleteImage(img.id, label)}
+                        hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                      >
+                        <Icon name="trash-can" size={13} color={COLORS.white} />
+                      </TouchableOpacity>
+                    </View>
                   );
                 })}
               </ScrollView>
@@ -694,34 +810,42 @@ export default function InquiryDetailScreen({ route, navigation }) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Files ({fileItems.length})</Text>
               {fileItems.map((f, i) => {
-                const cfg        = fileIconConfig(f.filename);
-                const fileUrl    = `${CONFIG.SOCKET_URL}/uploads/${f.url}`;
-                const fileId     = f.id ?? String(i);
+                const cfg           = fileIconConfig(f.filename);
+                const fileUrl       = `${CONFIG.SOCKET_URL}/uploads/${f.url}`;
+                const fileId        = f.id ?? String(i);
                 const isDownloading = fileStatus[fileId] === 'downloading';
                 return (
-                  <TouchableOpacity
-                    key={fileId}
-                    style={styles.fileRow}
-                    activeOpacity={0.7}
-                    disabled={isDownloading}
-                    onPress={() => openFile(fileUrl, f.filename, fileId)}
-                  >
-                    <Icon name={cfg.icon} size={28} color={cfg.color} />
-                    <View style={styles.fileRowInfo}>
-                      <Text style={styles.fileRowName} numberOfLines={1}>{f.filename}</Text>
-                      {f.size ? (
-                        <Text style={styles.fileRowSize}>
-                          {f.size < 1024 * 1024
-                            ? `${(f.size / 1024).toFixed(1)} KB`
-                            : `${(f.size / (1024 * 1024)).toFixed(1)} MB`}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {isDownloading
-                      ? <ActivityIndicator size="small" color={COLORS.primary} />
-                      : <Icon name="open-in-new" size={18} color={COLORS.textMuted} />
-                    }
-                  </TouchableOpacity>
+                  <View key={fileId} style={styles.fileRow}>
+                    <TouchableOpacity
+                      style={styles.fileRowMain}
+                      activeOpacity={0.7}
+                      disabled={isDownloading}
+                      onPress={() => openFile(fileUrl, f.filename, fileId)}
+                    >
+                      <Icon name={cfg.icon} size={28} color={cfg.color} />
+                      <View style={styles.fileRowInfo}>
+                        <Text style={styles.fileRowName} numberOfLines={1}>{f.filename}</Text>
+                        {f.size ? (
+                          <Text style={styles.fileRowSize}>
+                            {f.size < 1024 * 1024
+                              ? `${(f.size / 1024).toFixed(1)} KB`
+                              : `${(f.size / (1024 * 1024)).toFixed(1)} MB`}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {isDownloading
+                        ? <ActivityIndicator size="small" color={COLORS.primary} />
+                        : <Icon name="open-in-new" size={18} color={COLORS.textMuted} />
+                      }
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.fileDeleteBtn}
+                      onPress={() => handleDeleteImage(f.id, f.filename)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Icon name="trash-can-outline" size={18} color={COLORS.error} />
+                    </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
@@ -730,7 +854,16 @@ export default function InquiryDetailScreen({ route, navigation }) {
           {/* ── Voice Note ──────────────────────────────── */}
           {audioUrl ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Voice Note</Text>
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>Voice Note</Text>
+                <TouchableOpacity
+                  style={styles.audioDeleteBtn}
+                  onPress={handleDeleteAudio}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Icon name="trash-can-outline" size={16} color={COLORS.error} />
+                </TouchableOpacity>
+              </View>
               <View style={styles.audioPlayer}>
                 <TouchableOpacity
                   style={styles.audioPlayBtn}
@@ -823,6 +956,26 @@ export default function InquiryDetailScreen({ route, navigation }) {
               })}
             </View>
           )}
+
+          {/* ── Extend — bottom of scroll ─────────────── */}
+          {canExtend && (
+            <View style={styles.extendBar}>
+              <TouchableOpacity
+                style={[styles.extendBarBtn, (extendLoading || isMutating) && { opacity: 0.55 }]}
+                onPress={handleExtendVisibility}
+                disabled={extendLoading || isMutating}
+                activeOpacity={0.82}
+              >
+                <View style={[styles.secondaryBtnIcon, { backgroundColor: COLORS.info + '18' }]}>
+                  {extendLoading
+                    ? <ActivityIndicator size="small" color={COLORS.info} />
+                    : <Icon name="clock-plus-outline" size={18} color={COLORS.info} />
+                  }
+                </View>
+                <Text style={[styles.secondaryBtnText, { color: COLORS.info }]}>Extend Visibility</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
 
@@ -896,6 +1049,22 @@ function EmptyBox({ icon, label }) {
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: COLORS.background },
   scroll: { paddingBottom: SPACING.xxl },
+  extendBar: {
+    paddingHorizontal: SPACING.md,
+    paddingTop:        SPACING.sm,
+  },
+  extendBarBtn: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             SPACING.xs + 2,
+    backgroundColor: COLORS.surface,
+    borderRadius:    BORDER_RADIUS.lg,
+    paddingVertical: 13,
+    borderWidth:     1.5,
+    borderColor:     COLORS.info,
+    ...SHADOW.sm,
+  },
 
   // Hero
   hero: {
@@ -982,12 +1151,12 @@ const styles = StyleSheet.create({
 
   convertedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#dcfce7',
+    backgroundColor: COLORS.converted + '20',
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: '#86efac',
+    borderWidth: 1, borderColor: COLORS.converted + '60',
   },
-  convertedText: { fontSize: 10, fontWeight: '800', color: '#16a34a' },
+  convertedText: { fontSize: 10, fontWeight: '800', color: COLORS.converted },
 
   // Action buttons
   actionSection: {
@@ -1083,6 +1252,12 @@ const styles = StyleSheet.create({
     padding:         SPACING.md,
     ...SHADOW.sm,
   },
+  sectionRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginBottom:   SPACING.sm,
+  },
   sectionTitle: {
     ...TYPOGRAPHY.small,
     fontWeight:     '700',
@@ -1116,6 +1291,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  photoDeleteBtn: {
+    position:        'absolute',
+    top:             4,
+    right:           4,
+    width:           24,
+    height:          24,
+    borderRadius:    12,
+    backgroundColor: COLORS.error,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
 
   emptyBox:     { alignItems: 'center', paddingVertical: SPACING.lg, gap: SPACING.xs },
   emptyBoxText: { ...TYPOGRAPHY.small, color: COLORS.textMuted, fontStyle: 'italic' },
@@ -1124,10 +1310,19 @@ const styles = StyleSheet.create({
   fileRow: {
     flexDirection:    'row',
     alignItems:       'center',
-    gap:              SPACING.sm,
-    paddingVertical:  SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+  },
+  fileRowMain: {
+    flex:            1,
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             SPACING.sm,
+    paddingVertical: SPACING.sm,
+  },
+  fileDeleteBtn: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   SPACING.sm,
   },
   fileRowInfo: { flex: 1 },
   fileRowName: { ...TYPOGRAPHY.body, color: COLORS.textPrimary, fontWeight: '500' },
@@ -1262,6 +1457,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // Visibility window row
+  visibilityRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               6,
+    marginTop:         SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   6,
+    borderRadius:      BORDER_RADIUS.md,
+    borderWidth:       1,
+    alignSelf:         'flex-start',
+  },
+  visibilityActive:  { backgroundColor: COLORS.info + '12', borderColor: COLORS.info + '40' },
+  visibilityExpired: { backgroundColor: COLORS.error + '10', borderColor: COLORS.error + '35' },
+  visibilityText:    { fontSize: 12, fontWeight: '600' },
+
   // Timing block (inside Assignment section)
   timingBlock: {
     marginTop:    SPACING.sm,
@@ -1363,6 +1574,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2',
     alignItems:     'center',
     justifyContent: 'center',
+  },
+  audioDeleteBtn: {
+    padding:         4,
   },
 
   // Timeline

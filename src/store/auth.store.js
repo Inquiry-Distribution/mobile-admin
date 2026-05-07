@@ -9,6 +9,7 @@
  */
 import { create } from 'zustand';
 import { authApi } from '@api/auth.api';
+import { userApi } from '@api/user.api';
 import { setForceLogout } from '@api/client';
 import {
   getAccessToken,
@@ -71,6 +72,33 @@ const useAuthStore = create((set, get) => ({
       set({ user });
     } catch (_) {
       // Silent — best-effort refresh
+    }
+  },
+
+  // ─── Update own profile (name, phone) ────────────────────────
+  updateProfile: async (data) => {
+    const id = get().user?.id;
+    if (!id) return { success: false, message: 'Not authenticated.' };
+    try {
+      const res     = await userApi.update(id, data);
+      const updated = res.data;
+      setUser(updated);
+      set({ user: updated });
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.message || 'Update failed.' };
+    }
+  },
+
+  // ─── Change own password ──────────────────────────────────────
+  changePassword: async (password, oldPassword) => {
+    const id = get().user?.id;
+    if (!id) return { success: false, message: 'Not authenticated.' };
+    try {
+      await userApi.changePassword(id, password, oldPassword);
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.message || 'Password change failed.' };
     }
   },
 

@@ -26,7 +26,7 @@ import { getInitials, formatDateTime }        from '@utils/helpers';
 import DeviceInfo  from 'react-native-device-info';
 import useAuthStore from '@store/auth.store';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user, logout, isSuperuser } = useAuthStore();
 
   const handleLogout = () => {
@@ -76,6 +76,15 @@ export default function ProfileScreen() {
               {user.role.toUpperCase()}
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => navigation.navigate('EditProfile')}
+            activeOpacity={0.75}
+          >
+            <Icon name="pencil-outline" size={15} color={COLORS.primary} />
+            <Text style={styles.editBtnText}>Edit Profile</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── Account ───────────────────────────────── */}
@@ -202,6 +211,24 @@ const styles = StyleSheet.create({
     fontWeight:    '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+
+  editBtn: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               5,
+    marginTop:         12,
+    paddingHorizontal: 16,
+    paddingVertical:   7,
+    borderRadius:      20,
+    borderWidth:       1.5,
+    borderColor:       COLORS.primary,
+    backgroundColor:   COLORS.primaryLight ?? '#EDE9FE',
+  },
+  editBtnText: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.primary,
+    fontWeight: '700',
   },
 
   // ── Section ───────────────────────────────────────────────

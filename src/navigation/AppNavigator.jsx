@@ -39,6 +39,7 @@ import InquiryListScreen    from '@screens/inquiry/InquiryListScreen';
 import InquiryDetailScreen  from '@screens/inquiry/InquiryDetailScreen';
 import CreateInquiryScreen  from '@screens/inquiry/CreateInquiryScreen';
 import EditInquiryScreen    from '@screens/inquiry/EditInquiryScreen';
+import TrashScreen          from '@screens/inquiry/TrashScreen';
 import LiveMapScreen       from '@screens/map/LiveMapScreen';
 import UserListScreen      from '@screens/team/UserListScreen';
 import UserDetailScreen    from '@screens/team/UserDetailScreen';
@@ -57,6 +58,7 @@ import ReportsScreen       from '@screens/reports/ReportsScreen';
 import NotificationsScreen from '@screens/notifications/NotificationsScreen';
 import AuditLogScreen      from '@screens/audit/AuditLogScreen';
 import ProfileScreen       from '@screens/profile/ProfileScreen';
+import EditProfileScreen   from '@screens/profile/EditProfileScreen';
 import GroupListScreen        from '@screens/groups/GroupListScreen';
 import GroupChatScreen        from '@screens/groups/GroupChatScreen';
 import CreateGroupScreen      from '@screens/groups/CreateGroupScreen';
@@ -131,15 +133,29 @@ function AvatarButton({ navigation }) {
 
 // ─── Inquiry stack ────────────────────────────────────────────
 function InquiryNavigator() {
+  const isSuperuser = useAuthStore((s) => s.isSuperuser());
+
   return (
     <InquiryStack.Navigator screenOptions={HEADER_STYLE}>
       <InquiryStack.Screen
         name="InquiryList"
         component={InquiryListScreen}
-        options={{
+        options={({ navigation: nav }) => ({
           headerTitle: () => <HeaderTitle icon="clipboard-list-outline" title="All Inquiries" />,
           headerLeft:  () => null,
-        }}
+          headerRight: isSuperuser
+            ? () => (
+                <TouchableOpacity
+                  style={styles.trashBtn}
+                  onPress={() => nav.navigate('Trash')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="trash-can-outline" size={22} color={COLORS.white} />
+                </TouchableOpacity>
+              )
+            : undefined,
+        })}
       />
       <InquiryStack.Screen
         name="InquiryDetail"
@@ -165,6 +181,16 @@ function InquiryNavigator() {
           headerLeft:  () => <BackButton />,
         }}
       />
+      {isSuperuser && (
+        <InquiryStack.Screen
+          name="Trash"
+          component={TrashScreen}
+          options={{
+            headerTitle: () => <HeaderTitle icon="trash-can-outline" title="Trash" />,
+            headerLeft:  () => <BackButton />,
+          }}
+        />
+      )}
     </InquiryStack.Navigator>
   );
 }
@@ -446,6 +472,14 @@ function MoreNavigator() {
           headerLeft:  () => <BackButton />,
         }}
       />
+      <MoreStack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="account-edit-outline" title="Edit Profile" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
     </MoreStack.Navigator>
   );
 }
@@ -586,6 +620,16 @@ export default function AppNavigator() {
           headerLeft:   () => <BackButton />,
         }}
       />
+      <RootStack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{
+          headerShown:  true,
+          ...HEADER_STYLE,
+          headerTitle:  () => <HeaderTitle icon="account-edit-outline" title="Edit Profile" />,
+          headerLeft:   () => <BackButton />,
+        }}
+      />
     </RootStack.Navigator>
   );
 }
@@ -613,6 +657,10 @@ const styles = StyleSheet.create({
   backBtn: {
     marginLeft: Platform.OS === 'ios' ? 8 : 4,
     padding:    4,
+  },
+  trashBtn: {
+    marginRight: 12,
+    padding:     4,
   },
   avatarBtn: {
     width:           34,

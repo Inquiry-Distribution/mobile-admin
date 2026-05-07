@@ -11,7 +11,7 @@
  *  • Badge showing total count
  *  • Tap row → InquiryDetail
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,93 +23,105 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
-} from 'react-native';
-import { SafeAreaView }   from 'react-native-safe-area-context';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Icon               from 'react-native-vector-icons/MaterialCommunityIcons';
-import dayjs              from 'dayjs';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import dayjs from "dayjs";
 
-import { COLORS, PRIORITY_COLORS, STATUS_COLORS } from '@constants/colors';
-import { STATUS_LABEL }                            from '@utils/helpers';
-import { TYPOGRAPHY }                              from '@constants/typography';
-import { SPACING, BORDER_RADIUS }                  from '@constants/config';
+import { COLORS, PRIORITY_COLORS, STATUS_COLORS } from "@constants/colors";
+import { STATUS_LABEL, stripHtml } from "@utils/helpers";
+import { TYPOGRAPHY } from "@constants/typography";
+import { SPACING, BORDER_RADIUS } from "@constants/config";
 
-import useInquiryStore from '@store/inquiry.store';
-import useUserStore    from '@store/user.store';
-import Loader          from '@components/common/Loader';
-import EmptyState      from '@components/common/EmptyState';
+import useInquiryStore from "@store/inquiry.store";
+import useUserStore from "@store/user.store";
+import Loader from "@components/common/Loader";
+import EmptyState from "@components/common/EmptyState";
 
-const { height: SCREEN_H } = Dimensions.get('window');
+const { height: SCREEN_H } = Dimensions.get("window");
 
 // ─── Filter config ────────────────────────────────────────────
 const DATE_PERIODS = [
-  { key: 'today', label: 'Today',      icon: 'calendar-today' },
-  { key: 'week',  label: 'This Week',  icon: 'calendar-week' },
-  { key: 'month', label: 'This Month', icon: 'calendar-month' },
-  { key: 'all',   label: 'All Time',   icon: 'calendar-blank-multiple' },
+  { key: "today", label: "Today", icon: "calendar-today" },
+  { key: "week", label: "This Week", icon: "calendar-week" },
+  { key: "month", label: "This Month", icon: "calendar-month" },
+  { key: "all", label: "All Time", icon: "calendar-blank-multiple" },
 ];
 
 const STATUS_CHIPS = [
-  { label: 'All',         value: '' },
-  { label: 'Unassigned',  value: 'unassigned' },
-  { label: 'Assigned',    value: 'assigned' },
-  { label: 'In Progress', value: 'in_progress' },
-  { label: 'Follow Up',   value: 'follow_up' },
-  { label: 'Closed',      value: 'closed' },
+  { label: "All", value: "" },
+  { label: "Unassigned", value: "unassigned" },
+  { label: "Assigned", value: "assigned" },
+  { label: "In Progress", value: "in_progress" },
+  { label: "Follow Up", value: "follow_up" },
+  { label: "Not Interested", value: "not_interested" },
+  { label: "Converted", value: "converted" },
+  { label: "Closed", value: "closed" },
 ];
 
 const PRIORITY_CHIPS = [
-  { label: 'All',    value: '' },
-  { label: 'High',   value: 'high' },
-  { label: 'Medium', value: 'medium' },
-  { label: 'Low',    value: 'low' },
+  { label: "All", value: "" },
+  { label: "High", value: "high" },
+  { label: "Medium", value: "medium" },
+  { label: "Low", value: "low" },
 ];
 
 // ─── Main screen ─────────────────────────────────────────────
 export default function InquiryListScreen({ navigation, route }) {
   const {
-    inquiries, total, filters, activePeriod,
-    isLoading, isRefreshing, isLoadingMore,
-    fetchInquiries, refreshInquiries, loadMore,
-    setFilters, clearFilters, setPeriod,
+    inquiries,
+    total,
+    filters,
+    activePeriod,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    fetchInquiries,
+    refreshInquiries,
+    loadMore,
+    setFilters,
+    clearFilters,
+    setPeriod,
   } = useInquiryStore();
 
   const { salespersons, fetchSalespersons } = useUserStore();
 
   // ── Salesperson picker state ───────────────────────────────
   const [spPickerVisible, setSpPickerVisible] = useState(false);
-  const [spSearch,        setSpSearch]        = useState('');
+  const [spSearch, setSpSearch] = useState("");
 
   // ── Filter drawer state ────────────────────────────────────
   const [drawerVisible, setDrawerVisible] = useState(false);
 
   // Draft copies — live inside drawer, committed on Apply
-  const [draftStatus,   setDraftStatus]   = useState('');
-  const [draftPriority, setDraftPriority] = useState('');
-  const [draftPeriod,   setDraftPeriod]   = useState('all');
-  const [draftSpId,     setDraftSpId]     = useState('');
+  const [draftStatus, setDraftStatus] = useState("");
+  const [draftPriority, setDraftPriority] = useState("");
+  const [draftPeriod, setDraftPeriod] = useState("all");
+  const [draftSpId, setDraftSpId] = useState("");
 
   // ── Derived ────────────────────────────────────────────────
-  const filteredSp = salespersons.filter((sp) =>
-    !spSearch || sp.name?.toLowerCase().includes(spSearch.toLowerCase())
+  const filteredSp = salespersons.filter(
+    (sp) =>
+      !spSearch || sp.name?.toLowerCase().includes(spSearch.toLowerCase()),
   );
-  const draftSp    = salespersons.find((sp) => sp.id === draftSpId) ?? null;
+  const draftSp = salespersons.find((sp) => sp.id === draftSpId) ?? null;
 
   // Count of active filters (excludes search — shown inline)
   const activeFilterCount = [
-    filters.status       !== '',
-    filters.priority     !== '',
-    filters.assignedToId !== '',
-    activePeriod         !== 'all',
+    filters.status !== "",
+    filters.priority !== "",
+    filters.assignedToId !== "",
+    activePeriod !== "all",
   ].filter(Boolean).length;
 
   // ── Route params (pre-select from Dashboard / UserDetail) ─
-  const presetStatus       = route?.params?.filterStatus;
+  const presetStatus = route?.params?.filterStatus;
   const presetAssignedToId = route?.params?.filterAssignedToId;
 
   useEffect(() => {
     const patch = {};
-    if (presetStatus)       patch.status       = presetStatus;
+    if (presetStatus) patch.status = presetStatus;
     if (presetAssignedToId) patch.assignedToId = presetAssignedToId;
     if (Object.keys(patch).length) setFilters(patch);
     fetchInquiries();
@@ -129,46 +141,51 @@ export default function InquiryListScreen({ navigation, route }) {
 
   const closeDrawer = useCallback(() => {
     setDrawerVisible(false);
-    setSpSearch('');
+    setSpSearch("");
   }, []);
 
   // ── Drawer actions ─────────────────────────────────────────
   const applyFilters = useCallback(() => {
-    setFilters({ status: draftStatus, priority: draftPriority, assignedToId: draftSpId });
+    setFilters({
+      status: draftStatus,
+      priority: draftPriority,
+      assignedToId: draftSpId,
+    });
     setPeriod(draftPeriod);
     fetchInquiries();
     closeDrawer();
   }, [draftStatus, draftPriority, draftPeriod, draftSpId]);
 
   const resetDraft = useCallback(() => {
-    setDraftStatus('');
-    setDraftPriority('');
-    setDraftPeriod('all');
-    setDraftSpId('');
+    setDraftStatus("");
+    setDraftPriority("");
+    setDraftPeriod("all");
+    setDraftSpId("");
   }, []);
 
   // ── Salesperson picker (inside drawer) ─────────────────────
   const handleSelectSp = useCallback((sp) => {
-    setDraftSpId(sp ? sp.id : '');
+    setDraftSpId(sp ? sp.id : "");
     setSpPickerVisible(false);
-    setSpSearch('');
+    setSpSearch("");
   }, []);
 
   // ── Search ─────────────────────────────────────────────────
   const onSearchSubmit = () => fetchInquiries();
 
   // ── Infinite scroll ────────────────────────────────────────
-  const handleEndReached = () => { if (!isLoadingMore) loadMore(); };
+  const handleEndReached = () => {
+    if (!isLoadingMore) loadMore();
+  };
 
   if (isLoading && inquiries.length === 0) return <Loader />;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-
+    <SafeAreaView style={styles.safe} edges={["bottom"]}>
       {/* FAB — Add new inquiry */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('CreateInquiry')}
+        onPress={() => navigation.navigate("CreateInquiry")}
         activeOpacity={0.85}
       >
         <Icon name="plus" size={26} color={COLORS.white} />
@@ -178,7 +195,12 @@ export default function InquiryListScreen({ navigation, route }) {
       <View style={styles.searchRow}>
         {/* Search input */}
         <View style={styles.searchWrap}>
-          <Icon name="magnify" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
+          <Icon
+            name="magnify"
+            size={20}
+            color={COLORS.textMuted}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search description, mobile, source…"
@@ -190,7 +212,10 @@ export default function InquiryListScreen({ navigation, route }) {
           />
           {filters.search.length > 0 && (
             <TouchableOpacity
-              onPress={() => { setFilters({ search: '' }); fetchInquiries(); }}
+              onPress={() => {
+                setFilters({ search: "" });
+                fetchInquiries();
+              }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Icon name="close-circle" size={18} color={COLORS.textMuted} />
@@ -200,7 +225,10 @@ export default function InquiryListScreen({ navigation, route }) {
 
         {/* Filter button */}
         <TouchableOpacity
-          style={[styles.filterBtn, activeFilterCount > 0 && styles.filterBtnActive]}
+          style={[
+            styles.filterBtn,
+            activeFilterCount > 0 && styles.filterBtnActive,
+          ]}
           onPress={openDrawer}
           activeOpacity={0.8}
         >
@@ -224,7 +252,9 @@ export default function InquiryListScreen({ navigation, route }) {
         renderItem={({ item }) => (
           <InquiryRow
             inquiry={item}
-            onPress={() => navigation.navigate('InquiryDetail', { id: item.id })}
+            onPress={() =>
+              navigation.navigate("InquiryDetail", { id: item.id })
+            }
           />
         )}
         refreshing={isRefreshing}
@@ -235,11 +265,18 @@ export default function InquiryListScreen({ navigation, route }) {
           <View style={styles.listHeader}>
             <Text style={styles.countText}>
               {total > 0
-                ? `${total} inquir${total === 1 ? 'y' : 'ies'}`
-                : `${inquiries.length} result${inquiries.length !== 1 ? 's' : ''}`}
+                ? `${total} inquir${total === 1 ? "y" : "ies"}`
+                : `${inquiries.length} result${
+                    inquiries.length !== 1 ? "s" : ""
+                  }`}
             </Text>
             {activeFilterCount > 0 || filters.search ? (
-              <TouchableOpacity onPress={() => { clearFilters(); fetchInquiries(); }}>
+              <TouchableOpacity
+                onPress={() => {
+                  clearFilters();
+                  fetchInquiries();
+                }}
+              >
                 <Text style={styles.clearFilters}>Clear filters</Text>
               </TouchableOpacity>
             ) : null}
@@ -252,8 +289,8 @@ export default function InquiryListScreen({ navigation, route }) {
               title="No inquiries found"
               message={
                 filters.search || filters.status || filters.priority
-                  ? 'Try adjusting your filters.'
-                  : 'Pull down to refresh.'
+                  ? "Try adjusting your filters."
+                  : "Pull down to refresh."
               }
             />
           )
@@ -265,7 +302,9 @@ export default function InquiryListScreen({ navigation, route }) {
             </View>
           ) : null
         }
-        contentContainerStyle={inquiries.length === 0 ? styles.emptyContent : styles.listContent}
+        contentContainerStyle={
+          inquiries.length === 0 ? styles.emptyContent : styles.listContent
+        }
         showsVerticalScrollIndicator={false}
       />
 
@@ -289,7 +328,7 @@ export default function InquiryListScreen({ navigation, route }) {
         // Salesperson
         draftSp={draftSp}
         onOpenSpPicker={() => setSpPickerVisible(true)}
-        onClearSp={() => setDraftSpId('')}
+        onClearSp={() => setDraftSpId("")}
       />
 
       {/* ── Salesperson picker modal ────────────────────────── */}
@@ -297,25 +336,41 @@ export default function InquiryListScreen({ navigation, route }) {
         visible={spPickerVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => { setSpPickerVisible(false); setSpSearch(''); }}
+        onRequestClose={() => {
+          setSpPickerVisible(false);
+          setSpSearch("");
+        }}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => { setSpPickerVisible(false); setSpSearch(''); }}
+          onPress={() => {
+            setSpPickerVisible(false);
+            setSpSearch("");
+          }}
         />
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
 
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Salesperson</Text>
-            <TouchableOpacity onPress={() => { setSpPickerVisible(false); setSpSearch(''); }}>
+            <TouchableOpacity
+              onPress={() => {
+                setSpPickerVisible(false);
+                setSpSearch("");
+              }}
+            >
               <Icon name="close" size={22} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.modalSearch}>
-            <Icon name="magnify" size={18} color={COLORS.textMuted} style={{ marginRight: 6 }} />
+            <Icon
+              name="magnify"
+              size={18}
+              color={COLORS.textMuted}
+              style={{ marginRight: 6 }}
+            />
             <TextInput
               style={styles.modalSearchInput}
               placeholder="Search salesperson…"
@@ -325,7 +380,7 @@ export default function InquiryListScreen({ navigation, route }) {
               autoFocus
             />
             {spSearch.length > 0 && (
-              <TouchableOpacity onPress={() => setSpSearch('')}>
+              <TouchableOpacity onPress={() => setSpSearch("")}>
                 <Icon name="close-circle" size={16} color={COLORS.textMuted} />
               </TouchableOpacity>
             )}
@@ -337,14 +392,25 @@ export default function InquiryListScreen({ navigation, route }) {
             onPress={() => handleSelectSp(null)}
           >
             <View style={styles.modalAvatar}>
-              <Icon name="account-group-outline" size={14} color={COLORS.textSecondary} />
+              <Icon
+                name="account-group-outline"
+                size={14}
+                color={COLORS.textSecondary}
+              />
             </View>
             <View style={styles.modalItemInfo}>
-              <Text style={[styles.modalItemName, !draftSpId && styles.modalItemNameActive]}>
+              <Text
+                style={[
+                  styles.modalItemName,
+                  !draftSpId && styles.modalItemNameActive,
+                ]}
+              >
                 All Salespersons
               </Text>
             </View>
-            {!draftSpId && <Icon name="check-circle" size={18} color={COLORS.primary} />}
+            {!draftSpId && (
+              <Icon name="check-circle" size={18} color={COLORS.primary} />
+            )}
           </TouchableOpacity>
 
           <View style={styles.modalDivider} />
@@ -356,27 +422,55 @@ export default function InquiryListScreen({ navigation, route }) {
             renderItem={({ item }) => {
               const isActive = draftSpId === item.id;
               const initials = item.name
-                ? item.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
-                : '?';
+                ? item.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase()
+                : "?";
               return (
                 <TouchableOpacity
                   style={[styles.modalItem, isActive && styles.modalItemActive]}
                   onPress={() => handleSelectSp(item)}
                 >
-                  <View style={[styles.modalAvatar, isActive && styles.modalAvatarActive]}>
-                    <Text style={[styles.modalAvatarText, isActive && { color: COLORS.white }]}>
+                  <View
+                    style={[
+                      styles.modalAvatar,
+                      isActive && styles.modalAvatarActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.modalAvatarText,
+                        isActive && { color: COLORS.white },
+                      ]}
+                    >
                       {initials}
                     </Text>
                   </View>
                   <View style={styles.modalItemInfo}>
-                    <Text style={[styles.modalItemName, isActive && styles.modalItemNameActive]}>
+                    <Text
+                      style={[
+                        styles.modalItemName,
+                        isActive && styles.modalItemNameActive,
+                      ]}
+                    >
                       {item.name}
                     </Text>
                     {item.email ? (
-                      <Text style={styles.modalItemSub} numberOfLines={1}>{item.email}</Text>
+                      <Text style={styles.modalItemSub} numberOfLines={1}>
+                        {item.email}
+                      </Text>
                     ) : null}
                   </View>
-                  {isActive && <Icon name="check-circle" size={18} color={COLORS.primary} />}
+                  {isActive && (
+                    <Icon
+                      name="check-circle"
+                      size={18}
+                      color={COLORS.primary}
+                    />
+                  )}
                 </TouchableOpacity>
               );
             }}
@@ -389,18 +483,25 @@ export default function InquiryListScreen({ navigation, route }) {
           />
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
 
 // ─── Filter Bottom Drawer component ──────────────────────────
 function FilterDrawer({
-  visible, onClose, onApply, onReset,
-  draftPeriod, setDraftPeriod,
-  draftStatus, setDraftStatus,
-  draftPriority, setDraftPriority,
-  draftSp, onOpenSpPicker, onClearSp,
+  visible,
+  onClose,
+  onApply,
+  onReset,
+  draftPeriod,
+  setDraftPeriod,
+  draftStatus,
+  setDraftStatus,
+  draftPriority,
+  setDraftPriority,
+  draftSp,
+  onOpenSpPicker,
+  onClearSp,
 }) {
   const insets = useSafeAreaInsets();
 
@@ -418,14 +519,23 @@ function FilterDrawer({
         onPress={onClose}
       />
 
-      <View style={[styles.drawerSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View
+        style={[
+          styles.drawerSheet,
+          { paddingBottom: Math.max(insets.bottom, 16) },
+        ]}
+      >
         {/* Drag handle */}
         <View style={styles.drawerHandle} />
 
         {/* Header */}
         <View style={styles.drawerHeader}>
           <Text style={styles.drawerTitle}>Filters</Text>
-          <TouchableOpacity onPress={onReset} style={styles.drawerResetBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={onReset}
+            style={styles.drawerResetBtn}
+            activeOpacity={0.7}
+          >
             <Icon name="refresh" size={14} color={COLORS.primary} />
             <Text style={styles.drawerResetText}>Reset All</Text>
           </TouchableOpacity>
@@ -443,7 +553,6 @@ function FilterDrawer({
           contentContainerStyle={styles.drawerScroll}
           keyboardShouldPersistTaps="handled"
         >
-
           {/* ── Section: Period ─────────────────────────── */}
           <DrawerSection icon="calendar-outline" title="Period">
             <View style={styles.chipGroup}>
@@ -452,7 +561,10 @@ function FilterDrawer({
                 return (
                   <TouchableOpacity
                     key={p.key}
-                    style={[styles.drawerChip, active && styles.drawerChipActive]}
+                    style={[
+                      styles.drawerChip,
+                      active && styles.drawerChipActive,
+                    ]}
                     onPress={() => setDraftPeriod(p.key)}
                     activeOpacity={0.75}
                   >
@@ -461,7 +573,12 @@ function FilterDrawer({
                       size={13}
                       color={active ? COLORS.white : COLORS.textSecondary}
                     />
-                    <Text style={[styles.drawerChipText, active && styles.drawerChipTextActive]}>
+                    <Text
+                      style={[
+                        styles.drawerChipText,
+                        active && styles.drawerChipTextActive,
+                      ]}
+                    >
                       {p.label}
                     </Text>
                   </TouchableOpacity>
@@ -480,11 +597,19 @@ function FilterDrawer({
                 return (
                   <TouchableOpacity
                     key={c.value}
-                    style={[styles.drawerChip, active && styles.drawerChipActive]}
+                    style={[
+                      styles.drawerChip,
+                      active && styles.drawerChipActive,
+                    ]}
                     onPress={() => setDraftStatus(c.value)}
                     activeOpacity={0.75}
                   >
-                    <Text style={[styles.drawerChipText, active && styles.drawerChipTextActive]}>
+                    <Text
+                      style={[
+                        styles.drawerChipText,
+                        active && styles.drawerChipTextActive,
+                      ]}
+                    >
                       {c.label}
                     </Text>
                   </TouchableOpacity>
@@ -500,18 +625,31 @@ function FilterDrawer({
             <View style={styles.chipGroup}>
               {PRIORITY_CHIPS.map((c) => {
                 const active = draftPriority === c.value;
-                const dot    = c.value ? PRIORITY_COLORS[c.value]?.text : null;
+                const dot = c.value ? PRIORITY_COLORS[c.value]?.text : null;
                 return (
                   <TouchableOpacity
                     key={c.value}
-                    style={[styles.drawerChip, active && styles.drawerChipActive]}
+                    style={[
+                      styles.drawerChip,
+                      active && styles.drawerChipActive,
+                    ]}
                     onPress={() => setDraftPriority(c.value)}
                     activeOpacity={0.75}
                   >
                     {dot ? (
-                      <View style={[styles.priorityDot, { backgroundColor: active ? '#fff' : dot }]} />
+                      <View
+                        style={[
+                          styles.priorityDot,
+                          { backgroundColor: active ? "#fff" : dot },
+                        ]}
+                      />
                     ) : null}
-                    <Text style={[styles.drawerChipText, active && styles.drawerChipTextActive]}>
+                    <Text
+                      style={[
+                        styles.drawerChipText,
+                        active && styles.drawerChipTextActive,
+                      ]}
+                    >
                       {c.label}
                     </Text>
                   </TouchableOpacity>
@@ -538,7 +676,7 @@ function FilterDrawer({
                 style={[styles.spBtnText, draftSp && styles.spBtnTextActive]}
                 numberOfLines={1}
               >
-                {draftSp ? draftSp.name : 'All Salespersons'}
+                {draftSp ? draftSp.name : "All Salespersons"}
               </Text>
               {draftSp ? (
                 <TouchableOpacity
@@ -552,12 +690,15 @@ function FilterDrawer({
               )}
             </TouchableOpacity>
           </DrawerSection>
-
         </ScrollView>
 
         {/* ── Apply button ────────────────────────────── */}
         <View style={styles.drawerFooter}>
-          <TouchableOpacity style={styles.applyBtn} onPress={onApply} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.applyBtn}
+            onPress={onApply}
+            activeOpacity={0.85}
+          >
             <Icon name="check-circle-outline" size={18} color={COLORS.white} />
             <Text style={styles.applyBtnText}>Apply Filters</Text>
           </TouchableOpacity>
@@ -587,23 +728,38 @@ function DrawerDivider() {
 // ─── InquiryRow ───────────────────────────────────────────────
 function InquiryRow({ inquiry, onPress }) {
   const {
-    description, title, mobile, status, priority,
-    createdAt, assignedAt, assignedTo, source,
+    description,
+    title,
+    mobile,
+    status,
+    priority,
+    createdAt,
+    assignedAt,
+    assignedTo,
+    source,
   } = inquiry;
 
-  const pc          = PRIORITY_COLORS[priority] ?? { bg: '#F3F4F6', text: COLORS.textMuted };
-  const sc          = STATUS_COLORS[status]     ?? { bg: '#F3F4F6', text: COLORS.textMuted };
-  const isUnassigned = status === 'unassigned';
-  const ageMinutes  = dayjs().diff(dayjs(createdAt), 'minute');
-  const isUrgent    = isUnassigned && ageMinutes >= 60;
+  const pc = PRIORITY_COLORS[priority] ?? {
+    bg: "#F3F4F6",
+    text: COLORS.textMuted,
+  };
+  const sc = STATUS_COLORS[status] ?? { bg: "#F3F4F6", text: COLORS.textMuted };
+  const isUnassigned = status === "unassigned";
+  const ageMinutes = dayjs().diff(dayjs(createdAt), "minute");
+  const isUrgent = isUnassigned && ageMinutes >= 60;
 
   const companyName = assignedTo?.company?.name ?? null;
-  const initials    = assignedTo?.name
-    ? assignedTo.name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+  const initials = assignedTo?.name
+    ? assignedTo.name
+        .split(" ")
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
     : null;
 
-  const dateLabel = dayjs(createdAt).format('DD MMM');
-  const timeLabel = dayjs(assignedAt ?? createdAt).format('hh:mm A');
+  const dateLabel = dayjs(createdAt).format("DD MMM YYYY · hh:mm A");
+  const timeLabel = dayjs(assignedAt ?? createdAt).format("hh:mm A");
 
   return (
     <TouchableOpacity
@@ -619,7 +775,9 @@ function InquiryRow({ inquiry, onPress }) {
           <View style={[styles.priorityPill, { backgroundColor: pc.bg }]}>
             <View style={[styles.priorityDot, { backgroundColor: pc.text }]} />
             <Text style={[styles.priorityPillText, { color: pc.text }]}>
-              {priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'None'}
+              {priority
+                ? priority.charAt(0).toUpperCase() + priority.slice(1)
+                : "None"}
             </Text>
           </View>
           <View style={[styles.statusPill, { backgroundColor: sc.bg }]}>
@@ -633,27 +791,42 @@ function InquiryRow({ inquiry, onPress }) {
 
         {/* Row 2: Description */}
         <Text style={styles.cardDesc} numberOfLines={2}>
-          {description || title || 'No description provided.'}
+          {stripHtml(description || title) || "No description provided."}
         </Text>
 
         {/* Row 3: Meta chips */}
-        {(mobile || source || isUrgent) ? (
+        {mobile || source || isUrgent ? (
           <View style={styles.metaRow}>
-            {mobile ? (
+            {/* {mobile ? (
               <View style={styles.metaChip}>
                 <Icon name="phone-outline" size={11} color={COLORS.primary} />
-                <Text style={styles.metaChipText}>{mobile}</Text>
+                <Text style={styles.metaChipText}>
+                {mobile}
+                Mobile Number
+                </Text>
               </View>
-            ) : null}
+            ) : null} */}
             {source ? (
               <View style={[styles.metaChip, styles.metaChipSource]}>
-                <Icon name="map-marker-outline" size={11} color={COLORS.secondary} />
-                <Text style={[styles.metaChipText, { color: COLORS.secondary }]}>{source}</Text>
+                <Icon
+                  name="map-marker-outline"
+                  size={11}
+                  color={COLORS.secondary}
+                />
+                <Text
+                  style={[styles.metaChipText, { color: COLORS.secondary }]}
+                >
+                  {source}
+                </Text>
               </View>
             ) : null}
             {isUrgent ? (
               <View style={styles.urgentChip}>
-                <Icon name="alert-circle-outline" size={11} color={COLORS.error} />
+                <Icon
+                  name="alert-circle-outline"
+                  size={11}
+                  color={COLORS.error}
+                />
                 <Text style={styles.urgentChipText}>Overdue</Text>
               </View>
             ) : null}
@@ -670,23 +843,31 @@ function InquiryRow({ inquiry, onPress }) {
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
               <View style={styles.footerAssigneeInfo}>
-                <Text style={styles.assigneeName} numberOfLines={1}>{assignedTo.name}</Text>
+                <Text style={styles.assigneeName} numberOfLines={1}>
+                  {assignedTo.name}
+                </Text>
                 {companyName ? (
-                  <Text style={styles.assigneeCompany} numberOfLines={1}>{companyName}</Text>
+                  <Text style={styles.assigneeCompany} numberOfLines={1}>
+                    {companyName}
+                  </Text>
                 ) : null}
               </View>
             </View>
           ) : (
             <View style={styles.footerAssignee}>
               <View style={styles.avatarBubbleEmpty}>
-                <Icon name="account-off-outline" size={14} color={COLORS.textMuted} />
+                <Icon
+                  name="account-off-outline"
+                  size={14}
+                  color={COLORS.textMuted}
+                />
               </View>
               <Text style={styles.unassignedLabel}>Unassigned</Text>
             </View>
           )}
           <View style={styles.footerRight}>
             <Icon
-              name={assignedAt ? 'send-check-outline' : 'clock-outline'}
+              name={assignedAt ? "send-check-outline" : "clock-outline"}
               size={12}
               color={COLORS.textMuted}
             />
@@ -704,79 +885,79 @@ const styles = StyleSheet.create({
 
   // ── Search row ───────────────────────────────────────────────
   searchRow: {
-    flexDirection:     'row',
-    alignItems:        'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.sm,
-    gap:               SPACING.sm,
-    backgroundColor:   COLORS.surface,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   searchWrap: {
-    flex:              1,
-    flexDirection:     'row',
-    alignItems:        'center',
-    backgroundColor:   COLORS.background,
-    borderRadius:      BORDER_RADIUS.md,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.sm,
-    borderWidth:       1,
-    borderColor:       COLORS.border,
-    height:            44,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    height: 44,
   },
-  searchIcon:  { marginRight: 6 },
+  searchIcon: { marginRight: 6 },
   searchInput: {
-    flex:      1,
-    height:    44,
+    flex: 1,
+    height: 44,
     ...TYPOGRAPHY.body,
-    color:     COLORS.textPrimary,
+    color: COLORS.textPrimary,
   },
 
   // ── Filter button ────────────────────────────────────────────
   filterBtn: {
-    width:           44,
-    height:          44,
-    borderRadius:    BORDER_RADIUS.md,
+    width: 44,
+    height: 44,
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.primaryLight,
-    borderWidth:     1,
-    borderColor:     COLORS.primaryMid,
-    alignItems:      'center',
-    justifyContent:  'center',
-    flexShrink:      0,
+    borderWidth: 1,
+    borderColor: COLORS.primaryMid,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   filterBtnActive: {
     backgroundColor: COLORS.primary,
-    borderColor:     COLORS.primary,
+    borderColor: COLORS.primary,
   },
   filterBadge: {
-    position:          'absolute',
-    top:               -5,
-    right:             -5,
-    minWidth:          17,
-    height:            17,
-    borderRadius:      9,
-    backgroundColor:   COLORS.error,
-    alignItems:        'center',
-    justifyContent:    'center',
+    position: "absolute",
+    top: -5,
+    right: -5,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    backgroundColor: COLORS.error,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 3,
-    borderWidth:       1.5,
-    borderColor:       COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: COLORS.surface,
   },
   filterBadgeText: {
-    color:      '#fff',
-    fontSize:   10,
-    fontWeight: '800',
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
     lineHeight: 13,
   },
 
   // ── List header ──────────────────────────────────────────────
   listHeader: {
-    flexDirection:     'row',
-    justifyContent:    'space-between',
-    alignItems:        'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.xs,
-    marginBottom:      SPACING.xs,
+    paddingVertical: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   countText: {
     ...TYPOGRAPHY.caption,
@@ -784,103 +965,103 @@ const styles = StyleSheet.create({
   },
   clearFilters: {
     ...TYPOGRAPHY.caption,
-    color:      COLORS.primary,
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: "600",
   },
 
   // ── Loading / empty ──────────────────────────────────────────
   loadingMore: {
     paddingVertical: SPACING.lg,
-    alignItems:      'center',
+    alignItems: "center",
   },
-  listContent:  { paddingTop: SPACING.xs, paddingBottom: SPACING.xxl + 64 },
+  listContent: { paddingTop: SPACING.xs, paddingBottom: SPACING.xxl + 64 },
   emptyContent: { flexGrow: 1 },
 
   // ── FAB ──────────────────────────────────────────────────────
   fab: {
-    position:        'absolute',
-    bottom:          SPACING.xl,
-    right:           SPACING.md,
-    width:           54,
-    height:          54,
-    borderRadius:    27,
+    position: "absolute",
+    bottom: SPACING.xl,
+    right: SPACING.md,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: COLORS.primary,
-    alignItems:      'center',
-    justifyContent:  'center',
-    zIndex:          10,
-    shadowColor:     COLORS.primary,
-    shadowOffset:    { width: 0, height: 4 },
-    shadowOpacity:   0.35,
-    shadowRadius:    8,
-    elevation:       8,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
   },
 
   // ══════════════════════════════════════════════════════════════
   //  Filter Drawer
   // ══════════════════════════════════════════════════════════════
   drawerOverlay: {
-    flex:            1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
   drawerSheet: {
-    backgroundColor:      COLORS.surface,
-    borderTopLeftRadius:  24,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight:            SCREEN_H * 0.82,
+    maxHeight: SCREEN_H * 0.82,
     // shadow on iOS
-    shadowColor:    '#000',
-    shadowOffset:   { width: 0, height: -4 },
-    shadowOpacity:  0.1,
-    shadowRadius:   12,
-    elevation:      16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 16,
   },
   drawerHandle: {
-    width:           40,
-    height:          4,
-    borderRadius:    2,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: COLORS.border,
-    alignSelf:       'center',
-    marginTop:       10,
-    marginBottom:    4,
+    alignSelf: "center",
+    marginTop: 10,
+    marginBottom: 4,
   },
   drawerHeader: {
-    flexDirection:     'row',
-    alignItems:        'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: SPACING.lg,
-    paddingVertical:   SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    gap:               SPACING.sm,
+    gap: SPACING.sm,
   },
   drawerTitle: {
-    flex:       1,
-    fontSize:   17,
-    fontWeight: '700',
-    color:      COLORS.textPrimary,
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
   },
   drawerResetBtn: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingHorizontal: 10,
-    paddingVertical:   5,
-    borderRadius:      BORDER_RADIUS.full,
-    backgroundColor:   COLORS.primaryLight,
-    borderWidth:       1,
-    borderColor:       COLORS.primaryMid,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryLight,
+    borderWidth: 1,
+    borderColor: COLORS.primaryMid,
   },
   drawerResetText: {
-    fontSize:   12,
-    fontWeight: '600',
-    color:      COLORS.primary,
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.primary,
   },
   drawerCloseBtn: {
-    width:           32,
-    height:          32,
-    borderRadius:    16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.background,
-    alignItems:      'center',
-    justifyContent:  'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   drawerScroll: {
     paddingBottom: SPACING.md,
@@ -889,214 +1070,214 @@ const styles = StyleSheet.create({
   // ── Drawer section ───────────────────────────────────────────
   drawerSection: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical:   SPACING.md,
-    gap:               SPACING.sm,
+    paddingVertical: SPACING.md,
+    gap: SPACING.sm,
   },
   drawerSectionHeader: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           7,
-    marginBottom:  2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginBottom: 2,
   },
   drawerSectionTitle: {
-    fontSize:   13,
-    fontWeight: '700',
-    color:      COLORS.textSecondary,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
+    textTransform: "uppercase",
     letterSpacing: 0.6,
   },
   drawerDivider: {
-    height:           1,
-    backgroundColor:  COLORS.divider,
+    height: 1,
+    backgroundColor: COLORS.divider,
     marginHorizontal: SPACING.lg,
   },
 
   // ── Chip group (wrapping) ─────────────────────────────────────
   chipGroup: {
-    flexDirection:  'row',
-    flexWrap:       'wrap',
-    gap:            SPACING.xs,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.xs,
   },
   drawerChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     paddingHorizontal: SPACING.md,
-    paddingVertical:   8,
-    borderRadius:      BORDER_RADIUS.full,
-    backgroundColor:   COLORS.background,
-    borderWidth:       1,
-    borderColor:       COLORS.border,
+    paddingVertical: 8,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   drawerChipActive: {
     backgroundColor: COLORS.primary,
-    borderColor:     COLORS.primary,
+    borderColor: COLORS.primary,
   },
   drawerChipText: {
-    fontSize:   13,
-    fontWeight: '600',
-    color:      COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
   },
   drawerChipTextActive: {
     color: COLORS.white,
   },
   priorityDot: {
-    width:        7,
-    height:       7,
+    width: 7,
+    height: 7,
     borderRadius: 3.5,
   },
 
   // ── Salesperson button inside drawer ─────────────────────────
   spBtn: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               8,
-    height:            46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 46,
     paddingHorizontal: SPACING.md,
-    borderRadius:      BORDER_RADIUS.md,
-    backgroundColor:   COLORS.background,
-    borderWidth:       1,
-    borderColor:       COLORS.border,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   spBtnActive: {
-    borderColor:     COLORS.primary,
+    borderColor: COLORS.primary,
     backgroundColor: COLORS.primaryLight,
   },
   spBtnText: {
-    flex:       1,
-    fontSize:   14,
-    fontWeight: '500',
-    color:      COLORS.textMuted,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.textMuted,
   },
   spBtnTextActive: {
-    color:      COLORS.primary,
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontWeight: "600",
   },
 
   // ── Apply footer ─────────────────────────────────────────────
   drawerFooter: {
     paddingHorizontal: SPACING.lg,
-    paddingTop:        SPACING.md,
-    borderTopWidth:    1,
-    borderTopColor:    COLORS.divider,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
   },
   applyBtn: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    justifyContent:  'center',
-    gap:             SPACING.sm,
-    height:          50,
-    borderRadius:    BORDER_RADIUS.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    height: 50,
+    borderRadius: BORDER_RADIUS.md,
     backgroundColor: COLORS.primary,
-    shadowColor:     COLORS.primary,
-    shadowOffset:    { width: 0, height: 3 },
-    shadowOpacity:   0.3,
-    shadowRadius:    6,
-    elevation:       4,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   applyBtnText: {
-    fontSize:   15,
-    fontWeight: '700',
-    color:      COLORS.white,
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.white,
   },
 
   // ══════════════════════════════════════════════════════════════
   //  Salesperson picker modal (shared)
   // ══════════════════════════════════════════════════════════════
   modalOverlay: {
-    flex:            1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
   modalSheet: {
-    backgroundColor:      COLORS.surface,
-    borderTopLeftRadius:  20,
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight:            SCREEN_H * 0.75,
-    paddingTop:           4,
+    maxHeight: SCREEN_H * 0.75,
+    paddingTop: 4,
   },
   modalHandle: {
-    width:           40,
-    height:          4,
-    borderRadius:    2,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: COLORS.border,
-    alignSelf:       'center',
-    marginTop:       8,
-    marginBottom:    4,
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 4,
   },
   modalHeader: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    justifyContent:    'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: SPACING.lg,
-    paddingVertical:   SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   modalTitle: {
     ...TYPOGRAPHY.bodyMedium,
-    fontWeight: '700',
-    color:      COLORS.textPrimary,
+    fontWeight: "700",
+    color: COLORS.textPrimary,
   },
   modalSearch: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    margin:            SPACING.md,
+    flexDirection: "row",
+    alignItems: "center",
+    margin: SPACING.md,
     paddingHorizontal: SPACING.sm,
-    height:            40,
-    borderRadius:      BORDER_RADIUS.md,
-    backgroundColor:   COLORS.background,
-    borderWidth:       1,
-    borderColor:       COLORS.border,
+    height: 40,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalSearchInput: {
-    flex:   1,
+    flex: 1,
     height: 40,
     ...TYPOGRAPHY.body,
-    color:  COLORS.textPrimary,
+    color: COLORS.textPrimary,
   },
   modalItem: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     paddingHorizontal: SPACING.lg,
-    paddingVertical:   SPACING.sm,
+    paddingVertical: SPACING.sm,
   },
-  modalItemActive:    { backgroundColor: COLORS.primaryLight },
+  modalItemActive: { backgroundColor: COLORS.primaryLight },
   modalAvatar: {
-    width:           38,
-    height:          38,
-    borderRadius:    19,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: COLORS.border,
-    alignItems:      'center',
-    justifyContent:  'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
-  modalAvatarActive:  { backgroundColor: COLORS.primary },
+  modalAvatarActive: { backgroundColor: COLORS.primary },
   modalAvatarText: {
-    fontSize:   13,
-    fontWeight: '700',
-    color:      COLORS.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.textSecondary,
   },
-  modalItemInfo:    { flex: 1 },
+  modalItemInfo: { flex: 1 },
   modalItemName: {
     ...TYPOGRAPHY.body,
-    fontWeight: '600',
-    color:      COLORS.textPrimary,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
   },
   modalItemNameActive: { color: COLORS.primary },
   modalItemSub: {
     ...TYPOGRAPHY.caption,
-    color:     COLORS.textMuted,
+    color: COLORS.textMuted,
     marginTop: 1,
   },
   modalDivider: {
-    height:           1,
-    backgroundColor:  COLORS.border,
+    height: 1,
+    backgroundColor: COLORS.border,
     marginHorizontal: SPACING.lg,
-    marginBottom:     SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   modalEmpty: {
     paddingVertical: SPACING.xl,
-    alignItems:      'center',
+    alignItems: "center",
   },
   modalEmptyText: {
     ...TYPOGRAPHY.body,
@@ -1107,119 +1288,137 @@ const styles = StyleSheet.create({
   //  Card
   // ══════════════════════════════════════════════════════════════
   card: {
-    backgroundColor:  COLORS.surface,
-    borderRadius:     18,
+    backgroundColor: COLORS.surface,
+    borderRadius: 18,
     marginHorizontal: SPACING.md,
-    marginBottom:     12,
-    overflow:         'hidden',
-    shadowColor:      '#4C1D95',
-    shadowOffset:     { width: 0, height: 3 },
-    shadowOpacity:    0.08,
-    shadowRadius:     8,
-    elevation:        3,
+    marginBottom: 12,
+    overflow: "hidden",
+    shadowColor: "#4C1D95",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardUrgent: {
-    borderWidth:     1,
-    borderColor:     '#FCA5A5',
-    backgroundColor: '#FFFAFA',
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FFFAFA",
   },
-  cardAccent: { height: 3, width: '100%' },
+  cardAccent: { height: 3, width: "100%" },
   cardBody: {
     paddingHorizontal: SPACING.md,
-    paddingTop:        SPACING.sm + 2,
-    paddingBottom:     SPACING.sm + 4,
-    gap:               10,
+    paddingTop: SPACING.sm + 2,
+    paddingBottom: SPACING.sm + 4,
+    gap: 10,
   },
   cardTopRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   priorityPill: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     paddingHorizontal: 9,
-    paddingVertical:   4,
-    borderRadius:      BORDER_RADIUS.full,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
   },
   priorityDot: { width: 6, height: 6, borderRadius: 3 },
-  priorityPillText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
-  statusPill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: BORDER_RADIUS.full },
-  statusPillText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
-  cardDate: { fontSize: 11, fontWeight: '500', color: COLORS.textMuted, flexShrink: 0 },
+  priorityPillText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  statusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  statusPillText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  cardDate: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: COLORS.textMuted,
+    flexShrink: 0,
+  },
   cardDesc: {
-    fontSize:      14,
-    fontWeight:    '600',
-    color:         COLORS.textPrimary,
-    lineHeight:    21,
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    lineHeight: 21,
     letterSpacing: 0.1,
   },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   metaChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingHorizontal: 9,
-    paddingVertical:   4,
-    borderRadius:      BORDER_RADIUS.full,
-    backgroundColor:   COLORS.primaryLight,
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.primaryLight,
   },
-  metaChipSource:   { backgroundColor: COLORS.secondaryLight },
-  metaChipText:     { fontSize: 11, fontWeight: '600', color: COLORS.primary },
+  metaChipSource: { backgroundColor: COLORS.secondaryLight },
+  metaChipText: { fontSize: 11, fontWeight: "600", color: COLORS.primary },
   urgentChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingHorizontal: 9,
-    paddingVertical:   4,
-    borderRadius:      BORDER_RADIUS.full,
-    backgroundColor:   '#FEE2E2',
+    paddingVertical: 4,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: "#FEE2E2",
   },
-  urgentChipText: { fontSize: 11, fontWeight: '700', color: COLORS.error },
-  cardDivider:  { height: 1, backgroundColor: COLORS.divider },
+  urgentChipText: { fontSize: 11, fontWeight: "700", color: COLORS.error },
+  cardDivider: { height: 1, backgroundColor: COLORS.divider },
   cardFooter: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   footerAssignee: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           8,
-    flex:          1,
-    marginRight:   8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    marginRight: 8,
   },
   avatarBubble: {
-    width:           32,
-    height:          32,
-    borderRadius:    16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.primaryLight,
-    alignItems:      'center',
-    justifyContent:  'center',
-    flexShrink:      0,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   avatarBubbleEmpty: {
-    width:           32,
-    height:          32,
-    borderRadius:    16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.background,
-    borderWidth:     1,
-    borderColor:     COLORS.border,
-    alignItems:      'center',
-    justifyContent:  'center',
-    flexShrink:      0,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
-  avatarText:       { fontSize: 11, fontWeight: '800', color: COLORS.primary },
+  avatarText: { fontSize: 11, fontWeight: "800", color: COLORS.primary },
   footerAssigneeInfo: { flex: 1 },
-  assigneeName:     { fontSize: 12, fontWeight: '700', color: COLORS.textPrimary },
-  assigneeCompany:  { fontSize: 10, fontWeight: '500', color: COLORS.textMuted, marginTop: 1 },
-  unassignedLabel:  { fontSize: 12, color: COLORS.textMuted, fontStyle: 'italic' },
-  footerRight: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           4,
-    flexShrink:    0,
+  assigneeName: { fontSize: 12, fontWeight: "700", color: COLORS.textPrimary },
+  assigneeCompany: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: COLORS.textMuted,
+    marginTop: 1,
   },
-  timeText: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted },
+  unassignedLabel: {
+    fontSize: 12,
+    color: COLORS.textMuted,
+    fontStyle: "italic",
+  },
+  footerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
+  },
+  timeText: { fontSize: 11, fontWeight: "600", color: COLORS.textMuted },
 });

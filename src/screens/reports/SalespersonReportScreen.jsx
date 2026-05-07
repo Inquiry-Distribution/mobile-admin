@@ -25,7 +25,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import dayjs from "dayjs";
 
-import { COLORS } from "@constants/colors";
+import { COLORS, STATUS_COLORS } from "@constants/colors";
 import { TYPOGRAPHY } from "@constants/typography";
 import { reportApi } from "@api/report.api";
 import { formatPercent, formatNumber, getInitials } from "@utils/helpers";
@@ -164,16 +164,18 @@ export default function SalespersonReportScreen({ route }) {
   }, [preset]);
 
   // ── Derived values ─────────────────────────────────────────────
-  // API returns fields flat: { total, closed, inProgress, followUp, converted, conversionRate }
-  const total      = report?.total      ?? 0;
-  const closed     = report?.closed     ?? 0;
-  const inProgress = report?.inProgress ?? 0;
-  const followUp   = report?.followUp   ?? 0;
-  const assigned   = Math.max(0, total - closed - inProgress - followUp);
+  // API returns fields flat: { total, closed, inProgress, followUp, notInterested, converted, conversionRate }
+  const total         = report?.total         ?? 0;
+  const closed        = report?.closed        ?? 0;
+  const inProgress    = report?.inProgress    ?? 0;
+  const followUp      = report?.followUp      ?? 0;
+  const notInterested = report?.notInterested ?? 0;
+  const converted     = report?.converted     ?? 0;
+  const assigned      = Math.max(0, total - closed - inProgress - followUp - notInterested - converted);
   // conversionRate arrives as "30.00%" string — parse to 0-1 float for formatPercent
   const convRate   = report?.conversionRate
     ? parseFloat(report.conversionRate) / 100
-    : total > 0 ? closed / total : 0;
+    : total > 0 ? converted / total : 0;
 
   const att         = report?.attendance ?? {};
   const present     = att.present  ?? 0;
@@ -255,14 +257,14 @@ export default function SalespersonReportScreen({ route }) {
                 icon="check-circle-outline"
                 label="Closed"
                 value={formatNumber(closed)}
-                color={COLORS.success}
+                color={COLORS.closed}
               />
               <KpiCard
                 icon="percent-outline"
                 label="Conversion"
                 value={formatPercent(convRate)}
                 color={COLORS.info}
-                sub={`${closed} of ${total}`}
+                sub={`${converted} of ${total}`}
               />
               <KpiCard
                 icon="calendar-check-outline"
@@ -291,6 +293,12 @@ export default function SalespersonReportScreen({ route }) {
                     color={COLORS.closed}
                   />
                   <StatusBar
+                    label="Converted"
+                    count={converted}
+                    total={total}
+                    color={STATUS_COLORS.converted.text}
+                  />
+                  <StatusBar
                     label="In Progress"
                     count={inProgress}
                     total={total}
@@ -301,6 +309,12 @@ export default function SalespersonReportScreen({ route }) {
                     count={followUp}
                     total={total}
                     color={COLORS.followUp}
+                  />
+                  <StatusBar
+                    label="Not Interested"
+                    count={notInterested}
+                    total={total}
+                    color={STATUS_COLORS.not_interested.text}
                   />
                   <StatusBar
                     label="Assigned"

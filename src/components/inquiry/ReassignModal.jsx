@@ -34,6 +34,7 @@ import { reportApi }   from '@api/report.api';
 
 import SalespersonRow from './shared/SalespersonRow';
 import StatsCard      from './shared/StatsCard';
+import {  stripHtml } from '@utils/helpers';
 
 // ── Date helpers ──────────────────────────────────────────────
 const startOfMonth = () => {
@@ -136,7 +137,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
         <View style={styles.inquirySummary}>
           <Text style={styles.summaryLabel}>Reassigning</Text>
           <Text style={styles.summaryDesc} numberOfLines={2}>
-            {inquiry?.description || inquiry?.title || 'No description'}
+            {stripHtml(inquiry?.description || inquiry?.title || '').trim() || 'No description'}
           </Text>
           {inquiry?.mobile ? (
             <View style={styles.summaryMeta}>

@@ -10,7 +10,7 @@ import { CONFIG } from '@constants/config';
 
 const DEFAULT_FILTERS = {
   search: '',
-  role: '',     // '' | 'admin' | 'sales' | 'superuser'
+  role: 'sales',     // '' | 'admin' | 'sales' | 'superuser'
   isActive: '',     // '' | 'true' | 'false'
 };
 
@@ -196,6 +196,19 @@ const useUserStore = create((set, get) => ({
         isMutating: false,
       }));
       return { success: true, user: newUser };
+    } catch (err) {
+      set({ isMutating: false });
+      return { success: false, message: err.message };
+    }
+  },
+
+  // ─── Update admin password (superuser only) ──────────────────
+  updateAdminPassword: async (id, password) => {
+    set({ isMutating: true });
+    try {
+      await userApi.updateAdminPassword(id, password);
+      set({ isMutating: false });
+      return { success: true };
     } catch (err) {
       set({ isMutating: false });
       return { success: false, message: err.message };

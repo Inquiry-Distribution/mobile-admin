@@ -7,7 +7,7 @@
  * Images: existing images are shown read-only; new images can be added.
  * Distribute / assignment is handled from InquiryDetailScreen — not here.
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,17 +21,20 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import RichTextEditor from '@components/common/RichTextEditor';
 import { SafeAreaView }      from 'react-native-safe-area-context';
 import Icon                  from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import DocumentPicker        from 'react-native-document-picker';
 import { Menu, Modal, Portal } from 'react-native-paper';
 import Toast                 from 'react-native-toast-message';
+import AudioRecorderPlayer   from 'react-native-audio-recorder-player';
+import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 
 import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
 import { TYPOGRAPHY }                             from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
-import { PRIORITY_LABEL }               from '@utils/helpers';
+import { PRIORITY_LABEL, stripHtml }    from '@utils/helpers';
 
 import { inquiryApi }  from '@api/inquiry.api';
 import useInquiryStore from '@store/inquiry.store';
@@ -43,9 +46,7 @@ const PRIORITIES = [
   { label: 'Low',    value: 'low' },
 ];
 
-const MAX_PHOTOS     = 8;
-const MAX_DOCS       = 5;
-const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB for all types
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB
 
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
 
@@ -109,8 +110,95 @@ export default function EditInquiryScreen({ route, navigation }) {
   const [priority,    setPriority]    = useState(inquiry.priority ?? 'medium');
   const [source,      setSource]      = useState(inquiry.source ?? '');
 
+  const editorRef = useRef(null);
+
   // New attachments (photos + doc files, unified)
   const [newAttachments, setNewAttachments] = useState([]);
+
+  // Audio recording
+  const audioRecorderPlayer = useRef(new AudioRecorderPlayer()).current;
+  const [recordingState,  setRecordingState]  = useState('idle'); // 'idle' | 'recording' | 'recorded'
+  const [audioPath,       setAudioPath]       = useState(null);
+  const [recordDuration,  setRecordDuration]  = useState('00:00');
+  const [isPlaying,       setIsPlaying]       = useState(false);
+  const [playPosition,    setPlayPosition]    = useState('00:00');
+
+  useEffect(() => {
+    return () => {
+      audioRecorderPlayer.stopRecorder().catch(() => {});
+      audioRecorderPlayer.stopPlayer().catch(() => {});
+    };
+  }, []);
+
+  const startRecording = async () => {
+    const permission = await request(
+      Platform.OS === 'android'
+        ? PERMISSIONS.ANDROID.RECORD_AUDIO
+        : PERMISSIONS.IOS.MICROPHONE,
+    );
+    if (permission !== RESULTS.GRANTED) {
+      Alert.alert('Permission Required', 'Allow microphone access to record a voice note.');
+      return;
+    }
+    try {
+      const path = await audioRecorderPlayer.startRecorder();
+      audioRecorderPlayer.addRecordBackListener((e) => {
+        const secs = Math.floor(e.currentPosition / 1000);
+        const mm   = String(Math.floor(secs / 60)).padStart(2, '0');
+        const ss   = String(secs % 60).padStart(2, '0');
+        setRecordDuration(`${mm}:${ss}`);
+      });
+      setAudioPath(path);
+      setRecordingState('recording');
+    } catch {
+      Alert.alert('Error', 'Could not start recording. Check microphone access.');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      await audioRecorderPlayer.stopRecorder();
+      audioRecorderPlayer.removeRecordBackListener();
+      setRecordingState('recorded');
+    } catch {
+      setRecordingState('idle');
+    }
+  };
+
+  const togglePlayback = async () => {
+    if (isPlaying) {
+      await audioRecorderPlayer.pausePlayer();
+      setIsPlaying(false);
+    } else {
+      await audioRecorderPlayer.startPlayer(audioPath);
+      audioRecorderPlayer.addPlayBackListener((e) => {
+        if (e.currentPosition >= e.duration) {
+          audioRecorderPlayer.stopPlayer();
+          audioRecorderPlayer.removePlayBackListener();
+          setIsPlaying(false);
+          setPlayPosition('00:00');
+          return;
+        }
+        const secs = Math.floor(e.currentPosition / 1000);
+        const mm   = String(Math.floor(secs / 60)).padStart(2, '0');
+        const ss   = String(secs % 60).padStart(2, '0');
+        setPlayPosition(`${mm}:${ss}`);
+      });
+      setIsPlaying(true);
+    }
+  };
+
+  const deleteRecording = async () => {
+    if (isPlaying) {
+      await audioRecorderPlayer.stopPlayer();
+      audioRecorderPlayer.removePlayBackListener();
+      setIsPlaying(false);
+    }
+    setAudioPath(null);
+    setRecordingState('idle');
+    setRecordDuration('00:00');
+    setPlayPosition('00:00');
+  };
 
   // UI state
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
@@ -121,20 +209,13 @@ export default function EditInquiryScreen({ route, navigation }) {
   const existingImages = (inquiry.images ?? []).filter((img) => isImageByFilename(img.filename));
   const existingDocs   = (inquiry.images ?? []).filter((img) => !isImageByFilename(img.filename));
 
-  const newPhotoCount = newAttachments.filter(isImageAsset).length;
-  const newDocCount   = newAttachments.filter((a) => !isImageAsset(a)).length;
 
   // ─── Image picker ────────────────────────────────────────────
   const handlePickImages = async () => {
-    const remaining = MAX_PHOTOS - existingImages.length - newPhotoCount;
-    if (remaining <= 0) {
-      Alert.alert('Limit Reached', `Max ${MAX_PHOTOS} photos per inquiry.`);
-      return;
-    }
     const result = await launchImageLibrary({
       mediaType:      'photo',
       quality:        0.85,
-      selectionLimit: remaining,
+      selectionLimit: 0,
     });
     if (!result.assets) return;
     const valid   = result.assets.filter((a) => (a.fileSize ?? 0) <= MAX_FILE_BYTES);
@@ -145,11 +226,6 @@ export default function EditInquiryScreen({ route, navigation }) {
 
   // ─── File picker ─────────────────────────────────────────────
   const handlePickFiles = async () => {
-    const remaining = MAX_DOCS - existingDocs.length - newDocCount;
-    if (remaining <= 0) {
-      Alert.alert('Limit Reached', `Max ${MAX_DOCS} files per inquiry.`);
-      return;
-    }
     try {
       const results = await DocumentPicker.pick({
         type: [
@@ -168,7 +244,7 @@ export default function EditInquiryScreen({ route, navigation }) {
       const valid   = results.filter((f) => (f.size ?? 0) <= MAX_FILE_BYTES);
       const skipped = results.length - valid.length;
       if (skipped > 0) Alert.alert('File Too Large', `${skipped} file(s) exceed 20 MB and were skipped.`);
-      setNewAttachments((prev) => [...prev, ...valid].slice(0, prev.length + remaining));
+      setNewAttachments((prev) => [...prev, ...valid]);
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) Alert.alert('Error', 'Could not open file picker.');
     }
@@ -197,7 +273,7 @@ export default function EditInquiryScreen({ route, navigation }) {
 
   // ─── Submit ──────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!description.trim() && !mobile.trim()) {
+    if (!stripHtml(description).trim() && !mobile.trim()) {
       Alert.alert('Required', 'Please enter a description or mobile number.');
       return;
     }
@@ -206,7 +282,7 @@ export default function EditInquiryScreen({ route, navigation }) {
     try {
       // 1. Update inquiry fields
       await inquiryApi.update(inquiry.id, {
-        description:  description.trim()  || undefined,
+        description:  stripHtml(description).trim() ? description.trim() : undefined,
         mobile:       mobile.trim()        || undefined,
         inquiryTime:  inquiryTime          || undefined,
         priority,
@@ -218,7 +294,12 @@ export default function EditInquiryScreen({ route, navigation }) {
         await inquiryApi.uploadImages(inquiry.id, newAttachments);
       }
 
-      // 3. Refresh store
+      // 3. Upload voice note
+      if (audioPath) {
+        await inquiryApi.uploadAudio(inquiry.id, audioPath);
+      }
+
+      // 4. Refresh store
       refreshInquiries();
       selectInquiry(inquiry.id);
 
@@ -291,7 +372,7 @@ export default function EditInquiryScreen({ route, navigation }) {
             )}
 
             {/* New photos to upload */}
-            {newPhotoCount > 0 && (
+            {newAttachments.filter(isImageAsset).length > 0 && (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -329,36 +410,93 @@ export default function EditInquiryScreen({ route, navigation }) {
 
             {/* Add buttons */}
             <View style={[styles.addBtnRow, { marginTop: SPACING.sm }]}>
-              {existingImages.length + newPhotoCount < MAX_PHOTOS && (
-                <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickImages} activeOpacity={0.7}>
-                  <Icon name="image-plus" size={18} color={COLORS.primary} />
-                  <Text style={styles.addBtnText}>Add Photos</Text>
-                </TouchableOpacity>
-              )}
-              {existingImages.length + newPhotoCount < MAX_PHOTOS && existingDocs.length + newDocCount < MAX_DOCS && (
-                <View style={styles.addBtnDivider} />
-              )}
-              {existingDocs.length + newDocCount < MAX_DOCS && (
-                <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickFiles} activeOpacity={0.7}>
-                  <Icon name="paperclip" size={18} color={COLORS.primary} />
-                  <Text style={styles.addBtnText}>Attach Files</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickImages} activeOpacity={0.7}>
+                <Icon name="image-plus" size={18} color={COLORS.primary} />
+                <Text style={styles.addBtnText}>Add Photos</Text>
+              </TouchableOpacity>
+              <View style={styles.addBtnDivider} />
+              <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickFiles} activeOpacity={0.7}>
+                <Icon name="paperclip" size={18} color={COLORS.primary} />
+                <Text style={styles.addBtnText}>Attach Files</Text>
+              </TouchableOpacity>
             </View>
+          </View>
+
+          {/* ── Voice Note ───────────────────────────────── */}
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>VOICE NOTE</Text>
+
+            {recordingState === 'idle' && (
+              <TouchableOpacity
+                style={styles.audioIdle}
+                onPress={startRecording}
+                activeOpacity={0.75}
+              >
+                <View style={styles.audioMicBox}>
+                  <Icon name="microphone" size={18} color={COLORS.primary} />
+                </View>
+                <View style={styles.audioIdleBody}>
+                  <Text style={styles.audioIdleText}>Record voice note</Text>
+                  <Text style={styles.audioIdleHint}>Optional · stored with inquiry</Text>
+                </View>
+                <Icon name="chevron-right" size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
+
+            {recordingState === 'recording' && (
+              <View style={styles.audioRecording}>
+                <View style={styles.audioRecordingLeft}>
+                  <View style={styles.audioRecordDot} />
+                  <Text style={styles.audioTimer}>{recordDuration}</Text>
+                  <Text style={styles.audioRecordingLabel}>Recording…</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.audioStopBtn}
+                  onPress={stopRecording}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="stop" size={18} color={COLORS.white} />
+                  <Text style={styles.audioStopText}>Stop</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {recordingState === 'recorded' && (
+              <View style={styles.audioRecorded}>
+                <TouchableOpacity
+                  style={styles.audioPlayBtn}
+                  onPress={togglePlayback}
+                  activeOpacity={0.8}
+                >
+                  <Icon name={isPlaying ? 'pause' : 'play'} size={16} color={COLORS.white} />
+                </TouchableOpacity>
+                <View style={styles.audioInfo}>
+                  <Text style={styles.audioInfoLabel}>Voice note recorded</Text>
+                  <Text style={styles.audioInfoTime}>
+                    {isPlaying ? playPosition : recordDuration}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.audioDeleteBtn}
+                  onPress={deleteRecording}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Icon name="delete-outline" size={20} color={COLORS.error} />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {/* ── Inquiry Description ──────────────────────── */}
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>INQUIRY DESCRIPTION</Text>
-            <TextInput
-              style={styles.descInput}
+            <RichTextEditor
+              ref={editorRef}
+              initialHTML={description}
+              onChange={setDescription}
               placeholder="Description"
-              placeholderTextColor={COLORS.textMuted}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
+              minHeight={140}
+              editorBg={COLORS.surface}
             />
           </View>
 
@@ -626,15 +764,119 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
   },
 
-  // Description
-  descInput: {
-    borderWidth:  1,
-    borderColor:  COLORS.border,
-    borderRadius: BORDER_RADIUS.md,
-    padding:      SPACING.sm,
-    ...TYPOGRAPHY.body,
-    color:        COLORS.textPrimary,
-    minHeight:    100,
+  // ── Voice note ────────────────────────────────────────────────
+  audioIdle: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.sm,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+    borderStyle:       'dashed',
+    borderRadius:      BORDER_RADIUS.md,
+    paddingVertical:   SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+  },
+  audioMicBox: {
+    width:           34,
+    height:          34,
+    borderRadius:    17,
+    backgroundColor: COLORS.primaryLight,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
+  },
+  audioIdleBody: { flex: 1 },
+  audioIdleText: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.textPrimary,
+    fontWeight: '600',
+    fontSize:   13,
+  },
+  audioIdleHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+  },
+  audioRecording: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    backgroundColor:   '#FEF2F2',
+    borderRadius:      BORDER_RADIUS.md,
+    borderWidth:       1,
+    borderColor:       '#FECACA',
+    paddingVertical:   SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+  },
+  audioRecordingLeft: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           SPACING.sm,
+  },
+  audioRecordDot: {
+    width:           8,
+    height:          8,
+    borderRadius:    4,
+    backgroundColor: COLORS.error,
+  },
+  audioTimer: {
+    ...TYPOGRAPHY.bodyMedium,
+    color:      COLORS.error,
+    fontWeight: '700',
+    fontSize:   13,
+  },
+  audioRecordingLabel: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.error,
+  },
+  audioStopBtn: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    backgroundColor:   COLORS.error,
+    borderRadius:      BORDER_RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   SPACING.xs + 1,
+  },
+  audioStopText: {
+    ...TYPOGRAPHY.small,
+    color:      COLORS.white,
+    fontWeight: '700',
+  },
+  audioRecorded: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.sm,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      BORDER_RADIUS.md,
+    borderWidth:       1,
+    borderColor:       COLORS.primaryMid,
+    paddingVertical:   SPACING.xs + 2,
+    paddingHorizontal: SPACING.sm,
+  },
+  audioPlayBtn: {
+    width:           32,
+    height:          32,
+    borderRadius:    16,
+    backgroundColor: COLORS.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
+  },
+  audioInfo: { flex: 1 },
+  audioInfoLabel: {
+    ...TYPOGRAPHY.small,
+    color:      COLORS.primary,
+    fontWeight: '600',
+  },
+  audioInfoTime: {
+    ...TYPOGRAPHY.caption,
+    color:      COLORS.primary,
+    fontWeight: '700',
+    marginTop:  1,
+  },
+  audioDeleteBtn: {
+    padding:    SPACING.xs,
+    flexShrink: 0,
   },
 
   // Row layout

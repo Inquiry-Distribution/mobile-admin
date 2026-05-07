@@ -29,6 +29,7 @@ import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useUserStore    from '@store/user.store';
 import useInquiryStore from '@store/inquiry.store';
 import { reportApi }   from '@api/report.api';
+import { stripHtml }   from '@utils/helpers';
 
 import SalespersonRow from './shared/SalespersonRow';
 import StatsCard      from './shared/StatsCard';
@@ -119,7 +120,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
         <View style={styles.inquirySummary}>
           <Text style={styles.summaryLabel}>Assigning</Text>
           <Text style={styles.summaryDesc} numberOfLines={2}>
-            {inquiry?.description || inquiry?.title || 'No description'}
+            {stripHtml(inquiry?.description || inquiry?.title || '').trim() || 'No description'}
           </Text>
           {inquiry?.mobile ? (
             <View style={styles.summaryMeta}>

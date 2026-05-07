@@ -182,6 +182,8 @@ export default function EditUserScreen({ navigation, route }) {
     }
   };
 
+  const isSales = user?.role === 'sales';
+
   // ── Role badge (read-only — role change is a superuser admin action) ────────
   const roleBadgeColor = {
     sales:     { bg: '#DBEAFE', text: '#2563EB' },
@@ -250,32 +252,34 @@ export default function EditUserScreen({ navigation, route }) {
           />
         </View>
 
-        {/* ── Employment ─────────────────────────────────── */}
-        <View style={styles.card}>
-          <SectionTitle>Employment</SectionTitle>
+        {/* ── Employment (sales only) ────────────────────── */}
+        {isSales && (
+          <View style={styles.card}>
+            <SectionTitle>Employment</SectionTitle>
 
-          <FormField
-            inputRef={empRef}
-            label="Employee ID"
-            value={form.employeeId}
-            onChangeText={(v) => patch('employeeId', v)}
-            placeholder="e.g. EMP-001"
-            autoCapitalize="characters"
-            returnKeyType="next"
-            onSubmitEditing={() => areaRef.current?.focus()}
-            error={errors.employeeId}
-          />
-          <FormField
-            inputRef={areaRef}
-            label="Assigned Area"
-            value={form.assignedArea}
-            onChangeText={(v) => patch('assignedArea', v)}
-            placeholder="e.g. North Delhi"
-            returnKeyType="done"
-            onSubmitEditing={handleSubmit}
-            error={errors.assignedArea}
-          />
-        </View>
+            <FormField
+              inputRef={empRef}
+              label="Employee ID"
+              value={form.employeeId}
+              onChangeText={(v) => patch('employeeId', v)}
+              placeholder="e.g. EMP-001"
+              autoCapitalize="characters"
+              returnKeyType="next"
+              onSubmitEditing={() => areaRef.current?.focus()}
+              error={errors.employeeId}
+            />
+            <FormField
+              inputRef={areaRef}
+              label="Assigned Area"
+              value={form.assignedArea}
+              onChangeText={(v) => patch('assignedArea', v)}
+              placeholder="e.g. North Delhi"
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
+              error={errors.assignedArea}
+            />
+          </View>
+        )}
 
         {/* ── Company ────────────────────────────────────── */}
         <View style={styles.card}>
@@ -306,13 +310,15 @@ export default function EditUserScreen({ navigation, route }) {
           />
         </View>
 
-        {/* ── Info note ──────────────────────────────────── */}
-        <View style={styles.infoBox}>
-          <Icon name="information-outline" size={16} color={COLORS.info} />
-          <Text style={styles.infoText}>
-            To change the user's PIN, use the "Set PIN" button on the User Detail screen.
-          </Text>
-        </View>
+        {/* ── Info note (sales only) ─────────────────────── */}
+        {isSales && (
+          <View style={styles.infoBox}>
+            <Icon name="information-outline" size={16} color={COLORS.info} />
+            <Text style={styles.infoText}>
+              To change the user's PIN, use the "Set PIN" button on the User Detail screen.
+            </Text>
+          </View>
+        )}
 
         {/* ── Submit ─────────────────────────────────────── */}
         <TouchableOpacity

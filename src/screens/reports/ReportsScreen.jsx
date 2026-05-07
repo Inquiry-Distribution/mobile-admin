@@ -164,23 +164,29 @@ export default function ReportsScreen({ navigation }) {
 function OverviewTab({ summary, report }) {
   if (!summary) return null;
 
-  const total      = summary.totalInquiries  ?? 0;
-  const unassigned = summary.unassigned      ?? 0;
-  const assigned   = summary.assigned        ?? 0;
-  const inProgress = summary.inProgress      ?? 0;
-  const closed     = summary.closed          ?? 0;
-  // conversionRate from API is a ratio (0–1); fallback computes the same
-  const conversion = summary.conversionRate  ?? (total ? closed / total : 0);
+  const total         = summary.totalInquiries ?? 0;
+  const unassigned    = summary.unassigned     ?? 0;
+  const assigned      = summary.assigned       ?? 0;
+  const inProgress    = summary.inProgress     ?? 0;
+  const followUp      = summary.followUp       ?? 0;
+  const notInterested = summary.notInterested  ?? 0;
+  const converted     = summary.converted      ?? 0;
+  const closed        = summary.closed         ?? 0;
+  const conversion    = total > 0 ? converted / total : 0;
 
   return (
     <View>
       {/* Funnel KPIs */}
       <SectionTitle title="Inquiry Funnel" />
       <View style={styles.kpiGrid}>
-        <KpiCard label="Total"       value={total}      icon="clipboard-text-outline"     color={COLORS.primary} />
-        <KpiCard label="Unassigned"  value={unassigned} icon="clock-alert-outline"        color={COLORS.error} />
-        <KpiCard label="In Progress" value={inProgress} icon="progress-clock"             color={COLORS.warning} />
-        <KpiCard label="Closed"      value={closed}     icon="check-circle-outline"       color={COLORS.success} />
+        <KpiCard label="Total"          value={total}         icon="clipboard-text-outline"  color={COLORS.primary} />
+        <KpiCard label="Unassigned"     value={unassigned}    icon="clock-alert-outline"     color={COLORS.unassigned} />
+        <KpiCard label="Assigned"       value={assigned}      icon="account-arrow-right"     color={COLORS.assigned} />
+        <KpiCard label="In Progress"    value={inProgress}    icon="progress-clock"          color={COLORS.inProgress} />
+        <KpiCard label="Follow Up"      value={followUp}      icon="clock-alert-outline"     color={COLORS.followUp} />
+        <KpiCard label="Not Interested" value={notInterested} icon="close-circle-outline"    color={COLORS.notInterested} />
+        <KpiCard label="Converted"      value={converted}     icon="account-convert"         color={COLORS.converted} />
+        <KpiCard label="Closed"         value={closed}        icon="check-circle-outline"    color={COLORS.closed} />
       </View>
 
       {/* Conversion rate bar */}
@@ -188,7 +194,7 @@ function OverviewTab({ summary, report }) {
       <View style={styles.convCard}>
         <View style={styles.convTop}>
           <Text style={styles.convRate}>{formatPercent(conversion)}</Text>
-          <Text style={styles.convSub}>{closed} closed / {total} total</Text>
+          <Text style={styles.convSub}>{converted} converted / {total} total</Text>
         </View>
         <View style={styles.convTrack}>
           <View style={[styles.convFill, { width: `${Math.min(100, conversion * 100)}%` }]} />
@@ -200,15 +206,15 @@ function OverviewTab({ summary, report }) {
       <View style={styles.kpiGrid}>
         <KpiCard
           label="Salespersons"
-          value={summary.totalSalespersons ?? '—'}
+          value={summary.totalSales ?? '—'}
           icon="account-group-outline"
           color={COLORS.primary}
         />
         <KpiCard
-          label="Present Today"
-          value={summary.presentToday ?? '—'}
-          icon="calendar-check-outline"
-          color={COLORS.success}
+          label="Devices"
+          value={summary.totalDevices ?? '—'}
+          icon="devices"
+          color={COLORS.info}
         />
       </View>
     </View>
@@ -226,41 +232,59 @@ function TeamTab({ team }) {
     );
   }
 
-  // Sort by closed desc — data is nested under row.inquiries
-  const sorted = [...team].sort((a, b) => (b.inquiries?.closed ?? 0) - (a.inquiries?.closed ?? 0));
+  const sorted = [...team].sort((a, b) => (b.inquiries?.converted ?? 0) - (a.inquiries?.converted ?? 0));
 
   return (
-    <View>
+    <View style={{ paddingHorizontal: SPACING.md }}>
       <SectionTitle title="Salesperson Performance" />
-      {/* Header row */}
-      <View style={styles.tableHeader}>
-        <Text style={[styles.tableCell, { flex: 2 }]}>Name</Text>
-        <Text style={styles.tableCell}>Assigned</Text>
-        <Text style={styles.tableCell}>Closed</Text>
-        <Text style={styles.tableCell}>Rate</Text>
-      </View>
-
       {sorted.map((row, i) => {
-        const inq      = row.inquiries ?? {};
-        const assigned = inq.total  ?? 0;
-        const closed   = inq.closed ?? 0;
-        const rate     = assigned > 0 ? closed / assigned : 0;
+        const inq           = row.inquiries ?? {};
+        const total         = inq.total         ?? 0;
+        const closed        = inq.closed        ?? 0;
+        const converted     = inq.converted     ?? 0;
+        const inProgress    = inq.inProgress    ?? 0;
+        const followUp      = inq.followUp      ?? 0;
+        const notInterested = inq.notInterested ?? 0;
+        const assigned      = inq.assigned      ?? 0;
+        const rate          = inq.conversionRate
+          ? parseFloat(inq.conversionRate) / 100
+          : total > 0 ? converted / total : 0;
         return (
-          <View key={row.id ?? i} style={[styles.tableRow, i % 2 === 0 && styles.tableRowEven]}>
-            <View style={[styles.tableCellView, { flex: 2 }]}>
+          <View key={row.id ?? i} style={styles.teamCard}>
+            {/* Header */}
+            <View style={styles.teamCardHeader}>
               <View style={styles.teamAvatar}>
                 <Text style={styles.teamAvatarText}>{getInitials(row.name)}</Text>
               </View>
               <Text style={styles.teamName} numberOfLines={1}>{row.name}</Text>
+              <View style={[styles.rateBadge, { backgroundColor: rate >= 0.5 ? COLORS.converted + '20' : COLORS.background }]}>
+                <Text style={[styles.rateBadgeText, { color: rate >= 0.5 ? COLORS.converted : COLORS.textMuted }]}>
+                  {formatPercent(rate)}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.tableCell}>{assigned}</Text>
-            <Text style={styles.tableCell}>{closed}</Text>
-            <Text style={[styles.tableCell, { color: rate >= 0.5 ? COLORS.success : COLORS.textMuted }]}>
-              {formatPercent(rate)}
-            </Text>
+            {/* Status chips */}
+            <View style={styles.statusChipsRow}>
+              <StatusChip label="Total"        value={total}         color={COLORS.primary} />
+              <StatusChip label="Closed"       value={closed}        color={COLORS.closed} />
+              <StatusChip label="Converted"    value={converted}     color={COLORS.converted} />
+              <StatusChip label="In Progress"  value={inProgress}    color={COLORS.inProgress} />
+              <StatusChip label="Follow Up"    value={followUp}      color={COLORS.followUp} />
+              <StatusChip label="Not Int."     value={notInterested} color={COLORS.notInterested} />
+              <StatusChip label="Assigned"     value={assigned}      color={COLORS.assigned} />
+            </View>
           </View>
         );
       })}
+    </View>
+  );
+}
+
+function StatusChip({ label, value, color }) {
+  return (
+    <View style={[styles.statusChip, { backgroundColor: color + '15' }]}>
+      <Text style={[styles.statusChipValue, { color }]}>{value}</Text>
+      <Text style={styles.statusChipLabel}>{label}</Text>
     </View>
   );
 }
@@ -287,22 +311,22 @@ function CompaniesTab({ companyReport, range, navigation }) {
       {/* Summary row */}
       {summary && (
         <View style={styles.companySummaryRow}>
-          <CompanySummaryChip label="Companies" value={summary.totalCompanies} color={COLORS.primary} />
-          <CompanySummaryChip label="Total"     value={summary.grandTotal}     color={COLORS.textSecondary} />
-          <CompanySummaryChip label="Closed"    value={summary.grandClosed}    color={COLORS.success} />
-          <CompanySummaryChip label="Rate"      value={summary.overallRate}    color="#8B5CF6" />
+          <CompanySummaryChip label="Companies" value={summary.totalCompanies}  color={COLORS.primary} />
+          <CompanySummaryChip label="Total"     value={summary.grandTotal}      color={COLORS.textSecondary} />
+          <CompanySummaryChip label="Converted" value={summary.grandConverted}  color={COLORS.converted} />
+          <CompanySummaryChip label="Rate"      value={summary.overallRate}     color="#8B5CF6" />
         </View>
       )}
 
       <SectionTitle title="By Company" />
 
       {companies.map((stat, idx) => {
-        const color    = COMPANY_COLORS[idx % COMPANY_COLORS.length];
-        const rateNum  = parseFloat(stat.conversionRate) || 0;
+        const color   = COMPANY_COLORS[idx % COMPANY_COLORS.length];
+        const rateNum = parseFloat(stat.conversionRate) || 0;
         return (
           <TouchableOpacity
             key={stat.company.id}
-            style={styles.companyRow}
+            style={styles.companyCard}
             activeOpacity={0.78}
             onPress={() =>
               navigation.navigate('CompanyDrillDown', {
@@ -313,37 +337,31 @@ function CompaniesTab({ companyReport, range, navigation }) {
               })
             }
           >
-            {/* Color indicator */}
-            <View style={[styles.companyDot, { backgroundColor: color }]} />
-
-            {/* Name + meta */}
-            <View style={styles.companyInfo}>
-              <View style={styles.companyNameRow}>
-                <Text style={styles.companyName} numberOfLines={1}>{stat.company.name}</Text>
-                <Text style={styles.companySpCount}>
-                  {stat.salespersonCount} SP
-                </Text>
+            {/* Top row: color dot + name + SP count + rate + chevron */}
+            <View style={styles.companyCardTop}>
+              <View style={[styles.companyDot, { backgroundColor: color }]} />
+              <Text style={styles.companyName} numberOfLines={1}>{stat.company.name}</Text>
+              <Text style={styles.companySpCount}>{stat.salespersonCount} SP</Text>
+              <View style={[styles.companyRate, { backgroundColor: color + '18' }]}>
+                <Text style={[styles.companyRateText, { color }]}>{stat.conversionRate}</Text>
               </View>
-              {/* Mini bar */}
-              <View style={styles.miniBarTrack}>
-                <View
-                  style={[
-                    styles.miniBarFill,
-                    { width: `${Math.min(100, rateNum)}%`, backgroundColor: color },
-                  ]}
-                />
-              </View>
+              <Icon name="chevron-right" size={14} color={COLORS.border} />
             </View>
 
-            {/* Counts */}
-            <View style={styles.companyCounts}>
-              <Text style={styles.companyCountMain}>{stat.total}</Text>
-              <Text style={styles.companyCountSub}>{stat.closed} closed</Text>
+            {/* Status chips */}
+            <View style={styles.statusChipsRow}>
+              <StatusChip label="Total"       value={stat.total}         color={COLORS.primary} />
+              <StatusChip label="Closed"      value={stat.closed}        color={COLORS.closed} />
+              <StatusChip label="Converted"   value={stat.converted}     color={COLORS.converted} />
+              <StatusChip label="In Progress" value={stat.inProgress}    color={COLORS.inProgress} />
+              <StatusChip label="Follow Up"   value={stat.followUp}      color={COLORS.followUp} />
+              <StatusChip label="Not Int."    value={stat.notInterested} color={COLORS.notInterested} />
             </View>
-            <View style={[styles.companyRate, { backgroundColor: color + '18' }]}>
-              <Text style={[styles.companyRateText, { color }]}>{stat.conversionRate}</Text>
+
+            {/* Mini progress bar */}
+            <View style={styles.miniBarTrack}>
+              <View style={[styles.miniBarFill, { width: `${Math.min(100, rateNum)}%`, backgroundColor: color }]} />
             </View>
-            <Icon name="chevron-right" size={14} color={COLORS.border} style={{ marginLeft: 4 }} />
           </TouchableOpacity>
         );
       })}
@@ -352,28 +370,29 @@ function CompaniesTab({ companyReport, range, navigation }) {
       {noCompany && noCompany.total > 0 && (
         <>
           <SectionTitle title="No Company" />
-          <View style={[styles.companyRow, { opacity: 0.7 }]}>
-            <View style={[styles.companyDot, { backgroundColor: COLORS.textMuted }]} />
-            <View style={styles.companyInfo}>
+          <View style={[styles.companyCard, { opacity: 0.8 }]}>
+            <View style={styles.companyCardTop}>
+              <View style={[styles.companyDot, { backgroundColor: COLORS.textMuted }]} />
               <Text style={styles.companyName}>Unaffiliated Salespersons</Text>
-              <View style={styles.miniBarTrack}>
-                <View
-                  style={[
-                    styles.miniBarFill,
-                    {
-                      width: `${Math.min(100, parseFloat(noCompany.conversionRate) || 0)}%`,
-                      backgroundColor: COLORS.textMuted,
-                    },
-                  ]}
-                />
+              <View style={[styles.companyRate, { backgroundColor: COLORS.border }]}>
+                <Text style={[styles.companyRateText, { color: COLORS.textMuted }]}>{noCompany.conversionRate}</Text>
               </View>
             </View>
-            <View style={styles.companyCounts}>
-              <Text style={styles.companyCountMain}>{noCompany.total}</Text>
-              <Text style={styles.companyCountSub}>{noCompany.closed} closed</Text>
+            <View style={styles.statusChipsRow}>
+              <StatusChip label="Total"       value={noCompany.total}         color={COLORS.primary} />
+              <StatusChip label="Closed"      value={noCompany.closed}        color={COLORS.closed} />
+              <StatusChip label="Converted"   value={noCompany.converted}     color={COLORS.converted} />
+              <StatusChip label="In Progress" value={noCompany.inProgress}    color={COLORS.inProgress} />
+              <StatusChip label="Follow Up"   value={noCompany.followUp}      color={COLORS.followUp} />
+              <StatusChip label="Not Int."    value={noCompany.notInterested} color={COLORS.notInterested} />
             </View>
-            <View style={[styles.companyRate, { backgroundColor: COLORS.border }]}>
-              <Text style={[styles.companyRateText, { color: COLORS.textMuted }]}>{noCompany.conversionRate}</Text>
+            <View style={styles.miniBarTrack}>
+              <View
+                style={[styles.miniBarFill, {
+                  width: `${Math.min(100, parseFloat(noCompany.conversionRate) || 0)}%`,
+                  backgroundColor: COLORS.textMuted,
+                }]}
+              />
             </View>
           </View>
         </>
@@ -525,88 +544,93 @@ const styles = StyleSheet.create({
     borderRadius:    5,
   },
 
-  // Team table
-  tableHeader: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.xs,
-    backgroundColor:   COLORS.primaryLight,
+  // Team cards
+  teamCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius:    BORDER_RADIUS.lg,
+    padding:         SPACING.md,
+    marginBottom:    SPACING.sm,
+    borderWidth:     1,
+    borderColor:     COLORS.border,
+    gap:             SPACING.sm,
   },
-  tableRow: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  tableRowEven:   { backgroundColor: COLORS.surface },
-  tableCell: {
-    flex:       1,
-    ...TYPOGRAPHY.small,
-    color:      COLORS.textSecondary,
-    fontWeight: '600',
-    textAlign:  'center',
-  },
-  tableCellView: {
-    flex:          2,
+  teamCardHeader: {
     flexDirection: 'row',
     alignItems:    'center',
-    gap:           SPACING.xs,
+    gap:           SPACING.sm,
   },
   teamAvatar: {
-    width:           30,
-    height:          30,
-    borderRadius:    15,
+    width:           34,
+    height:          34,
+    borderRadius:    17,
     backgroundColor: COLORS.primaryLight,
     alignItems:      'center',
     justifyContent:  'center',
+    flexShrink:      0,
   },
-  teamAvatarText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
-  teamName:       { ...TYPOGRAPHY.small, color: COLORS.textPrimary, fontWeight: '600', flex: 1 },
+  teamAvatarText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+  teamName:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', flex: 1 },
+  rateBadge: {
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    borderRadius:      BORDER_RADIUS.full,
+    flexShrink:        0,
+  },
+  rateBadgeText: { fontSize: 12, fontWeight: '700' },
+
+  // Status chips (shared by Team + Companies tabs)
+  statusChipsRow: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           6,
+  },
+  statusChip: {
+    alignItems:        'center',
+    paddingHorizontal: 8,
+    paddingVertical:   5,
+    borderRadius:      BORDER_RADIUS.md,
+    minWidth:          52,
+  },
+  statusChipValue: { fontSize: 14, fontWeight: '800' },
+  statusChipLabel: { fontSize: 9,  fontWeight: '600', color: COLORS.textMuted, marginTop: 1 },
 
   emptyTeam: {
-    alignItems:   'center',
-    gap:          SPACING.sm,
-    paddingTop:   SPACING.xxl,
+    alignItems: 'center',
+    gap:        SPACING.sm,
+    paddingTop: SPACING.xxl,
   },
   emptyTeamText: { ...TYPOGRAPHY.small, color: COLORS.textMuted },
 
   // Companies tab
   companySummaryRow: {
-    flexDirection:     'row',
-    marginHorizontal:  SPACING.md,
-    marginTop:         SPACING.md,
-    backgroundColor:   COLORS.surface,
-    borderRadius:      BORDER_RADIUS.lg,
-    paddingVertical:   SPACING.md,
-    overflow:          'hidden',
+    flexDirection:    'row',
+    marginHorizontal: SPACING.md,
+    marginTop:        SPACING.md,
+    backgroundColor:  COLORS.surface,
+    borderRadius:     BORDER_RADIUS.lg,
+    paddingVertical:  SPACING.md,
+    overflow:         'hidden',
   },
   companySummaryChip:  { flex: 1, alignItems: 'center' },
   companySummaryValue: { fontSize: 18, fontWeight: '800' },
   companySummaryLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1 },
 
-  companyRow: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    gap:               SPACING.sm,
-    backgroundColor:   COLORS.surface,
+  companyCard: {
+    backgroundColor:  COLORS.surface,
+    marginHorizontal: SPACING.md,
+    marginBottom:     SPACING.sm,
+    borderRadius:     BORDER_RADIUS.lg,
+    padding:          SPACING.md,
+    borderWidth:      1,
+    borderColor:      COLORS.border,
+    gap:              SPACING.sm,
   },
-  companyDot: {
-    width: 10, height: 10, borderRadius: 5, flexShrink: 0,
-  },
-  companyInfo:   { flex: 1, minWidth: 0 },
-  companyNameRow: {
+  companyCardTop: {
     flexDirection: 'row',
     alignItems:    'center',
     gap:           SPACING.xs,
-    marginBottom:  3,
   },
+  companyDot:     { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
   companyName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', flex: 1 },
   companySpCount: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flexShrink: 0 },
   miniBarTrack: {
@@ -616,10 +640,6 @@ const styles = StyleSheet.create({
     overflow:        'hidden',
   },
   miniBarFill: { height: '100%', borderRadius: 2 },
-
-  companyCounts:    { alignItems: 'flex-end', flexShrink: 0 },
-  companyCountMain: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
-  companyCountSub:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   companyRate: {
     borderRadius:      BORDER_RADIUS.full,

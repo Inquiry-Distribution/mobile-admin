@@ -57,6 +57,20 @@ export const userApi = {
   setPin: (id, pin) => client.patch(`/users/${id}/pin`, { pin }),
 
   /**
+   * Change / reset a user's password.
+   * Payload: { password, oldPassword? }  — oldPassword required when changing own password
+   */
+  changePassword: (id, password, oldPassword) =>
+    client.patch(`/users/${id}/password`, { password, ...(oldPassword ? { oldPassword } : {}) }),
+
+  /**
+   * Update an admin user's password (superuser only).
+   * Payload: { password }
+   */
+  updateAdminPassword: (id, password) =>
+    client.patch(`/users/${id}/admin-password`, { password }),
+
+  /**
    * Permanently delete a user (superuser only).
    */
   remove: (id) => client.delete(`/users/${id}`),

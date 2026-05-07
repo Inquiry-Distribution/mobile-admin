@@ -66,6 +66,94 @@ const useInquiryStore = create((set, get) => ({
   isMutating:    false,   // distribute / reassign in progress
   error:         null,
 
+  // ─── Trash ────────────────────────────────────────────────────
+  trash:              [],
+  trashPage:          1,
+  trashHasMore:       true,
+  trashTotal:         0,
+  isTrashLoading:     false,
+  isTrashRefreshing:  false,
+  isTrashLoadingMore: false,
+
+  fetchTrash: async () => {
+    set({ isTrashLoading: true });
+    try {
+      const res = await inquiryApi.getTrash({ page: 1 });
+      const { data, pagination } = normaliseTrash(res);
+      set({
+        trash:          data,
+        trashTotal:     pagination?.total  ?? data.length,
+        trashHasMore:   pagination?.hasMore ?? false,
+        trashPage:      1,
+        isTrashLoading: false,
+      });
+    } catch (_) {
+      set({ isTrashLoading: false });
+    }
+  },
+
+  refreshTrash: async () => {
+    set({ isTrashRefreshing: true });
+    try {
+      const res = await inquiryApi.getTrash({ page: 1 });
+      const { data, pagination } = normaliseTrash(res);
+      set({
+        trash:             data,
+        trashTotal:        pagination?.total  ?? data.length,
+        trashHasMore:      pagination?.hasMore ?? false,
+        trashPage:         1,
+        isTrashRefreshing: false,
+      });
+    } catch (_) {
+      set({ isTrashRefreshing: false });
+    }
+  },
+
+  loadMoreTrash: async () => {
+    const { isTrashLoadingMore, trashHasMore, trashPage } = get();
+    if (isTrashLoadingMore || !trashHasMore) return;
+    set({ isTrashLoadingMore: true });
+    try {
+      const nextPage = trashPage + 1;
+      const res      = await inquiryApi.getTrash({ page: nextPage });
+      const { data, pagination } = normaliseTrash(res);
+      set((state) => ({
+        trash:              [...state.trash, ...data],
+        trashPage:          nextPage,
+        trashHasMore:       pagination?.hasMore ?? false,
+        isTrashLoadingMore: false,
+      }));
+    } catch (_) {
+      set({ isTrashLoadingMore: false });
+    }
+  },
+
+  restoreInquiry: async (id) => {
+    try {
+      await inquiryApi.restore(id);
+      set((state) => ({
+        trash:      state.trash.filter((i) => i.id !== id),
+        trashTotal: Math.max(0, state.trashTotal - 1),
+      }));
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  },
+
+  permanentDelete: async (id) => {
+    try {
+      await inquiryApi.permanentDelete(id);
+      set((state) => ({
+        trash:      state.trash.filter((i) => i.id !== id),
+        trashTotal: Math.max(0, state.trashTotal - 1),
+      }));
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  },
+
   // ─── Dashboard summary refresh trigger ────────────────────────
   // Increment this after any mutation that should cause Dashboard
   // KPI cards to re-fetch (create, distribute, reassign, status-change, etc.)
@@ -198,6 +286,44 @@ const useInquiryStore = create((set, get) => ({
     }
   },
 
+  // ─── Delete image/file from inquiry ──────────────────────────
+  deleteImage: async (inquiryId, imageId) => {
+    set({ isMutating: true });
+    try {
+      const res     = await inquiryApi.deleteImage(inquiryId, imageId);
+      const updated = res.data ?? res;
+
+      set((state) => ({
+        inquiries:       replaceById(state.inquiries, inquiryId, updated),
+        selectedInquiry: state.selectedInquiry?.id === inquiryId ? updated : state.selectedInquiry,
+        isMutating:      false,
+      }));
+      return { success: true };
+    } catch (err) {
+      set({ isMutating: false });
+      return { success: false, message: err.message };
+    }
+  },
+
+  // ─── Delete audio from inquiry ────────────────────────────────
+  deleteAudio: async (inquiryId) => {
+    set({ isMutating: true });
+    try {
+      const res     = await inquiryApi.deleteAudio(inquiryId);
+      const updated = res.data ?? res;
+
+      set((state) => ({
+        inquiries:       replaceById(state.inquiries, inquiryId, updated),
+        selectedInquiry: state.selectedInquiry?.id === inquiryId ? updated : state.selectedInquiry,
+        isMutating:      false,
+      }));
+      return { success: true };
+    } catch (err) {
+      set({ isMutating: false });
+      return { success: false, message: err.message };
+    }
+  },
+
   // ─── Real-time socket inject ──────────────────────────────────
   // Called by socket.service when inquiry:created / inquiry:updated arrives
   prependInquiry: (inquiry) =>
@@ -278,6 +404,27 @@ function normalise(res) {
 /** Immutable list update by id */
 function replaceById(list, id, updated) {
   return list.map((item) => (item.id === id ? updated : item));
+}
+
+/**
+ * Normalise GET /inquiries/trash response.
+ * Backend returns: { data: { inquiries: [...], total, limit } }
+ */
+function normaliseTrash(res) {
+  if (res.data?.inquiries && Array.isArray(res.data.inquiries)) {
+    const { inquiries, total, limit } = res.data;
+    return {
+      data:       inquiries,
+      pagination: { total, hasMore: inquiries.length >= (limit ?? CONFIG.PAGE_SIZE) },
+    };
+  }
+  if (Array.isArray(res.data)) {
+    return { data: res.data, pagination: null };
+  }
+  if (Array.isArray(res)) {
+    return { data: res, pagination: null };
+  }
+  return { data: [], pagination: null };
 }
 
 export default useInquiryStore;

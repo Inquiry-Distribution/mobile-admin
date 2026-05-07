@@ -20,11 +20,13 @@ export const COLORS = {
   secondaryLight: '#D1FAE5',  // emerald-50
 
   // ─── Inquiry status ───────────────────────────────────────────
-  unassigned:  '#DC2626',     // red-600
-  assigned:    '#D97706',     // amber-600
-  inProgress:  '#2563EB',     // blue-600
-  followUp:    '#EA580C',     // orange-600
-  closed:      '#059669',     // emerald-600
+  unassigned:    '#9CA3AF',   // gray-400
+  assigned:      '#3B82F6',   // blue-500
+  inProgress:    '#F59E0B',   // amber-400
+  followUp:      '#8B5CF6',   // violet-500
+  notInterested: '#EF4444',   // red-500
+  converted:     '#10B981',   // emerald-500
+  closed:        '#6B7280',   // gray-500
 
   // ─── Priority ─────────────────────────────────────────────────
   low:    '#059669',          // emerald
@@ -74,11 +76,13 @@ export const COLORS = {
 
 // ── Semantic maps used by Badge / StatusBadge components ────────
 export const STATUS_COLORS = {
-  unassigned:  { bg: '#FEE2E2', text: '#DC2626' },
-  assigned:    { bg: '#FEF3C7', text: '#D97706' },
-  in_progress: { bg: '#DBEAFE', text: '#2563EB' },
-  follow_up:   { bg: '#FFEDD5', text: '#EA580C' },
-  closed:      { bg: '#D1FAE5', text: '#059669' },
+  unassigned:     { bg: '#F3F4F6', text: '#9CA3AF' },
+  assigned:       { bg: '#EFF6FF', text: '#3B82F6' },
+  in_progress:    { bg: '#FFFBEB', text: '#F59E0B' },
+  follow_up:      { bg: '#F5F3FF', text: '#8B5CF6' },
+  not_interested: { bg: '#FEF2F2', text: '#EF4444' },
+  converted:      { bg: '#ECFDF5', text: '#10B981' },
+  closed:         { bg: '#F9FAFB', text: '#6B7280' },
 };
 
 export const PRIORITY_COLORS = {

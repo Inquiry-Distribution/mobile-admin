@@ -90,6 +90,8 @@ export const INQUIRY_STATUS_LABELS = {
   assigned:    'Assigned',
   in_progress: 'In Progress',
   follow_up:   'Follow Up',
+  not_interested: 'Not Interested',
+  converted: 'Converted',
   closed:      'Closed',
 };
 

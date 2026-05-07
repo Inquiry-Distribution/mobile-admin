@@ -8,11 +8,13 @@ import { STATUS_COLORS } from '@constants/colors';
 import { BORDER_RADIUS } from '@constants/config';
 
 const LABELS = {
-  unassigned:  'Unassigned',
-  assigned:    'Assigned',
-  in_progress: 'In Progress',
-  follow_up:   'Follow Up',
-  closed:      'Closed',
+  unassigned:     'Unassigned',
+  assigned:       'Assigned',
+  in_progress:    'In Progress',
+  follow_up:      'Follow Up',
+  not_interested: 'Not Interested',
+  converted:      'Converted',
+  closed:         'Closed',
 };
 
 export default function StatusBadge({ status, size = 'md' }) {

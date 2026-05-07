@@ -104,6 +104,15 @@ export const inquiryApi = {
     return json.data;
   },
 
+  /**
+   * Delete a single image/file from an inquiry (admin/superuser only).
+   */
+  deleteImage: (inquiryId, imageId) =>
+    client.delete(`/inquiries/${inquiryId}/images/${imageId}`),
+
+  deleteAudio: (inquiryId) =>
+    client.delete(`/inquiries/${inquiryId}/audio`),
+
   // ─── Assignment ─────────────────────────────────────────────
 
   /**
@@ -127,6 +136,15 @@ export const inquiryApi = {
   unassign: (id) =>
     client.patch(`/inquiries/${id}/unassign`),
 
+  // ─── Visibility ─────────────────────────────────────────────
+
+  /**
+   * Extend how long an assigned inquiry stays visible to the salesperson.
+   * Payload: { days } — 1 to 30
+   */
+  extendVisibility: (id, days) =>
+    client.patch(`/inquiries/${id}/extend`, { days }),
+
   // ─── Update (superuser only) ────────────────────────────────
 
   /**
@@ -135,10 +153,31 @@ export const inquiryApi = {
    */
   update: (id, payload) => client.patch(`/inquiries/${id}`, payload),
 
-  // ─── Deletion ───────────────────────────────────────────────
+  // ─── Deletion & Trash ───────────────────────────────────────
+
+  /** Soft-delete — moves inquiry to trash (superuser only). */
+  remove: (id) => client.delete(`/inquiries/${id}`),
+
+  /** List trashed inquiries (paginated). */
+  getTrash: (params = {}) =>
+    client.get(`/inquiries/trash${buildQuery({ limit: CONFIG.PAGE_SIZE, ...params })}`),
+
+  /** Restore a trashed inquiry back to active (superuser only). */
+  restore: (id) => client.patch(`/inquiries/${id}/restore`),
+
+  /** Permanently delete a trashed inquiry — irreversible (superuser only). */
+  permanentDelete: (id) => client.delete(`/inquiries/${id}/permanent`),
+
+  // ─── AI Analysis ────────────────────────────────────────────
 
   /**
-   * Permanently delete an inquiry (superuser only).
+   * Analyse the first picked image with Gemini — extract time + summary.
+   * asset must include base64 field (use includeBase64:true in launchImageLibrary).
+   * Returns { time: "HH:MM"|null, summary: string|null }
    */
-  remove: (id) => client.delete(`/inquiries/${id}`),
+  analyseImage: (asset) =>
+    client.post('/inquiries/analyse-image', {
+      imageBase64: asset.base64,
+      mimeType:    asset.type || 'image/jpeg',
+    }),
 };

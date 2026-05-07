@@ -18,6 +18,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import RichTextEditor from '@components/common/RichTextEditor';
 import { SafeAreaView }    from 'react-native-safe-area-context';
 import Icon                from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
@@ -30,7 +31,7 @@ import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
 import { TYPOGRAPHY }                             from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
-import { getInitials, PRIORITY_LABEL }   from '@utils/helpers';
+import { getInitials, PRIORITY_LABEL, stripHtml } from '@utils/helpers';
 
 import dayjs from 'dayjs';
 
@@ -57,8 +58,6 @@ const SOURCE_OPTIONS = [
   { label: 'Other',        icon: 'dots-horizontal-circle-outline', color: '#6B7280' },
 ];
 
-const MAX_PHOTOS    = 8;
-const MAX_DOCS      = 5;
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB for all types
 
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
@@ -123,6 +122,10 @@ export default function CreateInquiryScreen({ navigation }) {
   const [images,      setImages]      = useState([]); // photos + doc files, unified
   const [selectedSp,  setSelectedSp]  = useState(null);
   const [spSearch,    setSpSearch]    = useState('');
+
+  // AI analysis state
+  const [isAnalysing,    setIsAnalysing]    = useState(false);
+  const [aiFilledFields, setAiFilledFields] = useState([]); // 'time' | 'description'
 
   // UI state
   const [priorityMenuOpen,  setPriorityMenuOpen]  = useState(false);
@@ -256,28 +259,56 @@ export default function CreateInquiryScreen({ navigation }) {
   const docCount   = images.filter((a) => !isImageAsset(a)).length;
 
   const handlePickImages = async () => {
-    if (photoCount >= MAX_PHOTOS) {
-      Alert.alert('Limit Reached', `You can upload up to ${MAX_PHOTOS} photos.`);
-      return;
-    }
+    const isFirstPhoto = photoCount === 0;
     const result = await launchImageLibrary({
       mediaType:      'photo',
       quality:        0.85,
-      selectionLimit: MAX_PHOTOS - photoCount,
+      selectionLimit: 0,
+      includeBase64:  isFirstPhoto, // only need base64 for first image analysis
     });
     if (!result.assets) return;
     const valid   = result.assets.filter((a) => (a.fileSize ?? 0) <= MAX_FILE_BYTES);
     const skipped = result.assets.length - valid.length;
     if (skipped > 0) Alert.alert('File Too Large', `${skipped} photo(s) exceed 20 MB and were skipped.`);
     setImages((prev) => [...prev, ...valid]);
+
+    // AI analysis — only on the first image ever added
+    if (isFirstPhoto && valid.length > 0 && valid[0].base64) {
+      setIsAnalysing(true);
+      try {
+        const res    = await inquiryApi.analyseImage(valid[0]);
+        const result = res?.data ?? res;
+        const filled = [];
+        if (result?.time) {
+          setInquiryTime(result.time);
+          filled.push('time');
+        }
+        if (result?.summary) {
+          setDescription((prev) => {
+            const hasContent = stripHtml(prev).trim().length > 0;
+            if (!hasContent) {
+              editorRef.current?.setContentHTML(result.summary);
+              return result.summary;
+            }
+            return prev;
+          });
+          filled.push('description');
+        }
+        if (result?.mobile) {
+          setMobile((prev) => prev.trim() ? prev : result.mobile);
+          filled.push('mobile');
+        }
+        if (filled.length > 0) setAiFilledFields(filled);
+      } catch (_) {
+        // silent — analysis is optional
+      } finally {
+        setIsAnalysing(false);
+      }
+    }
   };
 
   // ─── File picker ─────────────────────────────────────────────
   const handlePickFiles = async () => {
-    if (docCount >= MAX_DOCS) {
-      Alert.alert('Limit Reached', `You can attach up to ${MAX_DOCS} files.`);
-      return;
-    }
     try {
       const results = await DocumentPicker.pick({
         type: [
@@ -296,7 +327,7 @@ export default function CreateInquiryScreen({ navigation }) {
       const valid   = results.filter((f) => (f.size ?? 0) <= MAX_FILE_BYTES);
       const skipped = results.length - valid.length;
       if (skipped > 0) Alert.alert('File Too Large', `${skipped} file(s) exceed 20 MB and were skipped.`);
-      setImages((prev) => [...prev, ...valid].slice(0, prev.length + MAX_DOCS - docCount));
+      setImages((prev) => [...prev, ...valid]);
     } catch (err) {
       if (!DocumentPicker.isCancel(err)) Alert.alert('Error', 'Could not open file picker.');
     }
@@ -308,10 +339,10 @@ export default function CreateInquiryScreen({ navigation }) {
   // ─── Time picker (custom modal) ───────────────────────────────
   const [tempHour, setTempHour]     = useState('');
   const [tempMinute, setTempMinute] = useState('');
-  const hourRef        = useRef(null);
-  const minuteRef      = useRef(null);
-  const descriptionRef = useRef(null);
-  const mobileRef      = useRef(null);
+  const hourRef   = useRef(null);
+  const minuteRef = useRef(null);
+  const editorRef = useRef(null);
+  const mobileRef = useRef(null);
 
   const openTimePicker = () => {
     const [h = '', m = ''] = inquiryTime ? inquiryTime.split(':') : [];
@@ -381,6 +412,7 @@ export default function CreateInquiryScreen({ navigation }) {
 
   // ─── Reset form ──────────────────────────────────────────────
   const resetForm = () => {
+    editorRef.current?.setContentHTML('');
     setDescription('');
     setMobile('');
     setInquiryTime(currentTime());
@@ -395,14 +427,17 @@ export default function CreateInquiryScreen({ navigation }) {
     setRecordDuration('00:00');
     setPlayPosition('00:00');
     setIsPlaying(false);
+    setAiFilledFields([]);
+    setIsAnalysing(false);
   };
 
   // ─── Submit ──────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!description.trim() && !mobile.trim()) {
+    const descText = stripHtml(description).trim();
+    if (!descText && !mobile.trim()) {
       Alert.alert('Required', 'Please enter a description or mobile number.');
-      if (!description.trim()) {
-        descriptionRef.current?.focus();
+      if (!descText) {
+        editorRef.current?.focusContentEditor();
       } else {
         mobileRef.current?.focus();
       }
@@ -412,13 +447,13 @@ export default function CreateInquiryScreen({ navigation }) {
     setIsSubmitting(true);
     try {
       // 1. Determine type (based on photos only — docs don't affect InquiryType)
-      const hasText   = description.trim().length > 0;
+      const hasText   = stripHtml(description).trim().length > 0;
       const hasPhotos = images.some(isImageAsset);
       const type = hasPhotos && hasText ? 'text_image' : hasPhotos ? 'image' : 'text';
 
       // 2. Create inquiry
       const res     = await inquiryApi.create({
-        description:  description.trim() || undefined,
+        description:  stripHtml(description).trim() ? description.trim() : undefined,
         mobile:       mobile.trim()       || undefined,
         inquiryTime:  inquiryTime         || undefined,
         priority,
@@ -502,11 +537,9 @@ export default function CreateInquiryScreen({ navigation }) {
                     </View>
                   ) : null
                 )}
-                {photoCount < MAX_PHOTOS && (
-                  <TouchableOpacity style={styles.thumbAdd} onPress={handlePickImages} activeOpacity={0.7}>
-                    <Icon name="camera-plus-outline" size={22} color={COLORS.primary} />
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={styles.thumbAdd} onPress={handlePickImages} activeOpacity={0.7}>
+                  <Icon name="camera-plus-outline" size={22} color={COLORS.primary} />
+                </TouchableOpacity>
               </ScrollView>
             )}
 
@@ -538,19 +571,15 @@ export default function CreateInquiryScreen({ navigation }) {
               </View>
             ) : (
               <View style={[styles.addBtnRow, { marginTop: SPACING.sm }]}>
-                {photoCount < MAX_PHOTOS && (
-                  <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickImages} activeOpacity={0.7}>
-                    <Icon name="image-plus" size={18} color={COLORS.primary} />
-                    <Text style={styles.addBtnText}>Add Photos</Text>
-                  </TouchableOpacity>
-                )}
-                {photoCount < MAX_PHOTOS && docCount < MAX_DOCS && <View style={styles.addBtnDivider} />}
-                {docCount < MAX_DOCS && (
-                  <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickFiles} activeOpacity={0.7}>
-                    <Icon name="paperclip" size={18} color={COLORS.primary} />
-                    <Text style={styles.addBtnText}>Attach Files</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickImages} activeOpacity={0.7}>
+                  <Icon name="image-plus" size={18} color={COLORS.primary} />
+                  <Text style={styles.addBtnText}>Add Photos</Text>
+                </TouchableOpacity>
+                <View style={styles.addBtnDivider} />
+                <TouchableOpacity style={styles.addHalfBtn} onPress={handlePickFiles} activeOpacity={0.7}>
+                  <Icon name="paperclip" size={18} color={COLORS.primary} />
+                  <Text style={styles.addBtnText}>Attach Files</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -574,10 +603,13 @@ export default function CreateInquiryScreen({ navigation }) {
                 activeOpacity={0.75}
               >
                 <View style={styles.audioMicBox}>
-                  <Icon name="microphone" size={24} color={COLORS.primary} />
+                  <Icon name="microphone" size={18} color={COLORS.primary} />
                 </View>
-                <Text style={styles.audioIdleText}>Tap to record a voice note</Text>
-                <Text style={styles.audioIdleHint}>Optional · stored with the inquiry</Text>
+                <View style={styles.audioIdleBody}>
+                  <Text style={styles.audioIdleText}>Record voice note</Text>
+                  <Text style={styles.audioIdleHint}>Optional · stored with inquiry</Text>
+                </View>
+                <Icon name="chevron-right" size={16} color={COLORS.textMuted} />
               </TouchableOpacity>
             )}
 
@@ -606,7 +638,7 @@ export default function CreateInquiryScreen({ navigation }) {
                   onPress={togglePlayback}
                   activeOpacity={0.8}
                 >
-                  <Icon name={isPlaying ? 'pause' : 'play'} size={20} color={COLORS.white} />
+                  <Icon name={isPlaying ? 'pause' : 'play'} size={16} color={COLORS.white} />
                 </TouchableOpacity>
                 <View style={styles.audioInfo}>
                   <Text style={styles.audioInfoLabel}>Voice note recorded</Text>
@@ -627,31 +659,60 @@ export default function CreateInquiryScreen({ navigation }) {
 
           {/* ── Inquiry Description ──────────────────────── */}
           <View style={styles.card}>
-            <Text style={styles.sectionLabel}>INQUIRY DESCRIPTION</Text>
-            <TextInput
-              ref={descriptionRef}
-              style={styles.descInput}
+            <View style={styles.descHeader}>
+              <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>INQUIRY DESCRIPTION</Text>
+              {isAnalysing && (
+                <View style={styles.aiLoadingChip}>
+                  <ActivityIndicator size={10} color={COLORS.primary} />
+                  <Text style={styles.aiChipText}>AI reading…</Text>
+                </View>
+              )}
+              {!isAnalysing && aiFilledFields.includes('description') && (
+                <View style={styles.aiFilledChip}>
+                  <Icon name="creation" size={11} color={COLORS.primary} />
+                  <Text style={styles.aiChipText}>AI filled</Text>
+                </View>
+              )}
+            </View>
+            <RichTextEditor
+              ref={editorRef}
+              initialHTML={description}
+              onChange={(html) => {
+                setDescription(html);
+                if (aiFilledFields.includes('description')) {
+                  setAiFilledFields((f) => f.filter((x) => x !== 'description'));
+                }
+              }}
               placeholder="Description"
-              placeholderTextColor={COLORS.textMuted}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
+              minHeight={140}
+              editorBg={COLORS.surface}
             />
           </View>
 
           {/* ── Mobile & Time ────────────────────────────── */}
           <View style={[styles.card, styles.row]}>
             <View style={styles.halfField}>
-              <Text style={styles.fieldLabel}>MOBILE</Text>
+              <View style={styles.fieldLabelRow}>
+                <Text style={styles.fieldLabel}>MOBILE</Text>
+                {!isAnalysing && aiFilledFields.includes('mobile') && (
+                  <View style={styles.aiFilledChipSm}>
+                    <Icon name="creation" size={9} color={COLORS.primary} />
+                    <Text style={styles.aiChipSmText}>AI</Text>
+                  </View>
+                )}
+              </View>
               <TextInput
                 ref={mobileRef}
                 style={styles.input}
                 placeholder="9876543210"
                 placeholderTextColor={COLORS.textMuted}
                 value={mobile}
-                onChangeText={setMobile}
+                onChangeText={(v) => {
+                  setMobile(v);
+                  if (aiFilledFields.includes('mobile')) {
+                    setAiFilledFields((f) => f.filter((x) => x !== 'mobile'));
+                  }
+                }}
                 keyboardType="phone-pad"
                 maxLength={15}
               />
@@ -660,7 +721,15 @@ export default function CreateInquiryScreen({ navigation }) {
             <View style={styles.fieldDivider} />
 
             <View style={styles.halfField}>
-              <Text style={styles.fieldLabel}>TIME</Text>
+              <View style={styles.fieldLabelRow}>
+                <Text style={styles.fieldLabel}>TIME</Text>
+                {!isAnalysing && aiFilledFields.includes('time') && (
+                  <View style={styles.aiFilledChipSm}>
+                    <Icon name="creation" size={9} color={COLORS.primary} />
+                    <Text style={styles.aiChipSmText}>AI</Text>
+                  </View>
+                )}
+              </View>
               <TouchableOpacity
                 style={[styles.input, styles.timeInput]}
                 onPress={openTimePicker}
@@ -1234,14 +1303,64 @@ const styles = StyleSheet.create({
   },
 
   // Description
-  descInput: {
-    borderWidth:   1,
-    borderColor:   COLORS.border,
-    borderRadius:  BORDER_RADIUS.md,
-    padding:       SPACING.sm,
-    ...TYPOGRAPHY.body,
-    color:         COLORS.textPrimary,
-    minHeight:     100,
+  descHeader: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginBottom:   SPACING.sm - 2,
+  },
+  // AI chips
+  aiLoadingChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    borderWidth:       1,
+    borderColor:       COLORS.primaryMid,
+  },
+  aiFilledChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               4,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    borderWidth:       1,
+    borderColor:       COLORS.primaryMid,
+  },
+  aiChipText: {
+    fontSize:   10,
+    color:      COLORS.primary,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+
+  // AI chip (small, next to field label)
+  fieldLabelRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            6,
+    marginBottom:   SPACING.xs,
+  },
+  aiFilledChipSm: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               2,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      BORDER_RADIUS.full,
+    paddingHorizontal: 5,
+    paddingVertical:   2,
+    borderWidth:       1,
+    borderColor:       COLORS.primaryMid,
+  },
+  aiChipSmText: {
+    fontSize:   9,
+    color:      COLORS.primary,
+    fontWeight: '700',
   },
 
   // Row layout (mobile+time, priority+source)
@@ -1670,41 +1789,46 @@ const styles = StyleSheet.create({
 
   // ── Voice note ────────────────────────────────────────────────
   audioIdle: {
-    borderWidth:     1.5,
-    borderColor:     COLORS.border,
-    borderStyle:     'dashed',
-    borderRadius:    BORDER_RADIUS.md,
-    paddingVertical: SPACING.lg,
-    alignItems:      'center',
-    gap:             SPACING.xs,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.sm,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+    borderStyle:       'dashed',
+    borderRadius:      BORDER_RADIUS.md,
+    paddingVertical:   SPACING.sm,
+    paddingHorizontal: SPACING.sm,
   },
   audioMicBox: {
-    width:           52,
-    height:          52,
-    borderRadius:    26,
+    width:           34,
+    height:          34,
+    borderRadius:    17,
     backgroundColor: COLORS.primaryLight,
     alignItems:      'center',
     justifyContent:  'center',
-    marginBottom:    SPACING.xs,
+    flexShrink:      0,
   },
+  audioIdleBody: { flex: 1 },
   audioIdleText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
     fontWeight: '600',
+    fontSize:   13,
   },
   audioIdleHint: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
   },
   audioRecording: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    justifyContent:  'space-between',
-    backgroundColor: '#FEF2F2',
-    borderRadius:    BORDER_RADIUS.md,
-    borderWidth:     1,
-    borderColor:     '#FECACA',
-    padding:         SPACING.md,
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    backgroundColor:   '#FEF2F2',
+    borderRadius:      BORDER_RADIUS.md,
+    borderWidth:       1,
+    borderColor:       '#FECACA',
+    paddingVertical:   SPACING.sm,
+    paddingHorizontal: SPACING.sm,
   },
   audioRecordingLeft: {
     flexDirection: 'row',
@@ -1712,15 +1836,16 @@ const styles = StyleSheet.create({
     gap:           SPACING.sm,
   },
   audioRecordDot: {
-    width:           10,
-    height:          10,
-    borderRadius:    5,
+    width:           8,
+    height:          8,
+    borderRadius:    4,
     backgroundColor: COLORS.error,
   },
   audioTimer: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.error,
     fontWeight: '700',
+    fontSize:   13,
   },
   audioRecordingLabel: {
     ...TYPOGRAPHY.small,
@@ -1731,9 +1856,9 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     gap:               4,
     backgroundColor:   COLORS.error,
-    borderRadius:      BORDER_RADIUS.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.xs + 2,
+    borderRadius:      BORDER_RADIUS.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical:   SPACING.xs + 1,
   },
   audioStopText: {
     ...TYPOGRAPHY.small,
@@ -1741,19 +1866,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   audioRecorded: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             SPACING.sm,
-    backgroundColor: COLORS.primaryLight,
-    borderRadius:    BORDER_RADIUS.md,
-    borderWidth:     1,
-    borderColor:     COLORS.primaryMid,
-    padding:         SPACING.sm,
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               SPACING.sm,
+    backgroundColor:   COLORS.primaryLight,
+    borderRadius:      BORDER_RADIUS.md,
+    borderWidth:       1,
+    borderColor:       COLORS.primaryMid,
+    paddingVertical:   SPACING.xs + 2,
+    paddingHorizontal: SPACING.sm,
   },
   audioPlayBtn: {
-    width:           40,
-    height:          40,
-    borderRadius:    20,
+    width:           32,
+    height:          32,
+    borderRadius:    16,
     backgroundColor: COLORS.primary,
     alignItems:      'center',
     justifyContent:  'center',
@@ -1769,7 +1895,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
     fontWeight: '700',
-    marginTop:  2,
+    marginTop:  1,
   },
   audioDeleteBtn: {
     padding:    SPACING.xs,

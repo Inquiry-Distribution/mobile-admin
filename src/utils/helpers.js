@@ -45,6 +45,29 @@ export const formatDuration = (startIso, endIso) => {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 };
 
+// ─── HTML helpers ────────────────────────────────────────────
+
+/** Strip HTML tags and decode common entities — returns plain text.
+ *  Block-level closing tags are converted to newlines so paragraph/list
+ *  structure is preserved when the result is displayed in a <Text> node. */
+export const stripHtml = (html = '') =>
+  html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
 // ─── String helpers ───────────────────────────────────────────
 
 /** "john doe" → "John Doe" */
@@ -91,6 +114,8 @@ export const STATUS_LABEL = {
   assigned:    'Assigned',
   in_progress: 'In Progress',
   follow_up:   'Follow Up',
+  not_interested: 'Not Interested',
+  converted:   'Converted',
   closed:      'Closed',
 };
 

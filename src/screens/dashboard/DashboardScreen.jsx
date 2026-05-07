@@ -31,7 +31,7 @@ import dayjs               from 'dayjs';
 import { COLORS }                             from '@constants/colors';
 import { TYPOGRAPHY }                         from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW }     from '@constants/config';
-import { toISODate }                          from '@utils/helpers';
+import { toISODate, stripHtml }               from '@utils/helpers';
 
 import { reportApi }         from '@api/report.api';
 import { inquiryApi }        from '@api/inquiry.api';
@@ -341,7 +341,7 @@ export default function DashboardScreen({ navigation }) {
             label="Unassigned"
             value={s.unassigned ?? urgentCount}
             icon="clipboard-alert-outline"
-            color={COLORS.error}
+            color={COLORS.unassigned}
             onPress={() =>
               navigation.navigate('Inquiries', {
                 screen: 'InquiryList',
@@ -353,7 +353,7 @@ export default function DashboardScreen({ navigation }) {
             label="Assigned"
             value={s.assigned ?? '—'}
             icon="account-check-outline"
-            color={COLORS.warning}
+            color={COLORS.assigned}
             onPress={() =>
               navigation.navigate('Inquiries', {
                 screen: 'InquiryList',
@@ -377,7 +377,7 @@ export default function DashboardScreen({ navigation }) {
             label="Follow Up"
             value={s.followUp ?? '—'}
             icon="calendar-clock-outline"
-            color={COLORS.info}
+            color={COLORS.followUp}
             onPress={() =>
               navigation.navigate('Inquiries', {
                 screen: 'InquiryList',
@@ -386,10 +386,35 @@ export default function DashboardScreen({ navigation }) {
             }
           />
           <StatCard compact
+            label="Not Interested"
+            value={s.notInterested ?? '—'}
+            icon="close-circle-outline"
+            color={COLORS.notInterested}
+            onPress={() =>
+              navigation.navigate('Inquiries', {
+                screen: 'InquiryList',
+                params: { filterStatus: 'not_interested' },
+              })
+            }
+          />
+          <StatCard compact
+            label="Converted"
+            value={s.converted ?? '—'}
+            icon="trophy-outline"
+            color={COLORS.converted}
+            onPress={() =>
+              navigation.navigate('Inquiries', {
+                screen: 'InquiryList',
+                params: { filterStatus: 'converted' },
+              })
+            }
+          />
+
+          <StatCard compact
             label="Closed"
             value={s.closed ?? '—'}
             icon="check-circle-outline"
-            color={COLORS.secondary}
+            color={COLORS.closed}
             onPress={() =>
               navigation.navigate('Inquiries', {
                 screen: 'InquiryList',
@@ -574,15 +599,15 @@ function UnassignedRow({ inquiry, onPress, onDistribute }) {
 
       <View style={styles.unassignedBody}>
         <Text style={styles.unassignedDesc} numberOfLines={1}>
-          {inquiry.description || inquiry.title || 'No description'}
+          {stripHtml(inquiry.description || inquiry.title) || 'No description'}
         </Text>
         <View style={styles.unassignedMeta}>
-          {inquiry.mobile ? (
+          {/* {inquiry.mobile ? (
             <View style={styles.unassignedMetaItem}>
               <Icon name="phone-outline" size={11} color={COLORS.textMuted} />
               <Text style={styles.unassignedMetaText}>{inquiry.mobile}</Text>
             </View>
-          ) : null}
+          ) : null} */}
           <View style={styles.unassignedMetaItem}>
             <Icon
               name="clock-outline"
