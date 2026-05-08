@@ -12,6 +12,7 @@ import {
 } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SPACING } from '@constants/config';
+import { FONT_SIZE, FONTS } from '@constants/typography';
 
 const { width: SW, height: SH } = Dimensions.get('screen');
 
@@ -438,13 +439,13 @@ const styles = StyleSheet.create({
   },
   topFileName: {
     color:      '#fff',
-    fontSize:   13,
-    fontWeight: '600',
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
     maxWidth:   SW - 120,
   },
   topTime: {
     color:     'rgba(255,255,255,0.5)',
-    fontSize:  10,
+    fontSize:  FONT_SIZE.xs,
     marginTop: 2,
   },
   counterBadge: {
@@ -458,8 +459,8 @@ const styles = StyleSheet.create({
   },
   counterText: {
     color:      '#fff',
-    fontSize:   12,
-    fontWeight: '700',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
   },
   closeBtn: {
     width:           38,
@@ -500,6 +501,6 @@ const styles = StyleSheet.create({
   },
   hint: {
     color:    'rgba(255,255,255,0.28)',
-    fontSize: 10,
+    fontSize: FONT_SIZE.xs,
   },
 });

@@ -29,7 +29,7 @@ import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 
 import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
-import { TYPOGRAPHY }                             from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE }             from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials, PRIORITY_LABEL, stripHtml } from '@utils/helpers';
 
@@ -1191,14 +1191,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...TYPOGRAPHY.captionMedium,
     color:          COLORS.textMuted,
-    fontWeight:     '700',
+    fontFamily:     FONTS.bold,
     letterSpacing:  0.6,
     marginBottom:   SPACING.sm,
   },
   fieldLabel: {
     ...TYPOGRAPHY.captionMedium,
     color:         COLORS.textMuted,
-    fontWeight:    '700',
+    fontFamily:    FONTS.bold,
     letterSpacing: 0.5,
     marginBottom:  SPACING.xs,
   },
@@ -1225,7 +1225,7 @@ const styles = StyleSheet.create({
   uploadText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   uploadHint: {
     ...TYPOGRAPHY.caption,
@@ -1295,7 +1295,7 @@ const styles = StyleSheet.create({
   addBtnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   addBtnDivider: {
     width:           1,
@@ -1333,9 +1333,9 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.primaryMid,
   },
   aiChipText: {
-    fontSize:   10,
-    color:      COLORS.primary,
-    fontWeight: '700',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.bold,
+    color:         COLORS.primary,
     letterSpacing: 0.2,
   },
 
@@ -1358,9 +1358,9 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.primaryMid,
   },
   aiChipSmText: {
-    fontSize:   9,
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
     color:      COLORS.primary,
-    fontWeight: '700',
   },
 
   // Row layout (mobile+time, priority+source)
@@ -1425,7 +1425,7 @@ const styles = StyleSheet.create({
   distributeTitle: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   spSearchWrap: {
     flex:            1,
@@ -1461,7 +1461,7 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     ...TYPOGRAPHY.smallBold,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   avatarCheck: {
     position:        'absolute',
@@ -1483,11 +1483,11 @@ const styles = StyleSheet.create({
     maxWidth:  66,
   },
   avatarCompany: {
-    fontSize:  9,
-    color:     COLORS.primary,
-    textAlign: 'center',
-    maxWidth:  66,
-    fontWeight: '600',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.medium,
+    color:      COLORS.primary,
+    textAlign:  'center',
+    maxWidth:   66,
     marginTop:  1,
   },
   noSpText: {
@@ -1534,7 +1534,7 @@ const styles = StyleSheet.create({
   spStatsTitle: {
     ...TYPOGRAPHY.caption,
     color:       COLORS.textMuted,
-    fontWeight:  '600',
+    fontFamily:  FONTS.medium,
     letterSpacing: 0.3,
   },
   spStatsLoader: {
@@ -1558,7 +1558,7 @@ const styles = StyleSheet.create({
   spStatsTileValue: {
     ...TYPOGRAPHY.h4,
     color:      COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   spStatsTileRate: {
     color: COLORS.primary,
@@ -1603,7 +1603,7 @@ const styles = StyleSheet.create({
   submitBtnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   // ── Source trigger chip ───────────────────────────────────────
@@ -1654,7 +1654,7 @@ const styles = StyleSheet.create({
   sourceModalTitle: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   sourceModalSubtitle: {
     ...TYPOGRAPHY.caption,
@@ -1715,8 +1715,8 @@ const styles = StyleSheet.create({
     borderColor:     COLORS.primaryMid,
   },
   sourceOptionBody:        { flex: 1 },
-  sourceOptionCustomLabel: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '700', letterSpacing: 0.3 },
-  sourceOptionCustomValue: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', marginTop: 1 },
+  sourceOptionCustomLabel: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontFamily: FONTS.bold, letterSpacing: 0.3 },
+  sourceOptionCustomValue: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium, marginTop: 1 },
   sourceCustomArrow: {
     width:           26,
     height:          26,
@@ -1812,8 +1812,8 @@ const styles = StyleSheet.create({
   audioIdleText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '600',
-    fontSize:   13,
+    fontFamily: FONTS.medium,
+    fontSize:   FONT_SIZE.sm,
   },
   audioIdleHint: {
     ...TYPOGRAPHY.caption,
@@ -1844,8 +1844,8 @@ const styles = StyleSheet.create({
   audioTimer: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.error,
-    fontWeight: '700',
-    fontSize:   13,
+    fontFamily: FONTS.bold,
+    fontSize:   FONT_SIZE.sm,
   },
   audioRecordingLabel: {
     ...TYPOGRAPHY.small,
@@ -1863,7 +1863,7 @@ const styles = StyleSheet.create({
   audioStopText: {
     ...TYPOGRAPHY.small,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   audioRecorded: {
     flexDirection:     'row',
@@ -1889,12 +1889,12 @@ const styles = StyleSheet.create({
   audioInfoLabel: {
     ...TYPOGRAPHY.small,
     color:      COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   audioInfoTime: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginTop:  1,
   },
   audioDeleteBtn: {
@@ -1912,7 +1912,7 @@ const styles = StyleSheet.create({
   timeModalTitle: {
     ...TYPOGRAPHY.h4,
     color:        COLORS.textPrimary,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     marginBottom: SPACING.lg,
     textAlign:    'center',
   },
@@ -1938,12 +1938,12 @@ const styles = StyleSheet.create({
     width:           '100%',
     ...TYPOGRAPHY.h3,
     color:           COLORS.textPrimary,
-    fontWeight:      '700',
+    fontFamily:      FONTS.bold,
   },
   timeModalColon: {
     ...TYPOGRAPHY.h3,
     color:        COLORS.textSecondary,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     paddingBottom: SPACING.sm,
   },
   timeModalActions: {
@@ -1961,7 +1961,7 @@ const styles = StyleSheet.create({
   timeModalCancelText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   timeModalConfirm: {
     flex:            1,
@@ -1973,6 +1973,6 @@ const styles = StyleSheet.create({
   timeModalConfirmText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 });

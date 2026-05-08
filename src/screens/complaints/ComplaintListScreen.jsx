@@ -15,7 +15,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS }    from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 import EmptyState from '@components/common/EmptyState';
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#FDE68A',
   },
-  alertText: { ...TYPOGRAPHY.small, color: '#92400E', fontWeight: '600', flex: 1 },
+  alertText: { ...TYPOGRAPHY.small, color: '#92400E', fontFamily: FONTS.medium, flex: 1 },
 
   chipRow:     { flexGrow: 0, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
   chipContent: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: SPACING.xs, flexDirection: 'row', alignItems: 'center' },
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   chipActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  chipText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontWeight: '600' },
+  chipText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   chipTextActive: { color: COLORS.white },
   chipDot:        { width: 7, height: 7, borderRadius: 3.5 },
   chipDivider:    { width: 1, height: 20, backgroundColor: COLORS.divider, marginHorizontal: 4 },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   listContent:  { padding: SPACING.md, paddingBottom: SPACING.xxl },
   emptyContent: { flexGrow: 1 },
   loadCenter:   { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  totalLabel:   { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontWeight: '600', marginBottom: SPACING.sm },
+  totalLabel:   { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontFamily: FONTS.medium, marginBottom: SPACING.sm },
 
   row: {
     flexDirection: 'row',
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText: { fontSize: 15, fontWeight: '700' },
+  avatarText: { fontSize: FONT_SIZE.md, fontFamily: FONTS.bold },
 
   rowContent:  { flex: 1 },
   rowTop: {
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 2,
   },
-  rowName: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', flex: 1 },
+  rowName: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium, flex: 1 },
 
   statusBadge: {
     flexDirection: 'row',
@@ -245,12 +245,12 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
   },
   statusDot:  { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10, fontWeight: '700' },
+  statusText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   typeRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 3 },
-  typeLabel: { fontSize: 11, fontWeight: '700' },
+  typeLabel: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
-  subject: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', marginBottom: 2 },
+  subject: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium, marginBottom: 2 },
   preview: { ...TYPOGRAPHY.small, color: COLORS.textSecondary, marginBottom: 3 },
   date:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 });

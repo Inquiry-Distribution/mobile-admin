@@ -22,7 +22,7 @@ import Toast from 'react-native-toast-message';
 import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, LINE_HEIGHT, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { businessLocationApi } from '@api/businessLocation.api';
 
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.caption,
     color:         COLORS.textSecondary,
-    fontWeight:    '600',
+    fontFamily:    FONTS.medium,
     marginBottom:  6,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.border,
   },
   typeChipActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  typeChipText:       { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  typeChipText:       { fontSize: FONT_SIZE.sm, fontFamily: FONTS.medium, color: COLORS.textSecondary },
   typeChipTextActive: { color: COLORS.white },
 
   // Lat/Lng side by side
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color:      COLORS.textMuted,
     flex:       1,
-    lineHeight: 16,
+    lineHeight: LINE_HEIGHT.xs,
   },
 
   // Save button
@@ -481,8 +481,8 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: {
-    fontSize:   16,
-    fontWeight: '700',
+    fontSize:   FONT_SIZE.md,
+    fontFamily: FONTS.bold,
     color:      COLORS.white,
   },
 });

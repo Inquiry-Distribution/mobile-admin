@@ -14,29 +14,43 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE, LINE_HEIGHT } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { systemConfigApi } from '@api/systemConfig.api';
 
 // ─────────────────────────────────────────────────────────────
 export default function SystemConfigScreen() {
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState(false);
+  const [loading,      setLoading]      = useState(true);
+  const [loginSaving,  setLoginSaving]  = useState(false);
+  const [attendSaving, setAttendSaving] = useState(false);
 
   // Login-limit fields
   const [enabled,        setEnabled]        = useState(true);
   const [maxAttempts,    setMaxAttempts]    = useState(5);
   const [lockoutMinutes, setLockoutMinutes] = useState(30);
 
+  // Attendance hours fields
+  const [workStartHour,   setWorkStartHour]   = useState(9);
+  const [workEndHour,     setWorkEndHour]     = useState(18);
+  const [lateGraceMinute, setLateGraceMinute] = useState(15);
+
   // ── Fetch ─────────────────────────────────────────────────
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await systemConfigApi.getLoginLimit();
-      const cfg = res.data;
-      setEnabled(cfg.enabled);
-      setMaxAttempts(cfg.maxAttempts);
-      setLockoutMinutes(cfg.lockoutMinutes);
+      const [loginRes, attendRes] = await Promise.all([
+        systemConfigApi.getLoginLimit(),
+        systemConfigApi.getAttendanceHours(),
+      ]);
+      const lc = loginRes.data;
+      setEnabled(lc.enabled);
+      setMaxAttempts(lc.maxAttempts);
+      setLockoutMinutes(lc.lockoutMinutes);
+
+      const ac = attendRes.data;
+      setWorkStartHour(ac.workStartHour);
+      setWorkEndHour(ac.workEndHour);
+      setLateGraceMinute(ac.lateGraceMinute);
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Failed to load config', text2: e.message });
     } finally {
@@ -46,8 +60,8 @@ export default function SystemConfigScreen() {
 
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
 
-  // ── Save ──────────────────────────────────────────────────
-  const handleSave = async () => {
+  // ── Save login limit ───────────────────────────────────────
+  const handleSaveLogin = async () => {
     if (maxAttempts < 1 || maxAttempts > 20) {
       Toast.show({ type: 'error', text1: 'Max attempts must be 1–20.' });
       return;
@@ -56,14 +70,36 @@ export default function SystemConfigScreen() {
       Toast.show({ type: 'error', text1: 'Lockout must be 1–1440 minutes.' });
       return;
     }
-    setSaving(true);
+    setLoginSaving(true);
     try {
       await systemConfigApi.updateLoginLimit({ enabled, maxAttempts, lockoutMinutes });
-      Toast.show({ type: 'success', text1: 'Settings saved' });
+      Toast.show({ type: 'success', text1: 'Login security saved' });
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Save failed', text2: e.message });
     } finally {
-      setSaving(false);
+      setLoginSaving(false);
+    }
+  };
+
+  // ── Save attendance hours ──────────────────────────────────
+  const handleSaveAttendance = async () => {
+    if (workEndHour <= workStartHour) {
+      Toast.show({ type: 'error', text1: 'End hour must be after start hour.' });
+      return;
+    }
+    setAttendSaving(true);
+    try {
+      const res = await systemConfigApi.updateAttendanceHours({ workStartHour, workEndHour, lateGraceMinute });
+      Toast.show({ type: 'success', text1: 'Attendance hours saved' });
+      if (res.data?.notice) {
+        setTimeout(() => {
+          Toast.show({ type: 'info', text1: 'Note', text2: res.data.notice, visibilityTime: 5000 });
+        }, 800);
+      }
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'Save failed', text2: e.message });
+    } finally {
+      setAttendSaving(false);
     }
   };
 
@@ -81,6 +117,84 @@ export default function SystemConfigScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+
+        {/* ── Attendance Hours section ── */}
+        <SectionHeader icon="clock-time-nine-outline" title="Attendance Hours" color="#0891B2" />
+
+        <View style={styles.card}>
+
+          {/* Work start hour */}
+          <View style={[styles.row, styles.rowBorder]}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Work Start Hour</Text>
+              <Text style={styles.rowSub}>Check-in reminder fires at this hour</Text>
+            </View>
+            <Stepper
+              value={workStartHour}
+              min={0}
+              max={23}
+              onChange={setWorkStartHour}
+              suffix=":00"
+            />
+          </View>
+
+          {/* Work end hour */}
+          <View style={[styles.row, styles.rowBorder]}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Work End Hour</Text>
+              <Text style={styles.rowSub}>Early-exit threshold &amp; auto-close cap</Text>
+            </View>
+            <Stepper
+              value={workEndHour}
+              min={0}
+              max={23}
+              onChange={setWorkEndHour}
+              suffix=":00"
+            />
+          </View>
+
+          {/* Late grace */}
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Late Grace Period</Text>
+              <Text style={styles.rowSub}>Minutes after start before marked late</Text>
+            </View>
+            <Stepper
+              value={lateGraceMinute}
+              min={0}
+              max={59}
+              onChange={setLateGraceMinute}
+              suffix="min"
+            />
+          </View>
+
+        </View>
+
+        {/* Attendance summary pill */}
+        <View style={styles.summaryPill}>
+          <Icon name="information-outline" size={13} color="#0891B2" />
+          <Text style={[styles.summaryText, { color: '#0891B2' }]}>
+            Work hours: {String(workStartHour).padStart(2, '0')}:00 – {String(workEndHour).padStart(2, '0')}:00.{' '}
+            Late after {lateGraceMinute} min grace.{' '}
+            Changes apply to future records only.
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.saveBtn, { backgroundColor: '#0891B2' }, attendSaving && styles.saveBtnDisabled]}
+          onPress={handleSaveAttendance}
+          disabled={attendSaving}
+          activeOpacity={0.85}
+        >
+          {attendSaving ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <>
+              <Icon name="content-save-outline" size={20} color={COLORS.white} />
+              <Text style={styles.saveBtnText}>Save Attendance Hours</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {/* ── Login Security section ── */}
         <SectionHeader icon="shield-lock-outline" title="Login Security" color="#DC2626" />
@@ -147,19 +261,19 @@ export default function SystemConfigScreen() {
           </View>
         )}
 
-        {/* ── Save button ── */}
+        {/* ── Save login button ── */}
         <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-          onPress={handleSave}
-          disabled={saving}
+          style={[styles.saveBtn, loginSaving && styles.saveBtnDisabled]}
+          onPress={handleSaveLogin}
+          disabled={loginSaving}
           activeOpacity={0.85}
         >
-          {saving ? (
+          {loginSaving ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
             <>
               <Icon name="content-save-outline" size={20} color={COLORS.white} />
-              <Text style={styles.saveBtnText}>Save Changes</Text>
+              <Text style={styles.saveBtnText}>Save Login Security</Text>
             </>
           )}
         </TouchableOpacity>
@@ -244,10 +358,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.bodyMedium,
-    fontWeight:    '700',
+    fontFamily:    FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    fontSize:      12,
+    fontSize:      FONT_SIZE.xs,
   },
 
   // Card
@@ -274,7 +388,7 @@ const styles = StyleSheet.create({
   rowLabel: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
     marginBottom: 2,
   },
   rowSub: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
@@ -296,7 +410,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
     flex:       1,
-    lineHeight: 17,
+    lineHeight: LINE_HEIGHT.sm,
   },
 
   // Stepper
@@ -319,7 +433,7 @@ const styles = StyleSheet.create({
   stepValue: {
     ...TYPOGRAPHY.bodyMedium,
     color:       COLORS.textPrimary,
-    fontWeight:  '700',
+    fontFamily:  FONTS.bold,
     minWidth:    52,
     textAlign:   'center',
     paddingHorizontal: 4,
@@ -339,8 +453,8 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: {
-    fontSize:   16,
-    fontWeight: '700',
+    fontSize:   FONT_SIZE.md,
+    fontFamily: FONTS.bold,
     color:      COLORS.white,
   },
 });

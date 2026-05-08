@@ -20,7 +20,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS, PRIORITY_COLORS } from '@constants/colors';
-import { TYPOGRAPHY }              from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { stripHtml }               from '@utils/helpers';
 
@@ -261,8 +261,8 @@ const styles = StyleSheet.create({
   },
   priorityText: {
     ...TYPOGRAPHY.caption,
-    fontWeight: '700',
-    fontSize:   10,
+    fontFamily: FONTS.bold,
+    fontSize:   FONT_SIZE.xs,
   },
   deletedDate: {
     ...TYPOGRAPHY.caption,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   restoreText: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.secondary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   deleteBtn: {
     flex:            1,
@@ -328,6 +328,6 @@ const styles = StyleSheet.create({
   deleteText: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.error,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 });

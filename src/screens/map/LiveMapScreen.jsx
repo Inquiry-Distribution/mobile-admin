@@ -30,7 +30,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS }                         from '@constants/colors';
-import { TYPOGRAPHY }                     from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE }   from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials }                    from '@utils/helpers';
 
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     paddingVertical:   6,
   },
   liveDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
-  liveText: { ...TYPOGRAPHY.caption, color: COLORS.white, fontWeight: '700' },
+  liveText: { ...TYPOGRAPHY.caption, color: COLORS.white, fontFamily: FONTS.bold },
 
   // Marker
   markerWrap: {
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
   markerPinOffline:  { backgroundColor: '#9CA3AF' },
   markerPinSelected: { backgroundColor: COLORS.error },
-  markerInitials:    { fontSize: 12, fontWeight: '800', color: COLORS.white },
+  markerInitials:    { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.white },
 
   markerOnlineDot: {
     position:        'absolute',
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginLeft:   6,
   },
-  calloutName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
+  calloutName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.bold },
   calloutTime:    { ...TYPOGRAPHY.caption, color: COLORS.primary },
   calloutAddress: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 2 },
 
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     ...TYPOGRAPHY.bodyMedium,
     color:             COLORS.textPrimary,
-    fontWeight:        '700',
+    fontFamily:        FONTS.bold,
     paddingHorizontal: SPACING.md,
     marginBottom:      SPACING.sm,
   },
@@ -460,9 +460,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   locInfo:        { flex: 1 },
-  locInitials:    { fontSize: 14, fontWeight: '700', color: COLORS.primary },
-  locName:        { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600' },
+  locInitials:    { fontSize: FONT_SIZE.sm, fontFamily: FONTS.bold, color: COLORS.primary },
+  locName:        { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium },
   locTime:        { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginTop: 1 },
-  locTimeOnline:  { color: '#22C55E', fontWeight: '600' },
+  locTimeOnline:  { color: '#22C55E', fontFamily: FONTS.medium },
   locTimeNoPos:   { color: COLORS.textMuted },
 });

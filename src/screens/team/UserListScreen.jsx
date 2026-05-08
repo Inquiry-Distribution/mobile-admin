@@ -25,7 +25,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
 import { COLORS, ROLE_COLORS } from "@constants/colors";
-import { TYPOGRAPHY } from "@constants/typography";
+import { TYPOGRAPHY, FONTS, FONT_SIZE } from "@constants/typography";
 import { SPACING, BORDER_RADIUS, SHADOW } from "@constants/config";
 import { getInitials } from "@utils/helpers";
 
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.small,
     color: COLORS.textSecondary,
     includeFontPadding: false,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
   },
   chipTextActive: { color: COLORS.white },
   chipDivider: {
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   clearFilters: {
     ...TYPOGRAPHY.caption,
     color: COLORS.primary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
   },
 
   // Row
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     margin: SPACING.sm,
     marginRight: SPACING.xs,
   },
-  avatarText: { fontSize: 15, fontWeight: "700" },
+  avatarText: { fontSize: FONT_SIZE.md, fontFamily: FONTS.bold },
 
   info: { flex: 1, paddingVertical: 12 },
   nameRow: {
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   nameText: {
     ...TYPOGRAPHY.bodyMedium,
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
     flex: 1,
   },
 
@@ -541,9 +541,9 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   inactiveBadgeText: {
-    fontSize: 9,
+    fontSize: FONT_SIZE.xs,
     color: COLORS.textMuted,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
   },
 
   emailText: {
@@ -565,10 +565,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   roleBadgeText: {
-    fontSize: 9,
-    fontWeight: "700",
+    fontSize: FONT_SIZE.xs,
     textTransform: "uppercase",
     letterSpacing: 0.3,
+    fontFamily: FONTS.bold,
   },
   companyRow: {
     flexDirection: 'row',
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   companyText: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
     flex:       1,
   },
 
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 2,
   },
-  pinChipText: { fontSize: 9, color: COLORS.success, fontWeight: "700" },
+  pinChipText: { fontSize: FONT_SIZE.xs, color: COLORS.success, fontFamily: FONTS.bold },
 
   loadingMore: { paddingVertical: SPACING.lg, alignItems: "center" },
   listContent: { paddingBottom: 90 }, // extra room for FAB

@@ -18,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { COLORS } from '@constants/colors';
+import { FONTS, FONT_SIZE } from '@constants/typography';
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
@@ -38,17 +39,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   iconText: {
-    fontSize: 36,
+    fontSize: FONT_SIZE.xxxl,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: FONT_SIZE.xl,
+    fontFamily: FONTS.bold,
     color: COLORS.text ?? '#111827',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.md,
     color: COLORS.textSecondary ?? '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
@@ -63,8 +64,8 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZE.md,
   },
   detailsToggle: {
     marginTop: 8,
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
   },
   detailsToggleText: {
     color: COLORS.primary ?? '#7C3AED',
-    fontSize: 13,
+    fontSize: FONT_SIZE.sm,
     textDecorationLine: 'underline',
   },
   detailsBox: {
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
   },
   detailsText: {
     fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
-    fontSize: 11,
+    fontSize: FONT_SIZE.xs,
     color: '#374151',
   },
 });

@@ -32,7 +32,7 @@ import AudioRecorderPlayer   from 'react-native-audio-recorder-player';
 import { request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 
 import { COLORS, PRIORITY_COLORS }                from '@constants/colors';
-import { TYPOGRAPHY }                             from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE }            from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import { PRIORITY_LABEL, stripHtml }    from '@utils/helpers';
 
@@ -675,14 +675,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...TYPOGRAPHY.captionMedium,
     color:         COLORS.textMuted,
-    fontWeight:    '700',
+    fontFamily:    FONTS.bold,
     letterSpacing: 0.6,
     marginBottom:  SPACING.sm,
   },
   fieldLabel: {
     ...TYPOGRAPHY.captionMedium,
     color:         COLORS.textMuted,
-    fontWeight:    '700',
+    fontFamily:    FONTS.bold,
     letterSpacing: 0.5,
     marginBottom:  SPACING.xs,
   },
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   addBtnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   addBtnDivider: {
     width:           1,
@@ -789,8 +789,8 @@ const styles = StyleSheet.create({
   audioIdleText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '600',
-    fontSize:   13,
+    fontFamily: FONTS.medium,
+    fontSize:   FONT_SIZE.sm,
   },
   audioIdleHint: {
     ...TYPOGRAPHY.caption,
@@ -821,8 +821,8 @@ const styles = StyleSheet.create({
   audioTimer: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.error,
-    fontWeight: '700',
-    fontSize:   13,
+    fontFamily: FONTS.bold,
+    fontSize:   FONT_SIZE.sm,
   },
   audioRecordingLabel: {
     ...TYPOGRAPHY.small,
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
   audioStopText: {
     ...TYPOGRAPHY.small,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   audioRecorded: {
     flexDirection:     'row',
@@ -866,12 +866,12 @@ const styles = StyleSheet.create({
   audioInfoLabel: {
     ...TYPOGRAPHY.small,
     color:      COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   audioInfoTime: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginTop:  1,
   },
   audioDeleteBtn: {
@@ -934,7 +934,7 @@ const styles = StyleSheet.create({
   submitBtnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   // Time picker modal
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
   timeModalTitle: {
     ...TYPOGRAPHY.h4,
     color:        COLORS.textPrimary,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     marginBottom: SPACING.lg,
     textAlign:    'center',
   },
@@ -973,12 +973,12 @@ const styles = StyleSheet.create({
     width:           '100%',
     ...TYPOGRAPHY.h3,
     color:           COLORS.textPrimary,
-    fontWeight:      '700',
+    fontFamily:      FONTS.bold,
   },
   timeModalColon: {
     ...TYPOGRAPHY.h3,
     color:        COLORS.textSecondary,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     paddingBottom: SPACING.sm,
   },
   timeModalActions: { flexDirection: 'row', gap: SPACING.sm },
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
   timeModalCancelText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   timeModalConfirm: {
     flex:            1,
@@ -1005,6 +1005,6 @@ const styles = StyleSheet.create({
   timeModalConfirmText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 });

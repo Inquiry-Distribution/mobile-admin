@@ -15,7 +15,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS, ATTENDANCE_STATUS_COLORS } from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials, formatDuration } from '@utils/helpers';
 
@@ -407,9 +407,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText:   { fontSize: 17, fontWeight: '800' },
+  avatarText:   { fontSize: FONT_SIZE.lg, fontFamily: FONTS.bold },
   personInfo:   { flex: 1 },
-  personName:   { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
+  personName:   { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.bold },
   personEmail:  { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginBottom: 3 },
   dateRow:      { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dateText:     { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
@@ -420,11 +420,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
     alignSelf: 'flex-start',
   },
-  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  statusBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   dayFlagsRow: { flexDirection: 'row', gap: 6, marginTop: SPACING.sm, flexWrap: 'wrap' },
   flagChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 99 },
-  flagChipText: { fontSize: 10, fontWeight: '700' },
+  flagChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   statsRow: {
     flexDirection: 'row',
@@ -443,13 +443,13 @@ const styles = StyleSheet.create({
     height: 44,
     backgroundColor: COLORS.border,
   },
-  statValue: { ...TYPOGRAPHY.h3, fontWeight: '800' },
+  statValue: { ...TYPOGRAPHY.h3, fontFamily: FONTS.bold },
   statLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, textAlign: 'center' },
 
   sectionTitle: {
     ...TYPOGRAPHY.h4,
     color: COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginBottom: SPACING.md,
   },
 
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   sessionIndex: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
   },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#D97706' },
-  activePillText: { fontSize: 10, fontWeight: '700', color: '#D97706' },
+  activePillText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: '#D97706' },
 
   durPill: {
     flexDirection: 'row',
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: BORDER_RADIUS.full,
   },
-  durPillText: { fontSize: 10, fontWeight: '700', color: COLORS.primary },
+  durPillText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.primary },
 
   timesRow: {
     flexDirection: 'row',
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   timeLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
-  timeValue: { ...TYPOGRAPHY.bodyMedium, fontWeight: '700' },
+  timeValue: { ...TYPOGRAPHY.bodyMedium, fontFamily: FONTS.bold },
 
   locationsBox: {
     marginTop: SPACING.sm,
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  locationLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontWeight: '700', width: 22 },
+  locationLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontFamily: FONTS.bold, width: 22 },
   locationText:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flex: 1 },
 
   // Map section

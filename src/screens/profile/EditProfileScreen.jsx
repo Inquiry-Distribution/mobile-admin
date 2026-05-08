@@ -14,7 +14,7 @@ import Toast from 'react-native-toast-message';
 import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import useAuthStore   from '@store/auth.store';
 
 // ─── Shared sub-components ────────────────────────────────────
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     ...TYPOGRAPHY.body,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     color:        COLORS.primary,
     marginBottom: 10,
   },
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.caption,
     color:        COLORS.textSecondary,
-    fontWeight:   '600',
+    fontFamily:   FONTS.medium,
     marginBottom: 6,
   },
   inputRow: {
@@ -332,8 +332,8 @@ const styles = StyleSheet.create({
   submitText: {
     ...TYPOGRAPHY.body,
     color:      COLORS.white,
-    fontWeight: '700',
-    fontSize:   16,
+    fontFamily: FONTS.bold,
+    fontSize:   FONT_SIZE.md,
   },
 
   bottomPad: { height: 32 },

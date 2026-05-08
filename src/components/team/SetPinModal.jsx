@@ -26,7 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS, LINE_HEIGHT } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 
 import useUserStore from '@store/user.store';
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  headerTitle: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontWeight: '700' },
+  headerTitle: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontFamily: FONTS.bold },
   closeBtn: {
     width:           36,
     height:          36,
@@ -270,14 +270,14 @@ const styles = StyleSheet.create({
   heroName: {
     ...TYPOGRAPHY.h3,
     color:        COLORS.textPrimary,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     marginBottom: 6,
   },
   heroSub: {
     ...TYPOGRAPHY.small,
     color:     COLORS.textSecondary,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: LINE_HEIGHT.sm,
     paddingHorizontal: SPACING.md,
   },
 

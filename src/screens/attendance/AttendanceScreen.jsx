@@ -26,7 +26,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import dayjs from "dayjs";
 
 import { COLORS, ATTENDANCE_STATUS_COLORS } from "@constants/colors";
-import { TYPOGRAPHY } from "@constants/typography";
+import { TYPOGRAPHY, FONTS, FONT_SIZE } from "@constants/typography";
 import { SPACING, BORDER_RADIUS, SHADOW } from "@constants/config";
 import { formatTime, formatDuration, getInitials } from "@utils/helpers";
 
@@ -454,15 +454,15 @@ const styles = StyleSheet.create({
     paddingVertical:   6,
   },
   monthViewText: {
-    fontSize:   11,
-    fontWeight: "700",
-    color:      COLORS.primary,
+    fontSize:    FONT_SIZE.xs,
+    fontFamily:  FONTS.bold,
+    color:       COLORS.primary,
   },
   dateCenter: {
     alignItems: "center",
     gap: 4,
   },
-  dateText: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontWeight: "700" },
+  dateText: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontFamily: FONTS.bold },
 
   todayChip: {
     backgroundColor: COLORS.primary,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 2,
   },
-  todayChipText: { fontSize: 10, color: COLORS.white, fontWeight: "700" },
+  todayChipText: { fontSize: FONT_SIZE.xs, color: COLORS.white, fontFamily: FONTS.bold },
 
   goToTodayBtn: {
     flexDirection: "row",
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   goToTodayText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.primary,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
   },
 
   // Person banner (single-user mode)
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     flex: 1,
   },
-  personBannerName: { fontWeight: "700", color: COLORS.primary },
+  personBannerName: { fontFamily: FONTS.bold, color: COLORS.primary },
 
   // Summary
   summary: {
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
   },
   summaryChip: { alignItems: "center", minWidth: 48 },
-  summaryCount: { ...TYPOGRAPHY.h3, fontWeight: "800" },
+  summaryCount: { ...TYPOGRAPHY.h3, fontFamily: FONTS.bold },
   summaryLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   // Status chips
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   chipText: {
     ...TYPOGRAPHY.small,
     color: COLORS.textSecondary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
   },
   chipTextActive: { color: COLORS.white },
   chipDot: { width: 7, height: 7, borderRadius: 3.5 },
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
     flexShrink: 0,
   },
-  avatarText: { fontSize: 15, fontWeight: "700" },
+  avatarText: { fontSize: FONT_SIZE.md, fontFamily: FONTS.bold },
 
   rowInfo: { flex: 1 },
   rowTop: {
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   rowName: {
     ...TYPOGRAPHY.bodyMedium,
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
     flex: 1,
   },
   rowEmail: {
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginLeft: SPACING.xs,
   },
-  statusBadgeText: { fontSize: 10, fontWeight: "700" },
+  statusBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   timeRow: {
     flexDirection: "row",
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   rowChevron: { alignSelf: 'center', marginLeft: SPACING.xs },
   flagRow: { flexDirection: 'row', gap: 5, marginTop: 5, flexWrap: 'wrap' },
   flagChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
-  flagChipText: { fontSize: 9, fontWeight: '700' },
+  flagChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   list: { flex: 1, backgroundColor: COLORS.background },
   listContent: { paddingTop: SPACING.sm, paddingBottom: SPACING.xxl },

@@ -26,7 +26,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import dayjs from "dayjs";
 
 import { COLORS, STATUS_COLORS } from "@constants/colors";
-import { TYPOGRAPHY } from "@constants/typography";
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from "@constants/typography";
 import { reportApi } from "@api/report.api";
 import { formatPercent, formatNumber, getInitials } from "@utils/helpers";
 
@@ -403,8 +403,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  bannerInitials: { ...TYPOGRAPHY.h4, color: COLORS.white, fontWeight: "800" },
-  bannerName: { ...TYPOGRAPHY.h4, color: COLORS.white, fontWeight: "700" },
+  bannerInitials: { ...TYPOGRAPHY.h4, color: COLORS.white, fontFamily: FONTS.bold },
+  bannerName: { ...TYPOGRAPHY.h4, color: COLORS.white, fontFamily: FONTS.bold },
   bannerSub: {
     ...TYPOGRAPHY.caption,
     color: "rgba(255,255,255,0.75)",
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   chipText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
   },
   chipTextActive: { color: COLORS.primary },
 
@@ -458,13 +458,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 4,
   },
-  kpiValue: { ...TYPOGRAPHY.h3, color: COLORS.textPrimary, fontWeight: "800" },
+  kpiValue: { ...TYPOGRAPHY.h3, color: COLORS.textPrimary, fontFamily: FONTS.bold },
   kpiLabel: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
   },
-  kpiSub: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: 10 },
+  kpiSub: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: FONT_SIZE.xs },
 
   // ── Card ───────────────────────────────────────────────────────
   card: {
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardTitle: {
     ...TYPOGRAPHY.body,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   emptyCardText: {
@@ -500,14 +500,14 @@ const styles = StyleSheet.create({
   statusLabel: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
   },
   statusCount: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textPrimary,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
   },
-  statusPct: { color: COLORS.textMuted, fontWeight: "400" },
+  statusPct: { color: COLORS.textMuted },
   barTrack: {
     height: 6,
     backgroundColor: COLORS.background,
@@ -526,8 +526,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 4,
   },
-  attCount: { ...TYPOGRAPHY.h3, fontWeight: "800" },
-  attLabel: { ...TYPOGRAPHY.caption, fontWeight: "600" },
+  attCount: { ...TYPOGRAPHY.h3, fontFamily: FONTS.bold },
+  attLabel: { ...TYPOGRAPHY.caption, fontFamily: FONTS.medium },
 
   // ── Performance rows ───────────────────────────────────────────
   perfRow: {
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
   perfLabel: { ...TYPOGRAPHY.body, color: COLORS.textSecondary },
   perfValue: {
     ...TYPOGRAPHY.body,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
 
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: 8,
   },
-  retryText: { ...TYPOGRAPHY.body, color: COLORS.white, fontWeight: "700" },
+  retryText: { ...TYPOGRAPHY.body, color: COLORS.white, fontFamily: FONTS.bold },
 
   bottomPad: { height: 24 },
 });

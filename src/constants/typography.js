@@ -2,9 +2,9 @@ import { Platform } from 'react-native';
 
 // ─── Font families ────────────────────────────────────────────
 export const FONTS = {
-  regular: Platform.OS === 'ios' ? 'System' : 'Roboto-Regular',
-  medium:  Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
-  bold:    Platform.OS === 'ios' ? 'System' : 'Roboto-Bold',
+  regular: Platform.OS === 'ios' ? 'System' : 'Manrope-Regular',
+  medium:  Platform.OS === 'ios' ? 'System' : 'Manrope-Medium',
+  bold:    Platform.OS === 'ios' ? 'System' : 'Manrope-Bold',
 };
 
 // ─── Scale ────────────────────────────────────────────────────
@@ -56,6 +56,7 @@ export const TYPOGRAPHY = {
     fontSize:   FONT_SIZE.md,
     fontFamily: FONTS.regular,
     lineHeight: LINE_HEIGHT.md,
+    fontWeight: '700',
   },
   bodyMedium: {
     fontSize:   FONT_SIZE.md,

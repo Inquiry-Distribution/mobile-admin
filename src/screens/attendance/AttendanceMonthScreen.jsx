@@ -30,7 +30,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS, ATTENDANCE_STATUS_COLORS } from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE, LINE_HEIGHT } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     gap:           6,
   },
-  monthText: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontWeight: '700' },
+  monthText: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontFamily: FONTS.bold },
 
   // ── Person banner ────────────────────────────────────────────
   personBanner: {
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
     borderColor:      COLORS.primaryMid,
   },
   personBannerText: { ...TYPOGRAPHY.small, color: COLORS.textSecondary, flex: 1 },
-  personBannerName: { fontWeight: '700', color: COLORS.primary },
+  personBannerName: { fontFamily: FONTS.bold, color: COLORS.primary },
 
   // ── Summary strip ────────────────────────────────────────────
   summaryStrip: {
@@ -559,9 +559,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   summaryCellValue: {
-    fontSize:   18,
-    fontWeight: '800',
-    lineHeight: 22,
+    fontSize:   FONT_SIZE.lg,
+    fontFamily: FONTS.bold,
+    lineHeight: LINE_HEIGHT.md,
   },
   summaryCellLabel: {
     ...TYPOGRAPHY.caption,
@@ -597,9 +597,9 @@ const styles = StyleSheet.create({
     marginRight:     SPACING.sm,
     flexShrink:      0,
   },
-  personAvatarText: { fontSize: 15, fontWeight: '700', color: COLORS.primary },
+  personAvatarText: { fontSize: FONT_SIZE.md, fontFamily: FONTS.bold, color: COLORS.primary },
   personInfo:       { flex: 1 },
-  personName:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', marginBottom: 6 },
+  personName:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium, marginBottom: 6 },
 
   countRow: {
     flexDirection: 'row',
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     paddingVertical:   3,
   },
   countDot:   { width: 6, height: 6, borderRadius: 3 },
-  countNum:   { fontSize: 12, fontWeight: '800' },
+  countNum:   { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
   countLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   hoursChip: {
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
     paddingVertical:   3,
     backgroundColor:   COLORS.primaryLight,
   },
-  hoursText: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '700' },
+  hoursText: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontFamily: FONTS.bold },
 
   // ── Day row (Mode 2) ─────────────────────────────────────────
   dayRow: {
@@ -652,9 +652,9 @@ const styles = StyleSheet.create({
     marginRight:    SPACING.sm,
     flexShrink:     0,
   },
-  dayNum:     { fontSize: 18, fontWeight: '800', color: COLORS.textPrimary, lineHeight: 22 },
+  dayNum:     { fontSize: FONT_SIZE.lg, fontFamily: FONTS.bold, color: COLORS.textPrimary, lineHeight: LINE_HEIGHT.md },
   dayNumMuted: { color: COLORS.textMuted },
-  dayName:    { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontWeight: '600' },
+  dayName:    { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   dayNameMuted: { color: COLORS.border },
   todayDot:   { width: 5, height: 5, borderRadius: 2.5, backgroundColor: COLORS.primary, marginTop: 2 },
 
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     paddingVertical:   3,
     marginBottom:      4,
   },
-  statusText: { fontSize: 10, fontWeight: '700' },
+  statusText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   timesRow: {
     flexDirection: 'row',
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
   timeText:  { ...TYPOGRAPHY.caption, color: COLORS.textSecondary },
   flagRow: { flexDirection: 'row', gap: 4, marginTop: 4, flexWrap: 'wrap' },
   flagChip: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 99 },
-  flagChipText: { fontSize: 9, fontWeight: '700' },
+  flagChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   noRecordText: { ...TYPOGRAPHY.small, color: COLORS.textMuted, fontStyle: 'italic' },
 

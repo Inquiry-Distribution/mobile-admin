@@ -16,7 +16,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS }    from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 import Loader from '@components/common/Loader';
@@ -228,9 +228,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText:    { fontSize: 16, fontWeight: '800' },
+  avatarText:    { fontSize: FONT_SIZE.md, fontFamily: FONTS.bold },
   submitterInfo: { flex: 1 },
-  submitterName: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
+  submitterName: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.bold },
   submitterEmail:{ ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginBottom: 2 },
   date:          { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
@@ -247,18 +247,18 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
   },
-  typeBadgeText:   { fontSize: 11, fontWeight: '700' },
+  typeBadgeText:   { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
   },
-  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  statusBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   subject: {
     ...TYPOGRAPHY.h4,
     color: COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginBottom: SPACING.sm,
   },
   messageBox: {
@@ -269,7 +269,6 @@ const styles = StyleSheet.create({
   messageText: {
     ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
-    lineHeight: 22,
   },
 
   // Previous review
@@ -288,10 +287,10 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 2,
   },
-  prevReviewTitle: { ...TYPOGRAPHY.bodyMedium, color: COLORS.primary, fontWeight: '700', flex: 1 },
+  prevReviewTitle: { ...TYPOGRAPHY.bodyMedium, color: COLORS.primary, fontFamily: FONTS.bold, flex: 1 },
   prevReviewDate:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   prevReviewBy:    { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginBottom: SPACING.xs },
-  prevReviewNote:  { ...TYPOGRAPHY.body, color: COLORS.textPrimary, lineHeight: 20 },
+  prevReviewNote:  { ...TYPOGRAPHY.body, color: COLORS.textPrimary },
   prevReviewEmpty: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontStyle: 'italic' },
 
   // Review form
@@ -305,13 +304,13 @@ const styles = StyleSheet.create({
   reviewCardTitle: {
     ...TYPOGRAPHY.h4,
     color: COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginBottom: SPACING.md,
   },
   fieldLabel: {
     ...TYPOGRAPHY.caption,
     color: COLORS.textMuted,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: SPACING.xs,
@@ -349,7 +348,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
   },
   actionBtnDisabled: { opacity: 0.6 },
-  actionBtnText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontWeight: '700' },
+  actionBtnText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontFamily: FONTS.bold },
   reviewedBtn:   { backgroundColor: '#2563EB' },
   resolvedBtn:   { backgroundColor: '#059669' },
 
@@ -364,5 +363,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#A7F3D0',
   },
-  resolvedNoticeText: { ...TYPOGRAPHY.bodyMedium, color: '#059669', fontWeight: '600' },
+  resolvedNoticeText: { ...TYPOGRAPHY.bodyMedium, color: '#059669', fontFamily: FONTS.medium },
 });

@@ -17,7 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS }                    from '@constants/colors';
-import { TYPOGRAPHY }                from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import { getInitials, formatDateTime } from '@utils/helpers';
 import { auditApi }                  from '@api/audit.api';
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   },
   chipActive:      { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   chipModelActive: { backgroundColor: '#E0F2FE', borderColor: '#0284C7' },
-  chipText:        { fontSize: 11, fontWeight: '600', color: COLORS.textSecondary },
+  chipText:        { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, color: COLORS.textSecondary },
   chipTextActive:  { color: COLORS.white },
   chipModelText:   { color: '#0284C7' },
   chipDivider:     { width: 1, height: 20, backgroundColor: COLORS.border, marginHorizontal: 2 },
@@ -513,12 +513,12 @@ const styles = StyleSheet.create({
     maxWidth:          '75%',
   },
   actionBadgeText: {
-    fontSize:      10,
-    fontWeight:    '800',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  rowTime: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: 10 },
+  rowTime: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: FONT_SIZE.xs },
 
   performerRow: {
     flexDirection: 'row',
@@ -534,17 +534,17 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  performerInitialsText: { fontSize: 9, fontWeight: '700', color: COLORS.primary },
-  performerName:         { ...TYPOGRAPHY.small, fontWeight: '700', color: COLORS.textPrimary, flexShrink: 1 },
+  performerInitialsText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.primary },
+  performerName:         { ...TYPOGRAPHY.small, fontFamily: FONTS.bold, color: COLORS.textPrimary, flexShrink: 1 },
 
   roleBadge: {
     borderRadius:     BORDER_RADIUS.full,
     paddingHorizontal: 5,
     paddingVertical:   1,
   },
-  roleBadgeText: { fontSize: 9, fontWeight: '700', textTransform: 'capitalize' },
+  roleBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, textTransform: 'capitalize' },
 
-  modelLabel:  { fontWeight: '700', color: COLORS.textSecondary },
+  modelLabel:  { fontFamily: FONTS.bold, color: COLORS.textSecondary },
   summaryLine: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginBottom: 2 },
 
   // Expanded
@@ -571,14 +571,14 @@ const styles = StyleSheet.create({
   },
   metaKey: {
     width:      110,
-    fontSize:   11,
-    fontWeight: '600',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.medium,
     color:      COLORS.textSecondary,
     flexShrink: 0,
   },
   metaVal: {
     flex:     1,
-    fontSize: 11,
+    fontSize: FONT_SIZE.xs,
     color:    COLORS.textPrimary,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
     gap:           3,
   },
   expandedFooterText: {
-    fontSize:   10,
+    fontSize:   FONT_SIZE.xs,
     color:      COLORS.textMuted,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },

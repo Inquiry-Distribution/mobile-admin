@@ -20,11 +20,17 @@ object UpdateManager {
 
     private const val GITHUB_OWNER = "Inquiry-Distribution"
     private const val GITHUB_REPO  = "mobile-admin"
-    private const val GITHUB_TOKEN = "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" // your PAT here
+    private const val GITHUB_TOKEN = "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"
     private const val API_URL =
         "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
 
+    // Request code used with startActivityForResult when opening unknown-sources settings
+    const val REQUEST_INSTALL_PERMISSION = 1001
+
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Held across the Settings round-trip so download can resume after permission is granted
+    private var pendingRelease: ReleaseInfo? = null
 
     data class ReleaseInfo(
         val tagName: String,
@@ -46,6 +52,15 @@ object UpdateManager {
             val release = fetchLatestRelease(currentVersionCode) ?: return@Thread
             mainHandler.post { showUpdateDialog(activity, release) }
         }.start()
+    }
+
+    // Called from MainActivity.onActivityResult — resumes download after permission granted
+    fun onPermissionResult(activity: Activity) {
+        val release = pendingRelease ?: return
+        pendingRelease = null
+        if (canInstallUnknownApps(activity)) {
+            startDownload(activity, release)
+        }
     }
 
     private fun fetchLatestRelease(currentVersionCode: Int): ReleaseInfo? {
@@ -81,7 +96,6 @@ object UpdateManager {
                 }
             }
 
-            // use preferred ABI match, fall back to any .apk found
             if (assetApiUrl.isEmpty()) assetApiUrl = fallbackUrl
             if (assetApiUrl.isEmpty()) return null
 
@@ -210,6 +224,7 @@ object UpdateManager {
     }
 
     private fun requestUnknownAppsPermission(activity: Activity, release: ReleaseInfo) {
+        pendingRelease = release  // save so onPermissionResult can resume the download
         AlertDialog.Builder(activity)
             .setTitle("Permission Required")
             .setMessage("To install updates, allow this app to install from unknown sources in Settings.")
@@ -218,9 +233,11 @@ object UpdateManager {
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:${activity.packageName}")
                 )
-                activity.startActivity(intent)
+                activity.startActivityForResult(intent, REQUEST_INSTALL_PERMISSION)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancel") { _, _ ->
+                pendingRelease = null  // user cancelled — discard pending release
+            }
             .show()
     }
 }

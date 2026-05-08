@@ -7,7 +7,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS }                         from '@constants/colors';
-import { TYPOGRAPHY }                     from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE }   from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import Loader     from '@components/common/Loader';
 import EmptyState from '@components/common/EmptyState';
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   cardName: {
     ...TYPOGRAPHY.bodyMedium,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color:      COLORS.textPrimary,
     flex:       1,
   },
@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
   cardMetaText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   // Unread state
-  cardNameUnread:    { fontWeight: '800' },
-  cardTimeUnread:    { color: COLORS.primary, fontWeight: '700' },
-  cardPreviewUnread: { color: COLORS.textSecondary, fontWeight: '600' },
+  cardNameUnread:    { fontFamily: FONTS.bold },
+  cardTimeUnread:    { color: COLORS.primary, fontFamily: FONTS.bold },
+  cardPreviewUnread: { color: COLORS.textSecondary, fontFamily: FONTS.medium },
 
   avatarBadge: {
     position:        'absolute',
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     borderWidth:     1.5,
     borderColor:     COLORS.surface,
   },
-  avatarBadgeText: { fontSize: 9, color: COLORS.white, fontWeight: '800' },
+  avatarBadgeText: { fontSize: FONT_SIZE.xs, color: COLORS.white, fontFamily: FONTS.bold },
 
   unreadBadge: {
     minWidth:          20,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     marginLeft:        8,
   },
-  unreadBadgeText: { fontSize: 10, color: COLORS.white, fontWeight: '800' },
+  unreadBadgeText: { fontSize: FONT_SIZE.xs, color: COLORS.white, fontFamily: FONTS.bold },
 
   fab: {
     position:        'absolute',

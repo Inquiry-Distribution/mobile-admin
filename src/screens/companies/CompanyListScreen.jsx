@@ -15,7 +15,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useCompanyStore from '@store/company.store';
 import useAuthStore    from '@store/auth.store';
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   rowName: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginBottom: 3,
   },
   rowMeta: {

@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { FONTS, FONT_SIZE } from '@constants/typography';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const BANNER_HEIGHT   = 36;
@@ -52,8 +53,8 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
     letterSpacing: 0.2,
   },
 });

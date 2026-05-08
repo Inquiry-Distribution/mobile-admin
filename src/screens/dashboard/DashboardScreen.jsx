@@ -29,7 +29,7 @@ import Toast               from 'react-native-toast-message';
 import dayjs               from 'dayjs';
 
 import { COLORS }                             from '@constants/colors';
-import { TYPOGRAPHY }                         from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE, LINE_HEIGHT } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW }     from '@constants/config';
 import { toISODate, stripHtml }               from '@utils/helpers';
 
@@ -616,7 +616,7 @@ function UnassignedRow({ inquiry, onPress, onDistribute }) {
             />
             <Text style={[
               styles.unassignedMetaText,
-              isUrgent && { color: COLORS.error, fontWeight: '700' },
+              isUrgent && { color: COLORS.error, fontFamily: FONTS.bold },
             ]}>
               {dayjs(inquiry.createdAt).format('DD MMM · hh:mm A')}
               {/* {ageMinutes < 60
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
   periodChipText: {
     ...TYPOGRAPHY.smallMedium,
     color:      COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   periodChipTextActive: {
     color: COLORS.white,
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
   errorTitle: {
     ...TYPOGRAPHY.h4,
     color:      COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginTop:  SPACING.sm,
   },
   errorSub: {
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
   retryBtnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   // ── Header ────────────────────────────────────────────────────
@@ -730,11 +730,11 @@ const styles = StyleSheet.create({
   greeting: {
     ...TYPOGRAPHY.small,
     color:      COLORS.textSecondary,
-    fontWeight: '500',
+    fontFamily: FONTS.regular,
   },
   userName: {
-    fontSize:   26,
-    fontWeight: '800',
+    fontSize:   FONT_SIZE.xxl,
+    fontFamily: FONTS.bold,
     color:      COLORS.textPrimary,
     marginTop:  1,
   },
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical:   3,
   },
-  roleChipText: { fontSize: 10, fontWeight: '700' },
+  roleChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   // Improvement #3 — enhanced date box
   dateBox: {
@@ -762,23 +762,23 @@ const styles = StyleSheet.create({
     ...SHADOW.sm,
   },
   dateDayName: {
-    fontSize:      9,
-    fontWeight:    '700',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.bold,
     color:         'rgba(255,255,255,0.7)',
     letterSpacing: 1,
     marginBottom:  1,
   },
   dateDay: {
-    fontSize:   22,
-    fontWeight: '800',
+    fontSize:   FONT_SIZE.xl,
+    fontFamily: FONTS.bold,
     color:      COLORS.white,
-    lineHeight: 24,
+    lineHeight: LINE_HEIGHT.lg,
   },
   dateMonth: {
-    fontSize:    9,
-    fontWeight:  '600',
-    color:       'rgba(255,255,255,0.7)',
-    marginTop:   1,
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.medium,
+    color:         'rgba(255,255,255,0.7)',
+    marginTop:     1,
     letterSpacing: 0.3,
   },
 
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
   },
   alertBody:  { flex: 1 },
-  alertTitle: { ...TYPOGRAPHY.bodyMedium, color: COLORS.error, fontWeight: '700' },
+  alertTitle: { ...TYPOGRAPHY.bodyMedium, color: COLORS.error, fontFamily: FONTS.bold },
   alertSub:   { ...TYPOGRAPHY.caption, color: COLORS.error + 'AA', marginTop: 1 },
 
   // ── Section header ────────────────────────────────────────────
@@ -816,8 +816,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     marginBottom:      SPACING.sm,
   },
-  sectionTitle: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontWeight: '700' },
-  seeAll:       { ...TYPOGRAPHY.small, color: COLORS.primary, fontWeight: '600' },
+  sectionTitle: { ...TYPOGRAPHY.h4, color: COLORS.textPrimary, fontFamily: FONTS.bold },
+  seeAll:       { ...TYPOGRAPHY.small, color: COLORS.primary, fontFamily: FONTS.medium },
 
   // Improvement #7 — today badge
   todayBadge: {
@@ -830,9 +830,9 @@ const styles = StyleSheet.create({
     paddingVertical:   3,
   },
   todayBadgeText: {
-    fontSize:   11,
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
     color:      COLORS.primary,
-    fontWeight: '700',
   },
 
   // ── Stats grid ────────────────────────────────────────────────
@@ -870,8 +870,8 @@ const styles = StyleSheet.create({
     justifyContent:    'center',
     paddingHorizontal: 4,
   },
-  qaBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.white },
-  qaLabel:     { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontWeight: '600' },
+  qaBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.white },
+  qaLabel:     { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontFamily: FONTS.medium },
 
   // ── Unassigned rows ───────────────────────────────────────────
   unassignedRow: {
@@ -918,8 +918,8 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.primaryMid,
   },
   distributeBtnText: {
-    fontSize:   10,
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
     color:      COLORS.primary,
-    fontWeight: '700',
   },
 });

@@ -18,6 +18,7 @@ import {
   View,
   Text,
   ScrollView,
+  RefreshControl,
   Image,
   StyleSheet,
   TouchableOpacity,
@@ -32,7 +33,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS, STATUS_COLORS, PRIORITY_COLORS } from '@constants/colors';
-import { TYPOGRAPHY }    from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import { formatDateTime, getInitials, stripHtml } from '@utils/helpers';
 
@@ -81,6 +82,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const [unassignLoading,  setUnassignLoading]  = useState(false);
   const [extendLoading,    setExtendLoading]    = useState(false);
   const [menuVisible,      setMenuVisible]      = useState(false);
+  const [isRefreshing,     setIsRefreshing]     = useState(false);
 
   // ── Audio playback ────────────────────────────────────────────
   const audioPlayer  = useRef(new AudioRecorderPlayer()).current;
@@ -104,6 +106,12 @@ export default function InquiryDetailScreen({ route, navigation }) {
   }, [id]);
 
   const refetch = useCallback(() => selectInquiry(id), [id]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await selectInquiry(id);
+    setIsRefreshing(false);
+  }, [id]);
 
   const handleDeleteImage = useCallback((imageId, label) => {
     Alert.alert(
@@ -444,6 +452,14 @@ export default function InquiryDetailScreen({ route, navigation }) {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
         >
           {/* ── Hero card ───────────────────────────────── */}
           <View style={styles.hero}>
@@ -1094,9 +1110,9 @@ const styles = StyleSheet.create({
     paddingVertical:   3,
     borderRadius:  BORDER_RADIUS.full,
   },
-  typeText:   { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
+  typeText:   { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, textTransform: 'capitalize' },
   heroDate:   { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flexShrink: 0 },
-  heroDesc:   { fontSize: 15, fontWeight: '500', color: COLORS.textPrimary, lineHeight: 23 },
+  heroDesc:   { fontSize: FONT_SIZE.md, fontFamily: FONTS.medium, color: COLORS.textPrimary, lineHeight: 23 },
   heroDivider:{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACING.sm },
   heroFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 
@@ -1117,8 +1133,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  callNumber: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
-  callHint:   { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
+  callNumber: { fontSize: FONT_SIZE.md, fontFamily: FONTS.bold, color: COLORS.textPrimary },
+  callHint:   { fontSize: FONT_SIZE.xs, fontFamily: FONTS.regular, color: COLORS.textMuted, marginTop: 1 },
   callHintDisabled: { color: COLORS.error },
   callBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -1126,7 +1142,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
     paddingHorizontal: 12, paddingVertical: 6,
   },
-  callBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.white },
+  callBtnText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.white },
   callBtnDisabled: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: COLORS.border,
@@ -1147,7 +1163,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4,
     marginTop: SPACING.xs,
   },
-  infoChipText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
+  infoChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, color: COLORS.primary },
 
   convertedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -1156,7 +1172,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3,
     borderWidth: 1, borderColor: COLORS.converted + '60',
   },
-  convertedText: { fontSize: 10, fontWeight: '800', color: COLORS.converted },
+  convertedText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.converted },
 
   // Action buttons
   actionSection: {
@@ -1188,12 +1204,13 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   primaryBtnSub: {
-    fontSize:  11,
-    color:     'rgba(255,255,255,0.7)',
-    marginTop: 1,
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.regular,
+    color:      'rgba(255,255,255,0.7)',
+    marginTop:  1,
   },
 
   // Secondary row (Reassign / Unassign)
@@ -1226,7 +1243,7 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: {
     ...TYPOGRAPHY.bodyMedium,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
   // Header three-dot button
   headerActionBtn: {
@@ -1260,7 +1277,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.small,
-    fontWeight:     '700',
+    fontFamily:     FONTS.bold,
     color:          COLORS.textSecondary,
     textTransform:  'uppercase',
     letterSpacing:  0.6,
@@ -1275,8 +1292,8 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
   },
-  personInitials: { fontSize: 14, fontWeight: '700' },
-  personLabel:    { fontSize: 10, color: COLORS.textMuted, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.3 },
+  personInitials: { fontSize: FONT_SIZE.sm, fontFamily: FONTS.bold },
+  personLabel:    { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.3 },
   personName:     { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary },
 
   // Photos
@@ -1337,11 +1354,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginTop: 1, flexShrink: 0,
   },
-  noteIndexText: { fontSize: 10, fontWeight: '700', color: COLORS.primary },
+  noteIndexText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.primary },
   noteContent:   { flex: 1 },
   noteText:      { ...TYPOGRAPHY.body, color: COLORS.textPrimary, lineHeight: 20 },
   noteMeta:      { flexDirection: 'row', gap: 6, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' },
-  noteBy:        { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600' },
+  noteBy:        { ...TYPOGRAPHY.caption, color: COLORS.primary, fontFamily: FONTS.medium },
   noteTime:      { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
   // Stats strip
@@ -1371,38 +1388,39 @@ const styles = StyleSheet.create({
   },
   tlDateBody:  { flex: 1 },
   tlDateLabel: {
-    fontSize:      10,
-    fontWeight:    '600',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.medium,
     color:         COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom:  2,
   },
   tlDateValue: {
-    fontSize:   15,
-    fontWeight: '700',
+    fontSize:   FONT_SIZE.md,
+    fontFamily: FONTS.bold,
     color:      COLORS.textPrimary,
     lineHeight: 20,
   },
   tlDateTime: {
-    fontSize:   11,
-    fontWeight: '500',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.medium,
     color:      COLORS.textMuted,
     marginTop:  1,
   },
   tlDatePending: {
-    fontSize:  13,
-    color:     COLORS.textMuted,
-    fontStyle: 'italic',
-    marginTop: 2,
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.regular,
+    color:      COLORS.textMuted,
+    fontStyle:  'italic',
+    marginTop:  2,
   },
   tlDateRight: {
     alignItems:  'flex-end',
     flexShrink:  0,
   },
   tlDateAgo: {
-    fontSize:      11,
-    fontWeight:    '700',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.bold,
     color:         COLORS.textMuted,
     letterSpacing: 0.2,
   },
@@ -1428,13 +1446,13 @@ const styles = StyleSheet.create({
     gap:         3,
   },
   tlStatValue: {
-    fontSize:   13,
-    fontWeight: '800',
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.bold,
     color:      COLORS.textPrimary,
   },
   tlStatLabel: {
-    fontSize:      9,
-    fontWeight:    '600',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.medium,
     color:         COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
@@ -1453,8 +1471,8 @@ const styles = StyleSheet.create({
     marginTop:     2,
   },
   personCompanyText: {
-    fontSize:   10,
-    fontWeight: '600',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.medium,
   },
 
   // Visibility window row
@@ -1471,7 +1489,7 @@ const styles = StyleSheet.create({
   },
   visibilityActive:  { backgroundColor: COLORS.info + '12', borderColor: COLORS.info + '40' },
   visibilityExpired: { backgroundColor: COLORS.error + '10', borderColor: COLORS.error + '35' },
-  visibilityText:    { fontSize: 12, fontWeight: '600' },
+  visibilityText:    { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium },
 
   // Timing block (inside Assignment section)
   timingBlock: {
@@ -1495,21 +1513,21 @@ const styles = StyleSheet.create({
     flexShrink:     0,
   },
   timingLabel: {
-    fontSize:   10,
-    fontWeight: '700',
-    color:      COLORS.textMuted,
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.bold,
+    color:         COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   timingValue: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.textPrimary,
-    fontWeight: '500',
+    fontFamily: FONTS.medium,
     marginTop:  1,
   },
   timingBy: {
     ...TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     marginTop:  1,
   },
   reassignBadge: {
@@ -1524,8 +1542,8 @@ const styles = StyleSheet.create({
     marginTop:         SPACING.xs,
   },
   reassignBadgeText: {
-    fontSize:   10,
-    fontWeight: '700',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
     color:      COLORS.warning,
   },
 
@@ -1551,18 +1569,20 @@ const styles = StyleSheet.create({
   audioInfo:    { flex: 1, gap: 4 },
   audioTimeRow: { flexDirection: 'row', alignItems: 'baseline' },
   audioPosition: {
-    fontSize:    16,
-    fontWeight:  '700',
+    fontSize:    FONT_SIZE.md,
+    fontFamily:  FONTS.bold,
     color:       COLORS.textPrimary,
     fontVariant: ['tabular-nums'],
   },
   audioDuration: {
-    fontSize:    12,
+    fontSize:    FONT_SIZE.xs,
+    fontFamily:  FONTS.regular,
     color:       COLORS.textMuted,
     fontVariant: ['tabular-nums'],
   },
   audioStateLabel: {
-    fontSize:      11,
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.regular,
     color:         COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1592,6 +1612,6 @@ const styles = StyleSheet.create({
     marginBottom: 3,
     textTransform: 'capitalize',
   },
-  tlBadgeText: { fontSize: 11, fontWeight: '700', textTransform: 'capitalize' },
+  tlBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, textTransform: 'capitalize' },
   tlTime:      { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 });

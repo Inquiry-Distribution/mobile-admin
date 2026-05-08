@@ -31,7 +31,7 @@ import dayjs from "dayjs";
 
 import { COLORS, PRIORITY_COLORS, STATUS_COLORS } from "@constants/colors";
 import { STATUS_LABEL, stripHtml } from "@utils/helpers";
-import { TYPOGRAPHY } from "@constants/typography";
+import { TYPOGRAPHY, FONTS, FONT_SIZE } from "@constants/typography";
 import { SPACING, BORDER_RADIUS } from "@constants/config";
 
 import useInquiryStore from "@store/inquiry.store";
@@ -244,6 +244,15 @@ export default function InquiryListScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* ── Filter-refresh loader ────────────────────────────── */}
+      {isLoading && inquiries.length > 0 && (
+        <View style={styles.filterLoader}>
+          <View style={styles.filterLoaderInner}>
+            <ActivityIndicator size={28} color={COLORS.primary} />
+          </View>
+        </View>
+      )}
 
       {/* ── List ─────────────────────────────────────────────── */}
       <FlatList
@@ -884,6 +893,26 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
 
   // ── Search row ───────────────────────────────────────────────
+  filterLoader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  filterLoaderInner: {
+    backgroundColor: "#fff",
+    borderRadius: 50,
+    padding: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
+  },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -944,9 +973,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.surface,
   },
   filterBadgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "800",
+    color:      "#fff",
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
     lineHeight: 13,
   },
 
@@ -1034,10 +1063,10 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   drawerTitle: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: "700",
-    color: COLORS.textPrimary,
+    flex:       1,
+    fontSize:   FONT_SIZE.lg,
+    fontFamily: FONTS.bold,
+    color:      COLORS.textPrimary,
   },
   drawerResetBtn: {
     flexDirection: "row",
@@ -1051,9 +1080,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primaryMid,
   },
   drawerResetText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.primary,
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.medium,
+    color:      COLORS.primary,
   },
   drawerCloseBtn: {
     width: 32,
@@ -1080,9 +1109,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   drawerSectionTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.textSecondary,
+    fontSize:      FONT_SIZE.sm,
+    fontFamily:    FONTS.bold,
+    color:         COLORS.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.6,
   },
@@ -1114,9 +1143,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   drawerChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.textSecondary,
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
+    color:      COLORS.textSecondary,
   },
   drawerChipTextActive: {
     color: COLORS.white,
@@ -1144,10 +1173,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
   },
   spBtnText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.textMuted,
+    flex:       1,
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
+    color:      COLORS.textMuted,
   },
   spBtnTextActive: {
     color: COLORS.primary,
@@ -1176,9 +1205,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   applyBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.white,
+    fontSize:   FONT_SIZE.md,
+    fontFamily: FONTS.bold,
+    color:      COLORS.white,
   },
 
   // ══════════════════════════════════════════════════════════════
@@ -1253,9 +1282,9 @@ const styles = StyleSheet.create({
   },
   modalAvatarActive: { backgroundColor: COLORS.primary },
   modalAvatarText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.textSecondary,
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.bold,
+    color:      COLORS.textSecondary,
   },
   modalItemInfo: { flex: 1 },
   modalItemName: {
@@ -1325,22 +1354,22 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
   },
   priorityDot: { width: 6, height: 6, borderRadius: 3 },
-  priorityPillText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  priorityPillText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, letterSpacing: 0.2 },
   statusPill: {
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: BORDER_RADIUS.full,
   },
-  statusPillText: { fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
+  statusPillText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, letterSpacing: 0.2 },
   cardDate: {
-    fontSize: 10,
-    fontWeight: "500",
+    fontSize: FONT_SIZE.xs,
+    fontFamily: FONTS.medium,
     color: COLORS.textMuted,
     flexShrink: 0,
   },
   cardDesc: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
     color: COLORS.textPrimary,
     lineHeight: 21,
     letterSpacing: 0.1,
@@ -1356,7 +1385,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
   },
   metaChipSource: { backgroundColor: COLORS.secondaryLight },
-  metaChipText: { fontSize: 11, fontWeight: "600", color: COLORS.primary },
+  metaChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, color: COLORS.primary },
   urgentChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -1366,7 +1395,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.full,
     backgroundColor: "#FEE2E2",
   },
-  urgentChipText: { fontSize: 11, fontWeight: "700", color: COLORS.error },
+  urgentChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.error },
   cardDivider: { height: 1, backgroundColor: COLORS.divider },
   cardFooter: {
     flexDirection: "row",
@@ -1400,17 +1429,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  avatarText: { fontSize: 11, fontWeight: "800", color: COLORS.primary },
+  avatarText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.primary },
   footerAssigneeInfo: { flex: 1 },
-  assigneeName: { fontSize: 12, fontWeight: "700", color: COLORS.textPrimary },
+  assigneeName: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.textPrimary },
   assigneeCompany: {
-    fontSize: 10,
-    fontWeight: "500",
+    fontSize: FONT_SIZE.xs,
+    fontFamily: FONTS.medium,
     color: COLORS.textMuted,
     marginTop: 1,
   },
   unassignedLabel: {
     fontSize: 12,
+    fontFamily: FONTS.regular,
     color: COLORS.textMuted,
     fontStyle: "italic",
   },
@@ -1420,5 +1450,5 @@ const styles = StyleSheet.create({
     gap: 4,
     flexShrink: 0,
   },
-  timeText: { fontSize: 11, fontWeight: "600", color: COLORS.textMuted },
+  timeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, color: COLORS.textMuted },
 });

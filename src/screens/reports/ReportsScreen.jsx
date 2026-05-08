@@ -22,7 +22,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS } from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { formatPercent, getInitials } from '@utils/helpers';
 import { reportApi } from '@api/report.api';
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.border,
   },
   presetActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  presetText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontWeight: '600' },
+  presetText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   presetTextActive: { color: COLORS.white },
 
   // Tabs
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive:     { borderBottomColor: COLORS.primary },
-  tabText:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontWeight: '600' },
+  tabText:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   tabTextActive: { color: COLORS.primary },
 
   scroll: { paddingBottom: SPACING.xxl },
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...TYPOGRAPHY.caption,
     color:             COLORS.textMuted,
-    fontWeight:        '700',
+    fontFamily:        FONTS.bold,
     textTransform:     'uppercase',
     letterSpacing:     0.5,
     paddingHorizontal: SPACING.md,
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom:   SPACING.xs,
   },
-  kpiValue: { ...TYPOGRAPHY.h2, fontWeight: '800', marginBottom: 2 },
+  kpiValue: { ...TYPOGRAPHY.h2, fontFamily: FONTS.bold, marginBottom: 2 },
   kpiLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, textAlign: 'center' },
 
   // Conversion rate
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom:   SPACING.sm,
   },
-  convRate: { ...TYPOGRAPHY.h1, color: COLORS.primary, fontWeight: '900' },
+  convRate: { ...TYPOGRAPHY.h1, color: COLORS.primary, fontFamily: FONTS.bold },
   convSub:  { ...TYPOGRAPHY.small, color: COLORS.textMuted },
   convTrack: {
     height:          10,
@@ -568,15 +568,15 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
     flexShrink:      0,
   },
-  teamAvatarText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
-  teamName:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', flex: 1 },
+  teamAvatarText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.primary },
+  teamName:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium, flex: 1 },
   rateBadge: {
     paddingHorizontal: 8,
     paddingVertical:   3,
     borderRadius:      BORDER_RADIUS.full,
     flexShrink:        0,
   },
-  rateBadgeText: { fontSize: 12, fontWeight: '700' },
+  rateBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   // Status chips (shared by Team + Companies tabs)
   statusChipsRow: {
@@ -591,8 +591,8 @@ const styles = StyleSheet.create({
     borderRadius:      BORDER_RADIUS.md,
     minWidth:          52,
   },
-  statusChipValue: { fontSize: 14, fontWeight: '800' },
-  statusChipLabel: { fontSize: 9,  fontWeight: '600', color: COLORS.textMuted, marginTop: 1 },
+  statusChipValue: { fontSize: FONT_SIZE.sm, fontFamily: FONTS.bold },
+  statusChipLabel: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, color: COLORS.textMuted, marginTop: 1 },
 
   emptyTeam: {
     alignItems: 'center',
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     overflow:         'hidden',
   },
   companySummaryChip:  { flex: 1, alignItems: 'center' },
-  companySummaryValue: { fontSize: 18, fontWeight: '800' },
+  companySummaryValue: { fontSize: FONT_SIZE.lg, fontFamily: FONTS.bold },
   companySummaryLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1 },
 
   companyCard: {
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
     gap:           SPACING.xs,
   },
   companyDot:     { width: 10, height: 10, borderRadius: 5, flexShrink: 0 },
-  companyName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600', flex: 1 },
+  companyName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium, flex: 1 },
   companySpCount: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flexShrink: 0 },
   miniBarTrack: {
     height:          4,
@@ -647,5 +647,5 @@ const styles = StyleSheet.create({
     paddingVertical:   3,
     flexShrink:        0,
   },
-  companyRateText: { fontSize: 11, fontWeight: '700' },
+  companyRateText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 });

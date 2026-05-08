@@ -28,7 +28,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS }       from '@constants/colors';
-import { TYPOGRAPHY }   from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS }   from '@constants/typography';
 import { locationApi }  from '@api/location.api';
 import { formatTime, distanceKm } from '@utils/helpers';
 
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   dateCenter:        { flex: 1, alignItems: 'center' },
   dateText: {
     ...TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color:      COLORS.textPrimary,
   },
   dateSub: {
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   todayBtnText: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   // ── Map ────────────────────────────────────────────────────────
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     gap:           6,
   },
-  statValue: { ...TYPOGRAPHY.body, fontWeight: '700', color: COLORS.textPrimary },
+  statValue: { ...TYPOGRAPHY.body, fontFamily: FONTS.bold, color: COLORS.textPrimary },
   statLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   statDivider: {
     width:           1,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   listHeader: {
     ...TYPOGRAPHY.caption,
     color:        COLORS.textMuted,
-    fontWeight:   '600',
+    fontFamily:   FONTS.medium,
     marginBottom: 8,
   },
 
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   },
   cpTime: {
     ...TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color:      COLORS.textPrimary,
   },
   cpCoord: {
@@ -514,8 +514,8 @@ const styles = StyleSheet.create({
   },
   cpBadgeEnd:  { backgroundColor: COLORS.error + '20' },
   cpBadgeText: {
-    fontSize:   9,
-    fontWeight: '800',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
     color:      COLORS.success,
     letterSpacing: 0.5,
   },
@@ -529,5 +529,5 @@ const styles = StyleSheet.create({
     backgroundColor:   COLORS.primary,
     borderRadius:      8,
   },
-  retryText: { ...TYPOGRAPHY.body, color: COLORS.white, fontWeight: '700' },
+  retryText: { ...TYPOGRAPHY.body, color: COLORS.white, fontFamily: FONTS.bold },
 });

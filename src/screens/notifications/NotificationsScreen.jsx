@@ -23,7 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS } from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 
 import useNotificationStore from '@store/notification.store';
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive:     { borderBottomColor: COLORS.primary },
-  tabText:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontWeight: '600' },
+  tabText:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   tabTextActive: { color: COLORS.primary },
 
   // Mark all
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     backgroundColor:   COLORS.primaryLight,
     borderRadius:      BORDER_RADIUS.full,
   },
-  markAllText: { ...TYPOGRAPHY.small, color: COLORS.primary, fontWeight: '700' },
+  markAllText: { ...TYPOGRAPHY.small, color: COLORS.primary, fontFamily: FONTS.bold },
 
   // Notif row
   notifRow: {
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   },
   notifBody:     { flex: 1 },
   notifTop:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
-  notifTitle:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontWeight: '600', flex: 1 },
+  notifTitle:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontFamily: FONTS.medium, flex: 1 },
   notifTime:     { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginLeft: 4 },
   notifBodyText: { ...TYPOGRAPHY.small, color: COLORS.textSecondary },
   unreadDot:     { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.primary, marginTop: 6 },
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.border,
   },
   modeBtnActive:  { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  modeBtnText:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontWeight: '600' },
+  modeBtnText:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontFamily: FONTS.medium },
 
   broadcastBanner: {
     flexDirection:     'row',
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     ...TYPOGRAPHY.smallMedium,
     color:        COLORS.textSecondary,
-    fontWeight:   '600',
+    fontFamily:   FONTS.medium,
     marginBottom: 6,
   },
 
@@ -457,8 +457,8 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.border,
   },
   spChipSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  spChipText:     { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontWeight: '600' },
-  selectedCount:  { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600', marginTop: 6 },
+  spChipText:     { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontFamily: FONTS.medium },
+  selectedCount:  { ...TYPOGRAPHY.caption, color: COLORS.primary, fontFamily: FONTS.medium, marginTop: 6 },
 
   input: {
     backgroundColor:   COLORS.surface,
@@ -485,5 +485,5 @@ const styles = StyleSheet.create({
     marginTop:       SPACING.sm,
   },
   sendBtnDisabled: { backgroundColor: COLORS.border, elevation: 0, shadowOpacity: 0 },
-  sendBtnText:     { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontWeight: '700' },
+  sendBtnText:     { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontFamily: FONTS.bold },
 });

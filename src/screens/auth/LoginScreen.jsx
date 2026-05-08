@@ -21,8 +21,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { COLORS }              from '@constants/colors';
+import { TYPOGRAPHY, FONTS, FONT_SIZE, LINE_HEIGHT } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useAuthStore   from '@store/auth.store';
 
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   appName: {
     ...TYPOGRAPHY.h3,
     color:      COLORS.textPrimary,
-    fontWeight: '800',
+    fontFamily: FONTS.bold,
     marginTop:  SPACING.xs,
   },
   appSub: {
@@ -319,9 +319,9 @@ const styles = StyleSheet.create({
     paddingVertical:   4,
   },
   roleBadgeText: {
-    fontSize:   11,
-    fontWeight: '700',
-    color:      COLORS.superuser,
+    fontSize:    FONT_SIZE.xs,
+    fontFamily:  FONTS.bold,
+    color:       COLORS.superuser,
   },
   roleDivider: {
     width:  1,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...TYPOGRAPHY.h3,
     color:        COLORS.textPrimary,
-    fontWeight:   '800',
+    fontFamily:   FONTS.bold,
     marginBottom: 4,
   },
   cardSub: {
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.smallMedium,
     color:        COLORS.textSecondary,
-    fontWeight:   '600',
+    fontFamily:   FONTS.medium,
     marginBottom: SPACING.xs,
   },
   inputWrap: {
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   loginBtnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   // ── Loading ───────────────────────────────────────────────────
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color:     COLORS.textMuted,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: LINE_HEIGHT.sm,
     paddingHorizontal: SPACING.md,
   },
 });

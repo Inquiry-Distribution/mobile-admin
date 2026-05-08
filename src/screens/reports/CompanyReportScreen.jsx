@@ -25,7 +25,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { reportApi } from '@api/report.api';
 import EmptyState from '@components/common/EmptyState';
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     borderColor:       COLORS.border,
   },
   presetActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  presetText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontWeight: '600' },
+  presetText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   presetTextActive: { color: COLORS.white },
 
   // Loading / error
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     paddingVertical:   SPACING.sm,
     marginTop:         SPACING.xs,
   },
-  retryText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontWeight: '700' },
+  retryText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontFamily: FONTS.bold },
 
   // Summary card
   summaryCard: {
@@ -406,9 +406,9 @@ const styles = StyleSheet.create({
   },
   summaryCell: { flex: 1, alignItems: 'center' },
   summaryCellValue: {
-    fontSize:   18,
-    fontWeight: '800',
+    fontSize:   FONT_SIZE.lg,
     lineHeight: 22,
+    fontFamily: FONTS.bold,
   },
   summaryCellLabel: {
     ...TYPOGRAPHY.caption,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     flexShrink:     0,
   },
   cardTitleBlock: { flex: 1 },
-  cardTitle:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
+  cardTitle:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.bold },
   cardMeta:     { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
   cardMetaText: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     borderRadius:     BORDER_RADIUS.md,
     paddingVertical:  6,
   },
-  statPillValue: { fontSize: 15, fontWeight: '800', lineHeight: 18 },
+  statPillValue: { fontSize: FONT_SIZE.md, lineHeight: 18, fontFamily: FONTS.bold },
   statPillLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1, textAlign: 'center' },
 
   // Rate bar
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   rateBarFill:  { height: '100%', borderRadius: 3 },
   rateLabel: {
     ...TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     minWidth:   42,
     textAlign:  'right',
   },

@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS, ROLE_COLORS }               from '@constants/colors';
-import { TYPOGRAPHY }                         from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE }        from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW }     from '@constants/config';
 import { getInitials, formatDateTime }        from '@utils/helpers';
 import DeviceInfo  from 'react-native-device-info';
@@ -191,11 +191,11 @@ const styles = StyleSheet.create({
     marginBottom:   SPACING.sm,
     ...SHADOW.md,
   },
-  avatarText: { fontSize: 28, fontWeight: '800' },
+  avatarText: { fontSize: FONT_SIZE.xl, fontFamily: FONTS.bold },
   heroName: {
     ...TYPOGRAPHY.h3,
     color:        COLORS.textPrimary,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     marginBottom: SPACING.sm,
   },
 
@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
     paddingVertical:   5,
   },
   roleBadgeText: {
-    fontSize:      11,
-    fontWeight:    '800',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   editBtnText: {
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   // ── Section ───────────────────────────────────────────────
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...TYPOGRAPHY.caption,
     color:             COLORS.textMuted,
-    fontWeight:        '700',
+    fontFamily:        FONTS.bold,
     textTransform:     'uppercase',
     letterSpacing:     0.6,
     paddingHorizontal: SPACING.md,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   logoutText: {
     ...TYPOGRAPHY.body,
     color:      COLORS.error,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     flex:       1,
   },
 });

@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { STATUS_COLORS } from '@constants/colors';
 import { BORDER_RADIUS } from '@constants/config';
+import { FONTS, FONT_SIZE } from '@constants/typography';
 
 const LABELS = {
   unassigned:     'Unassigned',
@@ -49,10 +50,10 @@ const styles = StyleSheet.create({
     width: 6, height: 6, borderRadius: 3,
   },
   label: {
-    fontSize:   11,
-    fontWeight: '700',
+    fontSize:   FONT_SIZE.xs,
+    fontFamily: FONTS.bold,
   },
   labelSm: {
-    fontSize: 10,
+    fontSize: FONT_SIZE.xs,
   },
 });

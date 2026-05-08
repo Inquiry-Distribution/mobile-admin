@@ -14,7 +14,7 @@ import Toast from 'react-native-toast-message';
 import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS } from '@constants/config';
 import useCompanyStore from '@store/company.store';
 
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...TYPOGRAPHY.body,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     color:        COLORS.primary,
     marginBottom: SPACING.sm,
   },
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.caption,
     color:        COLORS.textSecondary,
-    fontWeight:   '600',
+    fontFamily:   FONTS.medium,
     marginBottom: 6,
   },
   inputRow: {
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   btnText: {
     ...TYPOGRAPHY.body,
     color:      COLORS.white,
-    fontWeight: '700',
-    fontSize:   16,
+    fontFamily: FONTS.bold,
+    fontSize:   FONT_SIZE.md,
   },
 });

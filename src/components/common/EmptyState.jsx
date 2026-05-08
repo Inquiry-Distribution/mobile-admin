@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS } from '@constants/typography';
 import { SPACING } from '@constants/config';
 
 export default function EmptyState({
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   title: {
     ...TYPOGRAPHY.h4,
     color: COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     textAlign: 'center',
   },
   msg: {

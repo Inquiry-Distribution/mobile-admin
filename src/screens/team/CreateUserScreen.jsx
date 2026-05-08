@@ -25,7 +25,7 @@ import Toast     from 'react-native-toast-message';
 import Icon      from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import useUserStore    from '@store/user.store';
 import useAuthStore    from '@store/auth.store';
 import useCompanyStore from '@store/company.store';
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     ...TYPOGRAPHY.body,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     color:        COLORS.primary,
     marginBottom: 10,
   },
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   label: {
     ...TYPOGRAPHY.caption,
     color:        COLORS.textSecondary,
-    fontWeight:   '600',
+    fontFamily:   FONTS.medium,
     marginBottom: 6,
   },
 
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   chipDisabled: { opacity: 0.4 },
   chipText: {
     ...TYPOGRAPHY.body,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
     color:      COLORS.textSecondary,
   },
   chipTextSelected: { color: COLORS.primary },
@@ -457,8 +457,8 @@ const styles = StyleSheet.create({
   submitText: {
     ...TYPOGRAPHY.body,
     color:      COLORS.white,
-    fontWeight: '700',
-    fontSize:   16,
+    fontFamily: FONTS.bold,
+    fontSize:   FONT_SIZE.md,
   },
 
   bottomPad: { height: 32 },

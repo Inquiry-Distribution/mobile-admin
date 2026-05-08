@@ -22,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS, ROLE_COLORS } from '@constants/colors';
-import { TYPOGRAPHY }          from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 
@@ -99,6 +99,14 @@ export default function MoreMenuScreen({ navigation }) {
               onPress={() => navigation.navigate('AuditLog')}
             />
           )}
+
+          <MenuItem
+            icon="chart-timeline-variant"
+            label="Activity Log"
+            subtitle="Salesperson interaction history"
+            color="#7C3AED"
+            onPress={() => navigation.navigate('ActivityLog')}
+          />
 
           {isSuperuser() && (
             <MenuItem
@@ -192,9 +200,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink:     0,
   },
-  profileAvatarText: { fontSize: 20, fontWeight: '800' },
+  profileAvatarText: { fontSize: FONT_SIZE.xl, fontFamily: FONTS.bold },
   profileInfo:       { flex: 1 },
-  profileName:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '700' },
+  profileName:       { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.bold },
   profileEmail:      { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, marginBottom: 4 },
 
   roleBadge: {
@@ -204,8 +212,8 @@ const styles = StyleSheet.create({
     paddingVertical:   2,
   },
   roleBadgeText: {
-    fontSize:      9,
-    fontWeight:    '800',
+    fontSize:      FONT_SIZE.xs,
+    fontFamily:    FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
@@ -239,7 +247,7 @@ const styles = StyleSheet.create({
   },
 
   menuTexts: { flex: 1 },
-  menuLabel: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600' },
+  menuLabel: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium },
   menuSub:   { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 2 },
 
   badge: {
@@ -251,5 +259,5 @@ const styles = StyleSheet.create({
     justifyContent:    'center',
     paddingHorizontal: 4,
   },
-  badgeText: { fontSize: 10, color: COLORS.white, fontWeight: '800' },
+  badgeText: { fontSize: FONT_SIZE.xs, color: COLORS.white, fontFamily: FONTS.bold },
 });

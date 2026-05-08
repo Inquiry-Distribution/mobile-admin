@@ -57,6 +57,7 @@ import MoreMenuScreen      from '@screens/more/MoreMenuScreen';
 import ReportsScreen       from '@screens/reports/ReportsScreen';
 import NotificationsScreen from '@screens/notifications/NotificationsScreen';
 import AuditLogScreen      from '@screens/audit/AuditLogScreen';
+import ActivityLogScreen  from '@screens/activity/ActivityLogScreen';
 import ProfileScreen       from '@screens/profile/ProfileScreen';
 import EditProfileScreen   from '@screens/profile/EditProfileScreen';
 import GroupListScreen        from '@screens/groups/GroupListScreen';
@@ -394,6 +395,14 @@ function MoreNavigator() {
           }}
         />
       )}
+      <MoreStack.Screen
+        name="ActivityLog"
+        component={ActivityLogScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="chart-timeline-variant" title="Activity Log" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
       {isSuperuser && (
         <MoreStack.Screen
           name="ComplaintList"

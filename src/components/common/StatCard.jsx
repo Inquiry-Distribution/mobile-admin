@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE, LINE_HEIGHT } from '@constants/typography';
 import { BORDER_RADIUS, SHADOW, SPACING } from '@constants/config';
 
 export default function StatCard({ label, value, icon, color, onPress, sub, compact = false }) {
@@ -55,24 +55,24 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   value: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: FONT_SIZE.xxl,
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
-    lineHeight: 30,
+    lineHeight: LINE_HEIGHT.xxl,
   },
   valueCompact: {
-    fontSize: 18,
-    lineHeight: 22,
+    fontSize: FONT_SIZE.lg,
+    lineHeight: LINE_HEIGHT.md,
   },
   label: {
     ...TYPOGRAPHY.smallMedium,
     color: COLORS.textSecondary,
     marginTop: 2,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
   labelCompact: {
     ...TYPOGRAPHY.caption,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
     marginTop: 1,
   },
   sub: {

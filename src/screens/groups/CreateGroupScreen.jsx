@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { COLORS }                         from '@constants/colors';
-import { TYPOGRAPHY }                     from '@constants/typography';
+import { TYPOGRAPHY, FONTS }              from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useGroupStore from '@store/group.store';
 
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
 
   label: {
     ...TYPOGRAPHY.bodyMedium,
-    fontWeight:   '600',
+    fontFamily:   FONTS.medium,
     color:        COLORS.textPrimary,
     marginTop:    SPACING.md,
     marginBottom: SPACING.xs,
@@ -106,7 +106,6 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color:      COLORS.textMuted,
     marginTop:  SPACING.sm,
-    lineHeight: 18,
   },
   btn: {
     marginTop:       SPACING.xl,
@@ -121,6 +120,6 @@ const styles = StyleSheet.create({
   btnText: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.white,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 });

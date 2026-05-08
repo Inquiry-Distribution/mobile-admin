@@ -27,7 +27,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS, ROLE_COLORS, DEVICE_STATUS_COLORS } from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE, LINE_HEIGHT } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials, formatDateTime } from '@utils/helpers';
 
@@ -692,8 +692,8 @@ const styles = StyleSheet.create({
     marginBottom:   SPACING.sm,
     ...SHADOW.md,
   },
-  heroAvatarText: { fontSize: 28, fontWeight: '800' },
-  heroName:       { ...TYPOGRAPHY.h3, color: COLORS.textPrimary, fontWeight: '700', marginBottom: SPACING.sm },
+  heroAvatarText: { fontSize: FONT_SIZE.xxl, fontFamily: FONTS.bold },
+  heroName:       { ...TYPOGRAPHY.h3, color: COLORS.textPrimary, fontFamily: FONTS.bold, marginBottom: SPACING.sm },
 
   heroBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
 
@@ -703,10 +703,10 @@ const styles = StyleSheet.create({
     paddingVertical:   4,
   },
   roleBadgeText: {
-    fontSize:      10,
-    fontWeight:    '800',
+    fontSize:      FONT_SIZE.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    fontFamily:    FONTS.bold,
   },
 
   activeBadge: {
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     paddingVertical:   4,
   },
   activeDot:       { width: 7, height: 7, borderRadius: 3.5 },
-  activeBadgeText: { fontSize: 10, fontWeight: '700' },
+  activeBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   // Section
   section: {
@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...TYPOGRAPHY.caption,
     color:         COLORS.textMuted,
-    fontWeight:    '700',
+    fontFamily:    FONTS.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom:  SPACING.sm,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical:   6,
   },
-  setPinBtnText: { ...TYPOGRAPHY.small, color: COLORS.primary, fontWeight: '700' },
+  setPinBtnText: { ...TYPOGRAPHY.small, color: COLORS.primary, fontFamily: FONTS.bold },
 
   pinStatus: {
     flexDirection: 'row',
@@ -796,14 +796,14 @@ const styles = StyleSheet.create({
     gap:           SPACING.sm,
   },
   deviceInfo:    { flex: 1 },
-  deviceId:      { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600' },
+  deviceId:      { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium },
   deviceMobile:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
   deviceBadge: {
     borderRadius:      BORDER_RADIUS.full,
     paddingHorizontal: 8,
     paddingVertical:   3,
   },
-  deviceBadgeText: { fontSize: 10, fontWeight: '700' },
+  deviceBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
   deviceLastSeen:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 6 },
   deviceAppVer:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
   deviceActionReset:   { borderColor: COLORS.error,    backgroundColor: COLORS.error    + '10' },
   deviceActionText: {
     ...TYPOGRAPHY.small,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
   },
 
   deleteErrorBanner: {
@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.small,
     color:     COLORS.error,
     flex:      1,
-    lineHeight: 18,
+    lineHeight: LINE_HEIGHT.sm,
   },
 
   noDevice: {
@@ -887,9 +887,9 @@ const styles = StyleSheet.create({
   },
   actionTileLabel: {
     ...TYPOGRAPHY.small,
-    fontWeight:  '600',
+    fontFamily:  FONTS.medium,
     textAlign:   'center',
-    lineHeight:  16,
+    lineHeight:  LINE_HEIGHT.xs,
   },
 
   // ── Remote attendance ─────────────────────────────────────────
@@ -909,7 +909,7 @@ const styles = StyleSheet.create({
   remoteTexts: { flex: 1 },
   remoteLabel: {
     ...TYPOGRAPHY.body,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
     color:      COLORS.textPrimary,
   },
   remoteSub: {

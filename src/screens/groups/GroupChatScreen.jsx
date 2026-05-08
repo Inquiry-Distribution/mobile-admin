@@ -12,7 +12,7 @@ import DocumentPicker from 'react-native-document-picker';
 import dayjs from 'dayjs';
 
 import { COLORS }                         from '@constants/colors';
-import { TYPOGRAPHY }                     from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE }   from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import useGroupStore from '@store/group.store';
 import useAuthStore  from '@store/auth.store';
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
     paddingHorizontal: 3,
   },
-  fabBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '700' },
+  fabBadgeText: { color: COLORS.white, fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
   emptyText: { ...TYPOGRAPHY.body, color: COLORS.textMuted },
@@ -889,17 +889,17 @@ const styles = StyleSheet.create({
   // Bubbles
   bubbleWrap:    { marginBottom: SPACING.xs, alignItems: 'flex-start', maxWidth: '82%' },
   bubbleWrapMe:  { alignSelf: 'flex-end', alignItems: 'flex-end' },
-  bubbleSender:  { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '700', marginBottom: 2, marginLeft: SPACING.xs },
+  bubbleSender:  { ...TYPOGRAPHY.caption, color: COLORS.primary, fontFamily: FONTS.bold, marginBottom: 2, marginLeft: SPACING.xs },
   bubble:        { borderRadius: BORDER_RADIUS.lg, padding: SPACING.sm, paddingHorizontal: SPACING.md, ...SHADOW.sm },
   bubbleMe:      { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 },
   bubbleThem:    { backgroundColor: COLORS.surface, borderBottomLeftRadius: 4 },
   bubblePrivate: { borderWidth: 1, borderColor: COLORS.primary, borderStyle: 'dashed' },
   privateTag:    { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 },
-  privateTagText:{ fontSize: 10, fontWeight: '700', color: COLORS.primary },
+  privateTagText:{ fontSize: FONT_SIZE.xs, color: COLORS.primary, fontFamily: FONTS.bold },
   bubbleEditing: { opacity: 0.6, borderWidth: 2, borderColor: COLORS.primary },
   bubbleText:    { ...TYPOGRAPHY.body, color: COLORS.textPrimary, lineHeight: 20 },
   bubbleTextMe:  { color: COLORS.white },
-  bubbleTime:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 4, alignSelf: 'flex-end', fontSize: 10 },
+  bubbleTime:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 4, alignSelf: 'flex-end', fontSize: FONT_SIZE.xs },
   bubbleTimeMe:  { color: 'rgba(255,255,255,0.7)' },
 
   // Edit banner
@@ -917,7 +917,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...TYPOGRAPHY.caption,
     color:      COLORS.primary,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
   },
 
   // Target bar
@@ -938,7 +938,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
   },
   targetBtnActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  targetBtnText:       { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  targetBtnText:       { fontSize: FONT_SIZE.xs, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   targetBtnTextActive: { color: COLORS.white },
 
   // Input
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     marginBottom: 4,
   },
-  privateIndicatorText: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600' },
+  privateIndicatorText: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontFamily: FONTS.medium },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: SPACING.sm },
   attachBtn: {
     width: 36, height: 36,
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
   },
   attachStripName: {
     ...TYPOGRAPHY.caption,
-    fontSize:  9,
+    fontSize:  FONT_SIZE.xs,
     color:     COLORS.textPrimary,
     textAlign: 'center',
     marginTop: 3,
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
   },
   attachSheetTitle: {
     ...TYPOGRAPHY.bodyMedium,
-    fontWeight:   '700',
+    fontFamily:   FONTS.bold,
     color:        COLORS.textPrimary,
     textAlign:    'center',
     paddingVertical: SPACING.sm,
@@ -1055,7 +1055,7 @@ const styles = StyleSheet.create({
   },
   attachOptionLabel: {
     ...TYPOGRAPHY.small,
-    fontWeight: '600',
+    fontFamily: FONTS.medium,
     color:      COLORS.textPrimary,
   },
   attachCancel: {
@@ -1106,9 +1106,9 @@ const styles = StyleSheet.create({
     flexShrink:      0,
   },
   fileInfo:    { flex: 1 },
-  fileName:    { ...TYPOGRAPHY.caption, fontWeight: '700', color: COLORS.textPrimary },
+  fileName:    { ...TYPOGRAPHY.caption, fontFamily: FONTS.bold, color: COLORS.textPrimary },
   fileNameMe:  { color: COLORS.white },
-  fileLabel:   { fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
+  fileLabel:   { fontSize: FONT_SIZE.xs, color: COLORS.textMuted, marginTop: 2 },
   fileLabelMe: { color: 'rgba(255,255,255,0.65)' },
 
 
@@ -1124,12 +1124,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
-  pickerTitle:       { ...TYPOGRAPHY.bodyMedium, fontWeight: '700', color: COLORS.textPrimary },
+  pickerTitle:       { ...TYPOGRAPHY.bodyMedium, fontFamily: FONTS.bold, color: COLORS.textPrimary },
   pickerRow:         { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
   pickerRowActive:   { backgroundColor: COLORS.primaryLight },
   pickerAvatar:      { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   pickerAvatarActive:{ backgroundColor: COLORS.primary },
-  pickerAvatarText:  { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
+  pickerAvatarText:  { fontSize: FONT_SIZE.sm, color: COLORS.textSecondary, fontFamily: FONTS.bold },
   pickerInfo:        { flex: 1 },
   pickerName:        { ...TYPOGRAPHY.body, fontWeight: '600', color: COLORS.textPrimary },
   pickerEmail:       { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1 },

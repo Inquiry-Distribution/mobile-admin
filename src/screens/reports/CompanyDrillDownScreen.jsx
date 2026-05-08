@@ -25,7 +25,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import dayjs from "dayjs";
 
 import { COLORS } from "@constants/colors";
-import { TYPOGRAPHY } from "@constants/typography";
+import { TYPOGRAPHY, FONTS, FONT_SIZE } from "@constants/typography";
 import { SPACING, BORDER_RADIUS, SHADOW } from "@constants/config";
 import { getInitials } from "@utils/helpers";
 import { reportApi } from "@api/report.api";
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   bannerName: {
     ...TYPOGRAPHY.bodyMedium,
     color: COLORS.white,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
   },
   bannerSub: {
     ...TYPOGRAPHY.caption,
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
 
   bannerStats: { alignItems: "center" },
-  bannerStatValue: { fontSize: 16, fontWeight: "800", color: COLORS.white },
+  bannerStatValue: { fontSize: FONT_SIZE.md, color: COLORS.white, fontFamily: FONTS.bold },
   bannerStatLabel: {
     ...TYPOGRAPHY.caption,
     color: "rgba(255,255,255,0.7)",
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   retryText: {
     ...TYPOGRAPHY.bodyMedium,
     color: COLORS.white,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
   },
 
   // Table header
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     flex: 1,
     ...TYPOGRAPHY.caption,
     color: COLORS.primary,
-    fontWeight: "700",
+    fontFamily: FONTS.bold,
     textAlign: "center",
   },
 
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  rankText: { fontSize: 11, fontWeight: "800" },
+  rankText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   spAvatar: {
     width: 38,
@@ -411,13 +411,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  spAvatarText: { fontSize: 13, fontWeight: "700", color: COLORS.primary },
+  spAvatarText: { fontSize: FONT_SIZE.sm, color: COLORS.primary, fontFamily: FONTS.bold },
 
   spInfo: { flex: 1, minWidth: 0 },
   spName: {
     ...TYPOGRAPHY.bodyMedium,
     color: COLORS.textPrimary,
-    fontWeight: "600",
+    fontFamily: FONTS.medium,
   },
   spMeta: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1 },
   shareBar: {
@@ -436,11 +436,11 @@ const styles = StyleSheet.create({
   spStats: { flexDirection: "row", gap: SPACING.xs, flexShrink: 0 },
   spStatCol: { alignItems: "center", minWidth: 38 },
   spStatValue: {
-    fontSize: 13,
-    fontWeight: "800",
+    fontSize: FONT_SIZE.sm,
     color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
   },
-  spStatLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: 9 },
+  spStatLabel: { ...TYPOGRAPHY.caption, color: COLORS.textMuted, fontSize: FONT_SIZE.xs },
 
   listContent: { paddingTop: SPACING.sm, paddingBottom: SPACING.xxl },
   emptyContent: { flexGrow: 1 },

@@ -27,7 +27,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
 
 import { COLORS, DEVICE_STATUS_COLORS } from '@constants/colors';
-import { TYPOGRAPHY }                    from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, FONTS }  from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { formatDateTime } from '@utils/helpers';
 
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     height:            32,
   },
   chipActive:     { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  chipText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontWeight: '600' },
+  chipText:       { ...TYPOGRAPHY.small, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   chipTextActive: { color: COLORS.white },
 
   listHeader: {
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     marginBottom:      SPACING.xs,
   },
   countText:    { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
-  clearFilters: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontWeight: '600' },
+  clearFilters: { ...TYPOGRAPHY.caption, color: COLORS.primary, fontFamily: FONTS.medium },
 
   // Card
   card: {
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     borderColor:    COLORS.border,
   },
   cardInfo:  { flex: 1 },
-  spName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontWeight: '600' },
+  spName:    { ...TYPOGRAPHY.bodyMedium, color: COLORS.textPrimary, fontFamily: FONTS.medium },
   deviceId:  { ...TYPOGRAPHY.caption, color: COLORS.textSecondary, fontFamily: 'monospace' },
   mobileNum: { ...TYPOGRAPHY.caption, color: COLORS.textMuted },
 
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical:   3,
   },
-  statusBadgeText: { fontSize: 10, fontWeight: '700' },
+  statusBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold },
 
   cardMeta: {
     flexDirection: 'row',
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     paddingVertical:   7,
     borderWidth:       1.5,
   },
-  actionBtnText:    { ...TYPOGRAPHY.small, fontWeight: '700' },
+  actionBtnText:    { ...TYPOGRAPHY.small, fontFamily: FONTS.bold },
   actionBtnBlock:   { borderColor: COLORS.error   + '50', backgroundColor: '#FEE2E2' },
   actionBtnUnblock: { borderColor: COLORS.success + '50', backgroundColor: '#DCFCE7' },
   actionBtnReset:   { borderColor: COLORS.warning + '50', backgroundColor: '#FEF3C7' },

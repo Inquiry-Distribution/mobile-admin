@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS }                         from '@constants/colors';
-import { TYPOGRAPHY }                     from '@constants/typography';
+import { TYPOGRAPHY, FONTS, FONT_SIZE }   from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useGroupStore from '@store/group.store';
 import useUserStore  from '@store/user.store';
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  headerCount: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontWeight: '600' },
+  headerCount: { ...TYPOGRAPHY.bodyMedium, color: COLORS.textSecondary, fontFamily: FONTS.medium },
   addBtn: {
     flexDirection:   'row',
     alignItems:      'center',
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     paddingVertical:   8,
     borderRadius:    BORDER_RADIUS.full,
   },
-  addBtnText: { ...TYPOGRAPHY.small, color: COLORS.white, fontWeight: '700' },
+  addBtnText: { ...TYPOGRAPHY.small, color: COLORS.white, fontFamily: FONTS.bold },
 
   memberRow: {
     flexDirection:   'row',
@@ -241,9 +241,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primaryLight,
     alignItems:      'center', justifyContent: 'center',
   },
-  avatarText:   { fontSize: 14, fontWeight: '700', color: COLORS.primary },
+  avatarText:   { fontSize: FONT_SIZE.sm, fontFamily: FONTS.bold, color: COLORS.primary },
   memberInfo:   { flex: 1 },
-  memberName:   { ...TYPOGRAPHY.bodyMedium, fontWeight: '600', color: COLORS.textPrimary },
+  memberName:   { ...TYPOGRAPHY.bodyMedium, fontFamily: FONTS.medium, color: COLORS.textPrimary },
   memberEmail:  { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1 },
 
   emptyWrap:  { padding: SPACING.xl, alignItems: 'center' },
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  sheetTitle: { ...TYPOGRAPHY.bodyMedium, fontWeight: '700', color: COLORS.textPrimary },
+  sheetTitle: { ...TYPOGRAPHY.bodyMedium, fontFamily: FONTS.bold, color: COLORS.textPrimary },
   searchBar: {
     flexDirection:     'row',
     alignItems:        'center',
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   spRowSelected:   { backgroundColor: COLORS.primaryLight },
   spAvatar:        { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   spAvatarSelected:{ backgroundColor: COLORS.primary },
-  spAvatarText:    { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
+  spAvatarText:    { fontSize: FONT_SIZE.sm, fontFamily: FONTS.bold, color: COLORS.textSecondary },
   spInfo:          { flex: 1 },
   spName:          { ...TYPOGRAPHY.body, fontWeight: '600', color: COLORS.textPrimary },
   spEmail:         { ...TYPOGRAPHY.caption, color: COLORS.textMuted, marginTop: 1 },
@@ -302,5 +302,5 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
   },
   confirmBtnDisabled: { opacity: 0.5 },
-  confirmBtnText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontWeight: '700' },
+  confirmBtnText: { ...TYPOGRAPHY.bodyMedium, color: COLORS.white, fontFamily: FONTS.bold },
 });

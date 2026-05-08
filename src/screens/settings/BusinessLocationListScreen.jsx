@@ -22,7 +22,7 @@ import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 
 import { COLORS }     from '@constants/colors';
-import { TYPOGRAPHY } from '@constants/typography';
+import { TYPOGRAPHY, FONT_SIZE, LINE_HEIGHT, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import EmptyState from '@components/common/EmptyState';
 import { businessLocationApi } from '@api/businessLocation.api';
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color:   COLORS.primary,
     flex:    1,
-    lineHeight: 17,
+    lineHeight: LINE_HEIGHT.sm,
   },
 
   card: {
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   cardName: {
     ...TYPOGRAPHY.bodyMedium,
     color:      COLORS.textPrimary,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     flex:       1,
   },
   typeBadge: {
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical:   2,
     borderRadius:      BORDER_RADIUS.full,
   },
-  typeBadgeText: { fontSize: 10, fontWeight: '700', textTransform: 'capitalize' },
+  typeBadgeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, textTransform: 'capitalize' },
 
   cardMeta: {
     flexDirection: 'row',
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     gap:           4,
   },
-  activeLabel: { fontSize: 12, fontWeight: '600' },
+  activeLabel: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium },
 
   cardActions: {
     flexDirection: 'row',
