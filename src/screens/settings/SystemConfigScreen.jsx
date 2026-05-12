@@ -2,7 +2,8 @@
  * SystemConfigScreen — superuser only
  *
  * Sections:
- *   • Login Security  — brute-force lock settings
+ *   • Attendance Hours — work start/end time, late grace period
+ *   • Login Security   — brute-force lock settings
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -31,7 +32,9 @@ export default function SystemConfigScreen() {
 
   // Attendance hours fields
   const [workStartHour,   setWorkStartHour]   = useState(9);
+  const [workStartMinute, setWorkStartMinute] = useState(30);
   const [workEndHour,     setWorkEndHour]     = useState(18);
+  const [workEndMinute,   setWorkEndMinute]   = useState(0);
   const [lateGraceMinute, setLateGraceMinute] = useState(15);
 
   // ── Fetch ─────────────────────────────────────────────────
@@ -48,9 +51,11 @@ export default function SystemConfigScreen() {
       setLockoutMinutes(lc.lockoutMinutes);
 
       const ac = attendRes.data;
-      setWorkStartHour(ac.workStartHour);
-      setWorkEndHour(ac.workEndHour);
-      setLateGraceMinute(ac.lateGraceMinute);
+      setWorkStartHour(ac.workStartHour   ?? 9);
+      setWorkStartMinute(ac.workStartMinute ?? 30);
+      setWorkEndHour(ac.workEndHour     ?? 18);
+      setWorkEndMinute(ac.workEndMinute   ?? 0);
+      setLateGraceMinute(ac.lateGraceMinute ?? 15);
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Failed to load config', text2: e.message });
     } finally {
@@ -83,13 +88,18 @@ export default function SystemConfigScreen() {
 
   // ── Save attendance hours ──────────────────────────────────
   const handleSaveAttendance = async () => {
-    if (workEndHour <= workStartHour) {
-      Toast.show({ type: 'error', text1: 'End hour must be after start hour.' });
+    const startTotal = workStartHour * 60 + workStartMinute;
+    const endTotal   = workEndHour   * 60 + workEndMinute;
+    if (endTotal <= startTotal) {
+      Toast.show({ type: 'error', text1: 'End time must be after start time.' });
       return;
     }
     setAttendSaving(true);
     try {
-      const res = await systemConfigApi.updateAttendanceHours({ workStartHour, workEndHour, lateGraceMinute });
+      const pad       = (n) => String(n).padStart(2, '0');
+      const workStart = `${pad(workStartHour)}:${pad(workStartMinute)}`;
+      const workEnd   = `${pad(workEndHour)}:${pad(workEndMinute)}`;
+      const res = await systemConfigApi.updateAttendanceHours({ workStart, workEnd, lateGraceMinute });
       Toast.show({ type: 'success', text1: 'Attendance hours saved' });
       if (res.data?.notice) {
         setTimeout(() => {
@@ -123,33 +133,31 @@ export default function SystemConfigScreen() {
 
         <View style={styles.card}>
 
-          {/* Work start hour */}
+          {/* Work start time */}
           <View style={[styles.row, styles.rowBorder]}>
             <View style={styles.rowLeft}>
-              <Text style={styles.rowLabel}>Work Start Hour</Text>
-              <Text style={styles.rowSub}>Check-in reminder fires at this hour</Text>
+              <Text style={styles.rowLabel}>Work Start Time</Text>
+              <Text style={styles.rowSub}>Check-in deadline (HH : MM)</Text>
             </View>
-            <Stepper
-              value={workStartHour}
-              min={0}
-              max={23}
-              onChange={setWorkStartHour}
-              suffix=":00"
+            <TimePicker
+              hour={workStartHour}
+              minute={workStartMinute}
+              onHourChange={setWorkStartHour}
+              onMinuteChange={setWorkStartMinute}
             />
           </View>
 
-          {/* Work end hour */}
+          {/* Work end time */}
           <View style={[styles.row, styles.rowBorder]}>
             <View style={styles.rowLeft}>
-              <Text style={styles.rowLabel}>Work End Hour</Text>
-              <Text style={styles.rowSub}>Early-exit threshold &amp; auto-close cap</Text>
+              <Text style={styles.rowLabel}>Work End Time</Text>
+              <Text style={styles.rowSub}>Early-exit threshold & auto-close cap</Text>
             </View>
-            <Stepper
-              value={workEndHour}
-              min={0}
-              max={23}
-              onChange={setWorkEndHour}
-              suffix=":00"
+            <TimePicker
+              hour={workEndHour}
+              minute={workEndMinute}
+              onHourChange={setWorkEndHour}
+              onMinuteChange={setWorkEndMinute}
             />
           </View>
 
@@ -159,13 +167,7 @@ export default function SystemConfigScreen() {
               <Text style={styles.rowLabel}>Late Grace Period</Text>
               <Text style={styles.rowSub}>Minutes after start before marked late</Text>
             </View>
-            <Stepper
-              value={lateGraceMinute}
-              min={0}
-              max={59}
-              onChange={setLateGraceMinute}
-              suffix="min"
-            />
+            <Stepper value={lateGraceMinute} min={0} max={59} onChange={setLateGraceMinute} suffix="min" />
           </View>
 
         </View>
@@ -174,7 +176,7 @@ export default function SystemConfigScreen() {
         <View style={styles.summaryPill}>
           <Icon name="information-outline" size={13} color="#0891B2" />
           <Text style={[styles.summaryText, { color: '#0891B2' }]}>
-            Work hours: {String(workStartHour).padStart(2, '0')}:00 – {String(workEndHour).padStart(2, '0')}:00.{' '}
+            Work hours: {String(workStartHour).padStart(2, '0')}:{String(workStartMinute).padStart(2, '0')} – {String(workEndHour).padStart(2, '0')}:{String(workEndMinute).padStart(2, '0')}.{' '}
             Late after {lateGraceMinute} min grace.{' '}
             Changes apply to future records only.
           </Text>
@@ -295,6 +297,46 @@ function SectionHeader({ icon, title, color }) {
   );
 }
 
+// ── TimePicker ────────────────────────────────────────────────
+function TimePicker({ hour, minute, onHourChange, onMinuteChange }) {
+  const decHour = () => onHourChange(hour <= 0  ? 23 : hour   - 1);
+  const incHour = () => onHourChange(hour >= 23 ? 0  : hour   + 1);
+  const decMin  = () => onMinuteChange(minute === 0  ? 55 : minute - 5);
+  const incMin  = () => onMinuteChange(minute === 55 ? 0  : minute + 5);
+
+  return (
+    <View style={styles.timePicker}>
+      {/* Hour drum */}
+      <View style={styles.timeDrum}>
+        <TouchableOpacity style={styles.timeChevronBtn} onPress={incHour} activeOpacity={0.6}>
+          <Icon name="chevron-up" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+        <View style={styles.timeValueBox}>
+          <Text style={styles.timeValue}>{String(hour ?? 0).padStart(2, '0')}</Text>
+        </View>
+        <TouchableOpacity style={styles.timeChevronBtn} onPress={decHour} activeOpacity={0.6}>
+          <Icon name="chevron-down" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.timeColon}>:</Text>
+
+      {/* Minute drum */}
+      <View style={styles.timeDrum}>
+        <TouchableOpacity style={styles.timeChevronBtn} onPress={incMin} activeOpacity={0.6}>
+          <Icon name="chevron-up" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+        <View style={styles.timeValueBox}>
+          <Text style={styles.timeValue}>{String(minute ?? 0).padStart(2, '0')}</Text>
+        </View>
+        <TouchableOpacity style={styles.timeChevronBtn} onPress={decMin} activeOpacity={0.6}>
+          <Icon name="chevron-down" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 // ── Stepper ───────────────────────────────────────────────────
 function Stepper({ value, min, max, step = 1, disabled, onChange, suffix }) {
   const dec = () => onChange(Math.max(min, value - step));
@@ -379,7 +421,7 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     justifyContent:    'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical:   SPACING.md,
+    paddingVertical:   SPACING.sm,
     gap:               SPACING.sm,
   },
   rowBorder:   { borderBottomWidth: 1, borderBottomColor: COLORS.divider },
@@ -411,6 +453,51 @@ const styles = StyleSheet.create({
     color:      COLORS.primary,
     flex:       1,
     lineHeight: LINE_HEIGHT.sm,
+  },
+
+  // TimePicker
+  timePicker: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           4,
+  },
+  timeDrum: {
+    alignItems:      'center',
+    backgroundColor: COLORS.background,
+    borderRadius:    BORDER_RADIUS.lg,
+    borderWidth:     1,
+    borderColor:     COLORS.border,
+    overflow:        'hidden',
+    minWidth:        52,
+  },
+  timeChevronBtn: {
+    width:          52,
+    height:         32,
+    alignItems:     'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  timeValueBox: {
+    borderTopWidth:    1,
+    borderBottomWidth: 1,
+    borderColor:       COLORS.border,
+    width:             52,
+    paddingVertical:   8,
+    alignItems:        'center',
+    backgroundColor:   COLORS.background,
+  },
+  timeValue: {
+    fontSize:   FONT_SIZE.lg,
+    fontFamily: FONTS.bold,
+    color:      COLORS.textPrimary,
+    letterSpacing: 1,
+  },
+  timeColon: {
+    fontSize:     FONT_SIZE.xl,
+    fontFamily:   FONTS.bold,
+    color:        COLORS.textSecondary,
+    marginBottom: 2,
+    paddingHorizontal: 2,
   },
 
   // Stepper
