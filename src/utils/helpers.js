@@ -50,8 +50,8 @@ export const formatDuration = (startIso, endIso) => {
 /** Strip HTML tags and decode common entities — returns plain text.
  *  Block-level closing tags are converted to newlines so paragraph/list
  *  structure is preserved when the result is displayed in a <Text> node. */
-export const stripHtml = (html = '') =>
-  html
+export const stripHtml = (html) =>
+  (html ?? '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<\/div>/gi, '\n')
@@ -71,15 +71,15 @@ export const stripHtml = (html = '') =>
 // ─── String helpers ───────────────────────────────────────────
 
 /** "john doe" → "John Doe" */
-export const capitalize = (str = '') =>
-  str
+export const capitalize = (str) =>
+  (str ?? '')
     .split(' ')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
 
 /** "john_doe_example" → "John Doe Example" */
-export const snakeToTitle = (str = '') =>
-  capitalize(str.replace(/_/g, ' '));
+export const snakeToTitle = (str) =>
+  capitalize((str ?? '').replace(/_/g, ' '));
 
 /** "John Doe" → "JD" (max 2 chars for avatar initials) */
 export const getInitials = (name = '') =>
@@ -137,10 +137,10 @@ export const ATTENDANCE_LABEL = {
   half_day: 'Half Day',
 };
 
-export const getStatusLabel  = (s) => STATUS_LABEL[s]     ?? snakeToTitle(s);
-export const getPriorityLabel = (p) => PRIORITY_LABEL[p]  ?? capitalize(p);
-export const getRoleLabel     = (r) => ROLE_LABEL[r]      ?? capitalize(r);
-export const getAttendanceLabel = (a) => ATTENDANCE_LABEL[a] ?? snakeToTitle(a);
+export const getStatusLabel     = (s) => STATUS_LABEL[s]     ?? snakeToTitle(s ?? '');
+export const getPriorityLabel   = (p) => PRIORITY_LABEL[p]  ?? capitalize(p ?? '');
+export const getRoleLabel       = (r) => ROLE_LABEL[r]      ?? capitalize(r ?? '');
+export const getAttendanceLabel = (a) => ATTENDANCE_LABEL[a] ?? snakeToTitle(a ?? '');
 
 // ─── Validation helpers ───────────────────────────────────────
 

@@ -36,6 +36,7 @@ import { COLORS, STATUS_COLORS, PRIORITY_COLORS } from '@constants/colors';
 import { TYPOGRAPHY, FONTS, FONT_SIZE } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import { formatDateTime, getInitials, stripHtml } from '@utils/helpers';
+import RichContent from '@components/common/RichContent';
 
 import useAuthStore        from '@store/auth.store';
 import useInquiryStore from '@store/inquiry.store';
@@ -483,9 +484,11 @@ export default function InquiryDetailScreen({ route, navigation }) {
               </View>
 
               {/* Description */}
-              <Text style={styles.heroDesc}>
-                {stripHtml(description || title) || 'No description provided.'}
-              </Text>
+              <RichContent
+                html={description || title}
+                textStyle={styles.heroDesc}
+                emptyText="No description provided."
+              />
 
               {/* Contact */}
               {mobile ? (
