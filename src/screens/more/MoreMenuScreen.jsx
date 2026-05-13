@@ -26,12 +26,10 @@ import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 
-import useAuthStore         from '@store/auth.store';
-import useNotificationStore from '@store/notification.store';
+import useAuthStore from '@store/auth.store';
 
 export default function MoreMenuScreen({ navigation }) {
   const { user, isSuperuser } = useAuthStore();
-  const { unreadCount }       = useNotificationStore();
 
   const roleColor = ROLE_COLORS[user?.role] ?? { bg: COLORS.primaryLight, text: COLORS.primary };
 
@@ -81,14 +79,6 @@ export default function MoreMenuScreen({ navigation }) {
             onPress={() => navigation.navigate('Reports')}
           />
 
-          <MenuItem
-            icon="bell-outline"
-            label="Notifications"
-            subtitle="Send & manage push alerts"
-            color="#2563EB"
-            badge={unreadCount}
-            onPress={() => navigation.navigate('Notifications')}
-          />
 
           {isSuperuser() && (
             <MenuItem

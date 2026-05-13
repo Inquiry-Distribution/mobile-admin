@@ -746,6 +746,7 @@ function InquiryRow({ inquiry, onPress }) {
     assignedAt,
     assignedTo,
     source,
+    visibleUntil,
   } = inquiry;
 
   const pc = PRIORITY_COLORS[priority] ?? {
@@ -756,6 +757,16 @@ function InquiryRow({ inquiry, onPress }) {
   const isUnassigned = status === "unassigned";
   const ageMinutes = dayjs().diff(dayjs(createdAt), "minute");
   const isUrgent = isUnassigned && ageMinutes >= 60;
+
+  const expiryBadge = (() => {
+    if (status !== 'assigned' || !visibleUntil) return null;
+    const diff = dayjs(visibleUntil).diff(dayjs(), 'minute');
+    if (diff <= 0) return { label: 'Expired', expired: true };
+    if (diff < 60) return { label: `Expires in ${diff}m`, expired: false };
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    return { label: m > 0 ? `Expires in ${h}h ${m}m` : `Expires in ${h}h`, expired: false };
+  })();
 
   const companyName = assignedTo?.company?.name ?? null;
   const initials = assignedTo?.name
@@ -804,7 +815,7 @@ function InquiryRow({ inquiry, onPress }) {
         </Text>
 
         {/* Row 3: Meta chips */}
-        {mobile || source || isUrgent ? (
+        {mobile || source || isUrgent || expiryBadge ? (
           <View style={styles.metaRow}>
             {/* {mobile ? (
               <View style={styles.metaChip}>
@@ -831,12 +842,20 @@ function InquiryRow({ inquiry, onPress }) {
             ) : null}
             {isUrgent ? (
               <View style={styles.urgentChip}>
-                <Icon
-                  name="alert-circle-outline"
-                  size={11}
-                  color={COLORS.error}
-                />
+                <Icon name="alert-circle-outline" size={11} color={COLORS.error} />
                 <Text style={styles.urgentChipText}>Overdue</Text>
+              </View>
+            ) : null}
+            {expiryBadge ? (
+              <View style={[styles.expiryChip, expiryBadge.expired && styles.expiryChipExpired]}>
+                <Icon
+                  name={expiryBadge.expired ? 'eye-off-outline' : 'clock-alert-outline'}
+                  size={11}
+                  color={expiryBadge.expired ? COLORS.error : '#D97706'}
+                />
+                <Text style={[styles.expiryChipText, expiryBadge.expired && styles.expiryChipTextExpired]}>
+                  {expiryBadge.label}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -1396,6 +1415,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEE2E2",
   },
   urgentChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: COLORS.error },
+  expiryChip: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius:   BORDER_RADIUS.full,
+    backgroundColor: '#FEF3C7',
+    borderWidth:    1,
+    borderColor:    '#FCD34D',
+  },
+  expiryChipExpired: {
+    backgroundColor: '#FEE2E2',
+    borderColor:     COLORS.error + '60',
+  },
+  expiryChipText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.bold, color: '#D97706' },
+  expiryChipTextExpired: { color: COLORS.error },
   cardDivider: { height: 1, backgroundColor: COLORS.divider },
   cardFooter: {
     flexDirection: "row",

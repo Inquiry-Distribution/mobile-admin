@@ -8,7 +8,7 @@
  *
  * Inquiries tab  → InquiryNavigator  (List → Detail)
  * Team tab       → TeamNavigator     (UserList → UserDetail → Devices → Attendance)
- * More tab       → MoreNavigator     (Menu → LiveMap → Reports → Notifications → Audit → Profile)
+ * More tab       → MoreNavigator     (Menu → LiveMap → Reports → Audit → Profile)
  *
  * All stacks share the same header style (primary purple background).
  */
@@ -53,9 +53,9 @@ import SalespersonReportScreen   from '@screens/reports/SalespersonReportScreen'
 import CompanyReportScreen       from '@screens/reports/CompanyReportScreen';
 import CompanyDrillDownScreen    from '@screens/reports/CompanyDrillDownScreen';
 import LocationHistoryScreen     from '@screens/map/LocationHistoryScreen';
-import MoreMenuScreen      from '@screens/more/MoreMenuScreen';
-import ReportsScreen       from '@screens/reports/ReportsScreen';
-import NotificationsScreen from '@screens/notifications/NotificationsScreen';
+import MoreMenuScreen          from '@screens/more/MoreMenuScreen';
+import NotificationsScreen     from '@screens/notifications/NotificationsScreen';
+import ReportsScreen           from '@screens/reports/ReportsScreen';
 import AuditLogScreen      from '@screens/audit/AuditLogScreen';
 import ActivityLogScreen  from '@screens/activity/ActivityLogScreen';
 import ProfileScreen       from '@screens/profile/ProfileScreen';
@@ -110,6 +110,27 @@ function BackButton() {
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Icon name="arrow-left" size={22} color={COLORS.white} />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Notification bell button (top-right, goes to Notifications) ─
+function NotificationButton({ navigation }) {
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  return (
+    <TouchableOpacity
+      style={styles.notifBtn}
+      onPress={() => navigation.navigate('More', { screen: 'Notifications' })}
+      activeOpacity={0.8}
+    >
+      <Icon name="bell-outline" size={20} color={COLORS.white} />
+      {unreadCount > 0 && (
+        <View style={styles.notifBadge}>
+          <Text style={styles.notifBadgeText}>
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -508,7 +529,12 @@ function TabNavigator({ navigation }) {
   const groupUnreadTotal = useGroupStore((s) =>
     s.groups.reduce((sum, g) => sum + (g.unreadCount ?? 0), 0)
   );
-  const headerRight = () => <AvatarButton navigation={navigation} />;
+  const headerRight = () => (
+    <View style={styles.headerRightRow}>
+      <NotificationButton navigation={navigation} />
+      <AvatarButton navigation={navigation} />
+    </View>
+  );
 
   return (
     <Tab.Navigator
@@ -670,6 +696,36 @@ const styles = StyleSheet.create({
   trashBtn: {
     marginRight: 12,
     padding:     4,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    marginRight:   4,
+  },
+  notifBtn: {
+    width:        34,
+    height:       34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems:   'center',
+    marginRight:  8,
+  },
+  notifBadge: {
+    position:          'absolute',
+    top:               -2,
+    right:             -2,
+    backgroundColor:   COLORS.error,
+    borderRadius:      9,
+    minWidth:          16,
+    height:            16,
+    alignItems:        'center',
+    justifyContent:    'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    fontSize:   9,
+    fontWeight: '700',
+    color:      COLORS.white,
   },
   avatarBtn: {
     width:           34,

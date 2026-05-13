@@ -417,6 +417,9 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const photoItems = images.filter((img) => IMAGE_EXTS.has((img.filename ?? img.url ?? '').split('.').pop().toLowerCase()));
   const fileItems  = images.filter((img) => !IMAGE_EXTS.has((img.filename ?? img.url ?? '').split('.').pop().toLowerCase()));
 
+  const uploaderLabel = (img) =>
+    img.uploadedBy?.role === 'sales' ? img.uploadedBy.name : 'Admin';
+
   const FILE_ICONS = {
     pdf:  { icon: 'file-pdf-box',          color: '#DC2626' },
     xls:  { icon: 'file-excel-box',        color: '#16A34A' },
@@ -436,7 +439,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const canDistribute = status === 'unassigned' || !assignedTo;
   const canReassign   = !!assignedTo && status !== 'closed';
   const canUnassign   = !!assignedTo && status !== 'closed' && status !== 'unassigned';
-  const canExtend     = !!assignedTo && status !== 'closed';
+  const canExtend     = !!assignedTo && status === 'assigned';
 
   // ── Distribute / reassign analytics ──────────────────────────
   // statusHistory is ASC — index 0 is the original event, last is the most recent
@@ -723,7 +726,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
             )}
 
             {/* Visibility window */}
-            {visibleUntil && assignedTo && (
+            {visibleUntil && assignedTo && status === 'assigned' && (
               <View style={[
                 styles.visibilityRow,
                 dayjs(visibleUntil).isBefore(dayjs())
@@ -800,7 +803,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
                             time: m.createdAt,
                           })),
                           initialIndex: i,
-                          sender:       uploadedBy?.name ?? title ?? 'Image',
+                          sender:       uploaderLabel(img),
                         })}
                         activeOpacity={0.85}
                       >
@@ -809,6 +812,11 @@ export default function InquiryDetailScreen({ route, navigation }) {
                           style={styles.photoImage}
                           resizeMode="cover"
                         />
+                        <View style={styles.photoUploaderTag}>
+                          <Text style={styles.photoUploaderText} numberOfLines={1}>
+                            {uploaderLabel(img)}
+                          </Text>
+                        </View>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.photoDeleteBtn}
@@ -851,6 +859,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
                               : `${(f.size / (1024 * 1024)).toFixed(1)} MB`}
                           </Text>
                         ) : null}
+                        <Text style={styles.fileUploaderText}>{uploaderLabel(f)}</Text>
                       </View>
                       {isDownloading
                         ? <ActivityIndicator size="small" color={COLORS.primary} />
@@ -1321,6 +1330,27 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.error,
     alignItems:      'center',
     justifyContent:  'center',
+  },
+  photoUploaderTag: {
+    position:        'absolute',
+    bottom:          0,
+    left:            0,
+    right:           0,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  photoUploaderText: {
+    fontSize:    8,
+    fontWeight:  '700',
+    color:       '#fff',
+    textAlign:   'center',
+  },
+  fileUploaderText: {
+    fontSize:    10,
+    color:       COLORS.primary,
+    fontWeight:  '600',
+    marginTop:   1,
   },
 
   emptyBox:     { alignItems: 'center', paddingVertical: SPACING.lg, gap: SPACING.xs },
