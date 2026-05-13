@@ -1124,7 +1124,7 @@ const styles = StyleSheet.create({
   },
   typeText:   { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, textTransform: 'capitalize' },
   heroDate:   { ...TYPOGRAPHY.caption, color: COLORS.textMuted, flexShrink: 0 },
-  heroDesc:   { fontSize: FONT_SIZE.md, fontFamily: FONTS.medium, color: COLORS.textPrimary, lineHeight: 23 },
+  heroDesc:   { fontSize: FONT_SIZE.sm, fontFamily: FONTS.medium, color: COLORS.textPrimary, lineHeight: 23 },
   heroDivider:{ height: 1, backgroundColor: COLORS.divider, marginVertical: SPACING.sm },
   heroFooter: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared helpers used across screens & components.
  * Pure functions — no side-effects, no imports from stores/api.
  */
@@ -58,13 +58,23 @@ export const stripHtml = (html) =>
     .replace(/<\/li>/gi, '\n')
     .replace(/<li[^>]*>/gi, '• ')
     .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
+    .replace(/&#(\d+);/g,   (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&nbsp;/gi,   ' ')
+    .replace(/&amp;/gi,    '&')
+    .replace(/&lt;/gi,     '<')
+    .replace(/&gt;/gi,     '>')
+    .replace(/&quot;/gi,   '"')
+    .replace(/&#39;/gi,    "'")
+    .replace(/&ndash;/gi,  '–')
+    .replace(/&mdash;/gi,  '—')
+    .replace(/&lsquo;/gi,  String.fromCharCode(0x2018))
+    .replace(/&rsquo;/gi,  String.fromCharCode(0x2019))
+    .replace(/&ldquo;/gi,  String.fromCharCode(0x201C))
+    .replace(/&rdquo;/gi,  String.fromCharCode(0x201D))
+    .replace(/&hellip;/gi, '…')
+    .replace(/&bull;/gi,   '•')
     .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]*\n/g, '\n\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
