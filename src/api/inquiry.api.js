@@ -168,6 +168,14 @@ export const inquiryApi = {
   /** Permanently delete a trashed inquiry — irreversible (superuser only). */
   permanentDelete: (id) => client.delete(`/inquiries/${id}/permanent`),
 
+  // ─── CRM ────────────────────────────────────────────────────
+
+  /** Get mapped CRM payload preview (no CRM call — for modal display). */
+  getCrmPreview: (id) => client.get(`/inquiries/${id}/crm-preview`),
+
+  /** Push a converted inquiry to the CRM platform with edited form data. */
+  pushToCrm: (id, formData) => client.post(`/inquiries/${id}/push-to-crm`, formData),
+
   // ─── AI Analysis ────────────────────────────────────────────
 
   /**

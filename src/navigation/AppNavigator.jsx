@@ -40,6 +40,7 @@ import InquiryDetailScreen  from '@screens/inquiry/InquiryDetailScreen';
 import CreateInquiryScreen  from '@screens/inquiry/CreateInquiryScreen';
 import EditInquiryScreen    from '@screens/inquiry/EditInquiryScreen';
 import TrashScreen          from '@screens/inquiry/TrashScreen';
+import InquiryActivityScreen from '@screens/inquiry/InquiryActivityScreen';
 import LiveMapScreen       from '@screens/map/LiveMapScreen';
 import UserListScreen      from '@screens/team/UserListScreen';
 import UserDetailScreen    from '@screens/team/UserDetailScreen';
@@ -209,6 +210,16 @@ function InquiryNavigator() {
           component={TrashScreen}
           options={{
             headerTitle: () => <HeaderTitle icon="trash-can-outline" title="Trash" />,
+            headerLeft:  () => <BackButton />,
+          }}
+        />
+      )}
+      {isSuperuser && (
+        <InquiryStack.Screen
+          name="InquiryActivity"
+          component={InquiryActivityScreen}
+          options={{
+            headerTitle: () => <HeaderTitle icon="timeline-outline" title="Inquiry Activity" />,
             headerLeft:  () => <BackButton />,
           }}
         />

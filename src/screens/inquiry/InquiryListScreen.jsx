@@ -203,7 +203,7 @@ export default function InquiryListScreen({ navigation, route }) {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search description, mobile, source…"
+            placeholder="Search inq code, description, mobile…"
             placeholderTextColor={COLORS.textMuted}
             value={filters.search}
             onChangeText={(v) => setFilters({ search: v })}
@@ -747,6 +747,7 @@ function InquiryRow({ inquiry, onPress }) {
     assignedTo,
     source,
     visibleUntil,
+    inqCode,
   } = inquiry;
 
   const pc = PRIORITY_COLORS[priority] ?? {
@@ -809,7 +810,15 @@ function InquiryRow({ inquiry, onPress }) {
           <Text style={styles.cardDate}>{dateLabel}</Text>
         </View>
 
-        {/* Row 2: Description */}
+        {/* Row 2: Inq Code */}
+        {inqCode ? (
+          <View style={styles.inqCodeChip}>
+            <Icon name="tag-outline" size={11} color={COLORS.primary} />
+            <Text style={styles.inqCodeText}>{inqCode}</Text>
+          </View>
+        ) : null}
+
+        {/* Row 3: Description */}
         <Text style={styles.cardDesc} numberOfLines={2}>
           {stripHtml(description || title) || "No description provided."}
         </Text>
@@ -1385,6 +1394,22 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     color: COLORS.textMuted,
     flexShrink: 0,
+  },
+  inqCodeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: BORDER_RADIUS.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  inqCodeText: {
+    fontSize: 9,
+    fontFamily: FONTS.bold,
+    color: COLORS.primary,
+    letterSpacing: 0.3,
   },
   cardDesc: {
     fontSize: FONT_SIZE.sm,
