@@ -39,20 +39,22 @@ import useAuthStore          from '@store/auth.store';
 import useInquiryStore       from '@store/inquiry.store';
 import useNotificationStore  from '@store/notification.store';
 
-import Loader          from '@components/common/Loader';
-import StatCard        from '@components/common/StatCard';
-import StatusBadge     from '@components/common/StatusBadge';
-import DistributeModal from '@components/inquiry/DistributeModal';
+import Loader               from '@components/common/Loader';
+import StatCard              from '@components/common/StatCard';
+import StatusBadge           from '@components/common/StatusBadge';
+import DistributeModal       from '@components/inquiry/DistributeModal';
+import DateRangePickerModal  from '@components/common/DateRangePickerModal';
 
 // ─── Period filter config ─────────────────────────────────────
 const PERIODS = [
-  { key: 'today', label: 'Today' },
-  { key: 'week',  label: 'This Week' },
-  { key: 'month', label: 'This Month' },
-  { key: 'all',   label: 'All Time' },
+  { key: 'today',  label: 'Today' },
+  { key: 'week',   label: 'This Week' },
+  { key: 'month',  label: 'This Month' },
+  { key: 'all',    label: 'All Time' },
+  { key: 'custom', label: 'Custom' },
 ];
 
-function getPeriodRange(key) {
+function getPeriodRange(key, customFrom = null, customTo = null) {
   const today = dayjs();
   switch (key) {
     case 'today':
@@ -66,6 +68,8 @@ function getPeriodRange(key) {
     }
     case 'month':
       return { from: toISODate(today.startOf('month').toDate()), to: toISODate(today.toDate()) };
+    case 'custom':
+      return customFrom && customTo ? { from: customFrom, to: customTo } : {};
     case 'all':
     default:
       return {};
@@ -120,16 +124,21 @@ export default function DashboardScreen({ navigation }) {
   // Distribute modal state
   const [distributeInquiry, setDistributeInquiry] = useState(null);
 
+  // Custom date range
+  const [customPickerVisible, setCustomPickerVisible] = useState(false);
+  const [customFrom,          setCustomFrom]          = useState(null);
+  const [customTo,            setCustomTo]            = useState(null);
+
   // Track whether this is the very first focus (to show full loader only on mount)
   const isFirstFocus = useRef(true);
 
   // ── Loaders ──────────────────────────────────────────────────
-  const loadSummary = useCallback(async (periodKey = 'all', isInitial = false) => {
+  const loadSummary = useCallback(async (periodKey = 'all', isInitial = false, rangeFrom = null, rangeTo = null) => {
     setSummaryError(false);
     if (isInitial) setSummaryLoading(true);
     else           setKpiLoading(true);
     try {
-      const range = getPeriodRange(periodKey);
+      const range = getPeriodRange(periodKey, rangeFrom, rangeTo);
       const res   = await reportApi.getSummary(range);
       setSummary(res.data ?? res);
     } catch (_) {
@@ -155,37 +164,40 @@ export default function DashboardScreen({ navigation }) {
     useCallback(() => {
       const first = isFirstFocus.current;
       isFirstFocus.current = false;
-      loadSummary(activePeriod, first);
+      loadSummary(activePeriod, first, customFrom, customTo);
       loadTodayCount();
       fetchUnassigned();
-    }, [activePeriod]),
+    }, [activePeriod, customFrom, customTo]),
   );
 
   // ── React to inquiry creation / mutation from any screen ─────
-  // summaryRefreshKey is incremented by CreateInquiry (and any other
-  // mutation screen). This fires even if Dashboard never lost focus
-  // (e.g. user returns to Dashboard tab, or a socket event triggers it).
   useEffect(() => {
     if (summaryRefreshKey === 0) return; // skip on initial mount
-    loadSummary(activePeriod, false);
+    loadSummary(activePeriod, false, customFrom, customTo);
     loadTodayCount();
   }, [summaryRefreshKey]);
 
   const onPeriodChange = useCallback((key) => {
+    if (key === 'custom') {
+      setCustomPickerVisible(true);
+      return;
+    }
     setActivePeriod(key);
+    setCustomFrom(null);
+    setCustomTo(null);
     loadSummary(key);
   }, [loadSummary]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadSummary(activePeriod), loadTodayCount(), fetchUnassigned()]);
+    await Promise.all([loadSummary(activePeriod, false, customFrom, customTo), loadTodayCount(), fetchUnassigned()]);
     setRefreshing(false);
     Toast.show({
       type:  'success',
       text1: 'Dashboard refreshed',
       visibilityTime: 1500,
     });
-  }, [activePeriod]);
+  }, [activePeriod, customFrom, customTo]);
 
   // ── Error / Loading states ────────────────────────────────────
   if (summaryLoading && !refreshing) return <Loader />;
@@ -269,6 +281,10 @@ export default function DashboardScreen({ navigation }) {
         >
           {PERIODS.map((p) => {
             const isActive = activePeriod === p.key;
+            // For Custom chip show the selected range as label when active
+            const chipLabel = (p.key === 'custom' && isActive && customFrom && customTo)
+              ? `${dayjs(customFrom).format('DD MMM')} – ${dayjs(customTo).format('DD MMM')}`
+              : p.label;
             return (
               <TouchableOpacity
                 key={p.key}
@@ -279,8 +295,16 @@ export default function DashboardScreen({ navigation }) {
                 {isActive && kpiLoading ? (
                   <ActivityIndicator size={10} color={COLORS.white} style={{ marginRight: 4 }} />
                 ) : null}
+                {p.key === 'custom' && (
+                  <Icon
+                    name="calendar-range"
+                    size={12}
+                    color={isActive ? COLORS.white : COLORS.textSecondary}
+                    style={{ marginRight: 3 }}
+                  />
+                )}
                 <Text style={[styles.periodChipText, isActive && styles.periodChipTextActive]}>
-                  {p.label}
+                  {chipLabel}
                 </Text>
               </TouchableOpacity>
             );
@@ -564,6 +588,21 @@ export default function DashboardScreen({ navigation }) {
           }}
         />
       )}
+
+      {/* Custom date range picker */}
+      <DateRangePickerModal
+        visible={customPickerVisible}
+        onClose={() => setCustomPickerVisible(false)}
+        initialFrom={customFrom}
+        initialTo={customTo}
+        onApply={(from, to) => {
+          setCustomFrom(from);
+          setCustomTo(to);
+          setActivePeriod('custom');
+          setCustomPickerVisible(false);
+          loadSummary('custom', false, from, to);
+        }}
+      />
     </SafeAreaView>
   );
 }

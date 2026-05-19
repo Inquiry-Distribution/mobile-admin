@@ -21,7 +21,7 @@ const DEFAULT_FILTERS = {
 };
 
 // ─── Build date params from period key ────────────────────────
-function buildPeriodParams(period) {
+function buildPeriodParams(period, customFrom = null, customTo = null) {
   const today = dayjs().format('YYYY-MM-DD');
   switch (period) {
     case 'today':
@@ -35,6 +35,10 @@ function buildPeriodParams(period) {
     }
     case 'month':
       return { from: dayjs().startOf('month').format('YYYY-MM-DD'), to: today };
+    case 'custom':
+      return customFrom && customTo
+        ? { from: customFrom, to: customTo }
+        : {};
     case 'all':
       return {};                              // no date restriction
     case 'today_and_before':
@@ -57,7 +61,9 @@ const useInquiryStore = create((set, get) => ({
 
   // Active filters
   filters:       { ...DEFAULT_FILTERS },
-  activePeriod:  'all',   // 'today' | 'week' | 'month' | 'all'
+  activePeriod:  'all',   // 'today' | 'week' | 'month' | 'all' | 'custom'
+  customFrom:    null,    // 'YYYY-MM-DD' — only used when activePeriod === 'custom'
+  customTo:      null,    // 'YYYY-MM-DD'
 
   // Loading flags
   isLoading:     false,
@@ -165,8 +171,8 @@ const useInquiryStore = create((set, get) => ({
   fetchInquiries: async (extraParams = {}) => {
     set({ isLoading: true, error: null, page: 1 });
     try {
-      const { filters, activePeriod } = get();
-      const periodParams = buildPeriodParams(activePeriod);
+      const { filters, activePeriod, customFrom, customTo } = get();
+      const periodParams = buildPeriodParams(activePeriod, customFrom, customTo);
       const params = buildParams(filters, 1, { ...periodParams, ...extraParams });
       const res    = await inquiryApi.getAll(params);
       const { data, pagination } = normalise(res);
@@ -187,8 +193,8 @@ const useInquiryStore = create((set, get) => ({
   refreshInquiries: async () => {
     set({ isRefreshing: true, page: 1 });
     try {
-      const { filters, activePeriod } = get();
-      const params = buildParams(filters, 1, buildPeriodParams(activePeriod));
+      const { filters, activePeriod, customFrom, customTo } = get();
+      const params = buildParams(filters, 1, buildPeriodParams(activePeriod, customFrom, customTo));
       const res    = await inquiryApi.getAll(params);
       const { data, pagination } = normalise(res);
 
@@ -206,13 +212,13 @@ const useInquiryStore = create((set, get) => ({
 
   // ─── Infinite scroll ─────────────────────────────────────────
   loadMore: async () => {
-    const { isLoadingMore, hasMore, page, filters, activePeriod } = get();
+    const { isLoadingMore, hasMore, page, filters, activePeriod, customFrom, customTo } = get();
     if (isLoadingMore || !hasMore) return;
 
     set({ isLoadingMore: true });
     try {
       const nextPage = page + 1;
-      const params   = buildParams(filters, nextPage, buildPeriodParams(activePeriod));
+      const params   = buildParams(filters, nextPage, buildPeriodParams(activePeriod, customFrom, customTo));
       const res      = await inquiryApi.getAll(params);
       const { data, pagination } = normalise(res);
 
@@ -344,11 +350,22 @@ const useInquiryStore = create((set, get) => ({
     get().fetchInquiries();
   },
 
+  // Set a custom date range and immediately fetch
+  setCustomPeriod: (from, to) => {
+    set({ activePeriod: 'custom', customFrom: from, customTo: to });
+    get().fetchInquiries();
+  },
+
   // ─── Filter helpers ───────────────────────────────────────────
   setFilters: (partial) =>
     set((state) => ({ filters: { ...state.filters, ...partial } })),
 
-  clearFilters: () => set({ filters: { ...DEFAULT_FILTERS }, activePeriod: 'all' }),
+  clearFilters: () => set({
+    filters:      { ...DEFAULT_FILTERS },
+    activePeriod: 'all',
+    customFrom:   null,
+    customTo:     null,
+  }),
 
   clearSelected:  () => set({ selectedInquiry: null }),
   clearError:     () => set({ error: null }),

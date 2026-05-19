@@ -38,15 +38,17 @@ import useInquiryStore from "@store/inquiry.store";
 import useUserStore from "@store/user.store";
 import Loader from "@components/common/Loader";
 import EmptyState from "@components/common/EmptyState";
+import DateRangePickerModal from "@components/common/DateRangePickerModal";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 
 // ─── Filter config ────────────────────────────────────────────
 const DATE_PERIODS = [
-  { key: "today", label: "Today", icon: "calendar-today" },
-  { key: "week", label: "This Week", icon: "calendar-week" },
-  { key: "month", label: "This Month", icon: "calendar-month" },
-  { key: "all", label: "All Time", icon: "calendar-blank-multiple" },
+  { key: "today",  label: "Today",      icon: "calendar-today" },
+  { key: "week",   label: "This Week",  icon: "calendar-week" },
+  { key: "month",  label: "This Month", icon: "calendar-month" },
+  { key: "all",    label: "All Time",   icon: "calendar-blank-multiple" },
+  { key: "custom", label: "Custom",     icon: "calendar-range" },
 ];
 
 const STATUS_CHIPS = [
@@ -74,6 +76,8 @@ export default function InquiryListScreen({ navigation, route }) {
     total,
     filters,
     activePeriod,
+    customFrom,
+    customTo,
     isLoading,
     isRefreshing,
     isLoadingMore,
@@ -83,6 +87,7 @@ export default function InquiryListScreen({ navigation, route }) {
     setFilters,
     clearFilters,
     setPeriod,
+    setCustomPeriod,
   } = useInquiryStore();
 
   const { salespersons, fetchSalespersons } = useUserStore();
@@ -99,6 +104,11 @@ export default function InquiryListScreen({ navigation, route }) {
   const [draftPriority, setDraftPriority] = useState("");
   const [draftPeriod, setDraftPeriod] = useState("all");
   const [draftSpId, setDraftSpId] = useState("");
+
+  // Custom date range picker
+  const [customPickerVisible, setCustomPickerVisible] = useState(false);
+  const [draftCustomFrom, setDraftCustomFrom] = useState(null);
+  const [draftCustomTo,   setDraftCustomTo]   = useState(null);
 
   // ── Derived ────────────────────────────────────────────────
   const filteredSp = salespersons.filter(
@@ -136,8 +146,10 @@ export default function InquiryListScreen({ navigation, route }) {
     setDraftPriority(filters.priority);
     setDraftPeriod(activePeriod);
     setDraftSpId(filters.assignedToId);
+    setDraftCustomFrom(customFrom);
+    setDraftCustomTo(customTo);
     setDrawerVisible(true);
-  }, [filters, activePeriod]);
+  }, [filters, activePeriod, customFrom, customTo]);
 
   const closeDrawer = useCallback(() => {
     setDrawerVisible(false);
@@ -151,16 +163,22 @@ export default function InquiryListScreen({ navigation, route }) {
       priority: draftPriority,
       assignedToId: draftSpId,
     });
-    setPeriod(draftPeriod);
+    if (draftPeriod === 'custom' && draftCustomFrom && draftCustomTo) {
+      setCustomPeriod(draftCustomFrom, draftCustomTo);
+    } else {
+      setPeriod(draftPeriod);
+    }
     fetchInquiries();
     closeDrawer();
-  }, [draftStatus, draftPriority, draftPeriod, draftSpId]);
+  }, [draftStatus, draftPriority, draftPeriod, draftSpId, draftCustomFrom, draftCustomTo]);
 
   const resetDraft = useCallback(() => {
     setDraftStatus("");
     setDraftPriority("");
     setDraftPeriod("all");
     setDraftSpId("");
+    setDraftCustomFrom(null);
+    setDraftCustomTo(null);
   }, []);
 
   // ── Salesperson picker (inside drawer) ─────────────────────
@@ -327,7 +345,13 @@ export default function InquiryListScreen({ navigation, route }) {
         onReset={resetDraft}
         // Period
         draftPeriod={draftPeriod}
-        setDraftPeriod={setDraftPeriod}
+        setDraftPeriod={(key) => {
+          setDraftPeriod(key);
+          if (key === 'custom') setCustomPickerVisible(true);
+        }}
+        draftCustomFrom={draftCustomFrom}
+        draftCustomTo={draftCustomTo}
+        onOpenCustomPicker={() => setCustomPickerVisible(true)}
         // Status
         draftStatus={draftStatus}
         setDraftStatus={setDraftStatus}
@@ -338,6 +362,19 @@ export default function InquiryListScreen({ navigation, route }) {
         draftSp={draftSp}
         onOpenSpPicker={() => setSpPickerVisible(true)}
         onClearSp={() => setDraftSpId("")}
+      />
+
+      {/* ── Custom date range picker ─────────────────────────── */}
+      <DateRangePickerModal
+        visible={customPickerVisible}
+        onClose={() => setCustomPickerVisible(false)}
+        initialFrom={draftCustomFrom}
+        initialTo={draftCustomTo}
+        onApply={(from, to) => {
+          setDraftCustomFrom(from);
+          setDraftCustomTo(to);
+          setCustomPickerVisible(false);
+        }}
       />
 
       {/* ── Salesperson picker modal ────────────────────────── */}
@@ -504,6 +541,9 @@ function FilterDrawer({
   onReset,
   draftPeriod,
   setDraftPeriod,
+  draftCustomFrom,
+  draftCustomTo,
+  onOpenCustomPicker,
   draftStatus,
   setDraftStatus,
   draftPriority,
@@ -594,6 +634,23 @@ function FilterDrawer({
                 );
               })}
             </View>
+
+            {/* Custom range display — shown when 'custom' is selected */}
+            {draftPeriod === 'custom' && (
+              <TouchableOpacity
+                style={styles.customRangeRow}
+                onPress={onOpenCustomPicker}
+                activeOpacity={0.8}
+              >
+                <Icon name="calendar-range" size={14} color={COLORS.primary} />
+                <Text style={styles.customRangeText}>
+                  {draftCustomFrom && draftCustomTo
+                    ? `${dayjs(draftCustomFrom).format('DD MMM YYYY')}  –  ${dayjs(draftCustomTo).format('DD MMM YYYY')}`
+                    : 'Tap to pick date range'}
+                </Text>
+                <Icon name="pencil-outline" size={13} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
           </DrawerSection>
 
           <DrawerDivider />
@@ -1177,6 +1234,24 @@ const styles = StyleSheet.create({
   },
   drawerChipTextActive: {
     color: COLORS.white,
+  },
+  customRangeRow: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             6,
+    marginTop:       SPACING.sm,
+    paddingVertical: 9,
+    paddingHorizontal: SPACING.sm,
+    backgroundColor:  COLORS.primaryLight,
+    borderRadius:    BORDER_RADIUS.md,
+    borderWidth:     1,
+    borderColor:     COLORS.primary + '40',
+  },
+  customRangeText: {
+    flex:       1,
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
+    color:      COLORS.primary,
   },
   priorityDot: {
     width: 7,
