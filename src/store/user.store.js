@@ -202,6 +202,27 @@ const useUserStore = create((set, get) => ({
     }
   },
 
+  // ─── Set availability (open / active) — sales users only ─────
+  setAvailability: async (id, availability) => {
+    set({ isMutating: true });
+    try {
+      const res = await userApi.setAvailability(id, availability);
+      const updated = res.data ?? res;
+
+      set((state) => ({
+        users: replaceById(state.users, id, updated),
+        selectedUser: state.selectedUser?.id === id
+          ? { ...state.selectedUser, ...updated }
+          : state.selectedUser,
+        isMutating: false,
+      }));
+      return { success: true };
+    } catch (err) {
+      set({ isMutating: false });
+      return { success: false, message: err.message };
+    }
+  },
+
   // ─── Update admin password (superuser only) ──────────────────
   updateAdminPassword: async (id, password) => {
     set({ isMutating: true });

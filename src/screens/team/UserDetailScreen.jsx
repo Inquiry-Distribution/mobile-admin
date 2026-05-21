@@ -41,7 +41,7 @@ import UpdateAdminPasswordModal  from '@components/team/UpdateAdminPasswordModal
 export default function UserDetailScreen({ navigation, route }) {
   const { id } = route.params;
 
-  const { selectedUser, isLoadingDetail, fetchUser, toggleStatus, removeUser, updateUser } = useUserStore();
+  const { selectedUser, isLoadingDetail, fetchUser, toggleStatus, removeUser, updateUser, setAvailability } = useUserStore();
   const { isSuperuser } = useAuthStore();
 
   const [pinModalVisible,      setPinModalVisible]      = useState(false);
@@ -49,7 +49,8 @@ export default function UserDetailScreen({ navigation, route }) {
   const [isRefreshing,       setIsRefreshing]       = useState(false);
   const [deleteError,        setDeleteError]        = useState(null);
   const [isDeviceMutating,   setIsDeviceMutating]   = useState(false);
-  const [isRemoteMutating,   setIsRemoteMutating]   = useState(false);
+  const [isRemoteMutating,      setIsRemoteMutating]      = useState(false);
+  const [isAvailabilityMutating, setIsAvailabilityMutating] = useState(false);
 
   useEffect(() => {
     fetchUser(id);
@@ -215,6 +216,32 @@ export default function UserDetailScreen({ navigation, route }) {
     );
   };
 
+  const handleToggleAvailability = () => {
+    if (!selectedUser) return;
+    const isOpen   = selectedUser.availability === 'open';
+    const newValue = isOpen ? 'active' : 'open';
+    const title    = isOpen ? 'Restore Access' : 'Restrict Access';
+    const body     = isOpen
+      ? `${selectedUser.name} will be able to view inquiries and messages again.`
+      : `${selectedUser.name} will not be able to view any inquiries or messages until restored.`;
+
+    Alert.alert(title, body, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: isOpen ? 'Restore' : 'Restrict',
+        style: isOpen ? 'default' : 'destructive',
+        onPress: async () => {
+          setIsAvailabilityMutating(true);
+          const result = await setAvailability(selectedUser.id, newValue);
+          setIsAvailabilityMutating(false);
+          if (!result.success) {
+            Alert.alert('Error', result.message ?? 'Failed to update availability.');
+          }
+        },
+      },
+    ]);
+  };
+
   if (isLoadingDetail && !selectedUser) return <Loader />;
   if (!selectedUser) return null;
 
@@ -270,6 +297,14 @@ export default function UserDetailScreen({ navigation, route }) {
                 {user.isActive ? 'Active' : 'Inactive'}
               </Text>
             </View>
+            {isSales && user.availability === 'open' && (
+              <View style={[styles.activeBadge, { backgroundColor: COLORS.warning + '20' }]}>
+                <View style={[styles.activeDot, { backgroundColor: COLORS.warning }]} />
+                <Text style={[styles.activeBadgeText, { color: COLORS.warning }]}>
+                  Off Duty
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -449,6 +484,42 @@ export default function UserDetailScreen({ navigation, route }) {
             {!isSuperuser() && (
               <Text style={styles.remoteNote}>Only superusers can change this setting.</Text>
             )}
+          </View>
+        )}
+
+        {/* ── Availability (sales only) ─────────────────── */}
+        {isSales && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Availability</Text>
+            <View style={styles.remoteRow}>
+              <View style={styles.remoteInfo}>
+                <Icon
+                  name={user.availability === 'open' ? 'briefcase-off-outline' : 'briefcase-check-outline'}
+                  size={18}
+                  color={user.availability === 'open' ? COLORS.warning : COLORS.success}
+                />
+                <View style={styles.remoteTexts}>
+                  <Text style={styles.remoteLabel}>
+                    {user.availability === 'open' ? 'Off duty' : 'On duty'}
+                  </Text>
+                  <Text style={styles.remoteSub}>
+                    {user.availability === 'open'
+                      ? 'Salesperson cannot view inquiries or messages'
+                      : 'Salesperson has full access to inquiries and messages'}
+                  </Text>
+                </View>
+              </View>
+              {isAvailabilityMutating ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Switch
+                  value={user.availability !== 'open'}
+                  onValueChange={handleToggleAvailability}
+                  trackColor={{ false: COLORS.warning + '99', true: COLORS.success + '99' }}
+                  thumbColor={user.availability === 'open' ? COLORS.warning : COLORS.success}
+                />
+              )}
+            </View>
           </View>
         )}
 

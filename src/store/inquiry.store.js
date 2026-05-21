@@ -273,6 +273,26 @@ const useInquiryStore = create((set, get) => ({
     }
   },
 
+  // ─── Bulk Distribute ─────────────────────────────────────────
+  bulkDistribute: async (inquiryIds, salesPersonId) => {
+    set({ isMutating: true });
+    try {
+      const res    = await inquiryApi.bulkDistribute({ inquiryIds, salesPersonId });
+      const result = res.data ?? res;
+      // Remove distributed inquiries from the list and refresh counts
+      set((state) => ({
+        inquiries:  state.inquiries.filter((i) => !inquiryIds.includes(i.id) || result.skippedIds?.includes(i.id)),
+        unassigned: state.unassigned.filter((i) => !inquiryIds.includes(i.id)),
+        isMutating: false,
+      }));
+      get().bumpSummaryRefresh();
+      return { success: true, ...result };
+    } catch (err) {
+      set({ isMutating: false });
+      return { success: false, message: err.message };
+    }
+  },
+
   // ─── Reassign ────────────────────────────────────────────────
   reassign: async (id, payload) => {
     set({ isMutating: true });

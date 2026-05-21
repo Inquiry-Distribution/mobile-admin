@@ -23,9 +23,9 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import dayjs from "dayjs";
 
@@ -81,6 +81,7 @@ export default function InquiryListScreen({ navigation, route }) {
     isLoading,
     isRefreshing,
     isLoadingMore,
+    isMutating,
     fetchInquiries,
     refreshInquiries,
     loadMore,
@@ -88,13 +89,55 @@ export default function InquiryListScreen({ navigation, route }) {
     clearFilters,
     setPeriod,
     setCustomPeriod,
+    bulkDistribute,
   } = useInquiryStore();
 
   const { salespersons, fetchSalespersons } = useUserStore();
 
-  // ── Salesperson picker state ───────────────────────────────
+  // ── Salesperson picker state (filter drawer) ───────────────
   const [spPickerVisible, setSpPickerVisible] = useState(false);
   const [spSearch, setSpSearch] = useState("");
+
+  // ── Select mode (bulk distribute) ─────────────────────────
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkSpPickerVisible, setBulkSpPickerVisible] = useState(false);
+  const [bulkSpSearch, setBulkSpSearch] = useState("");
+
+  const enterSelectMode = useCallback((id) => {
+    setSelectMode(true);
+    setSelectedIds(new Set([id]));
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleBulkDistribute = useCallback(async (sp) => {
+    setBulkSpPickerVisible(false);
+    setBulkSpSearch("");
+    const ids = Array.from(selectedIds);
+    const result = await bulkDistribute(ids, sp.id);
+    exitSelectMode();
+    if (result.success) {
+      const msg = result.skipped > 0
+        ? `${result.distributed} distributed. ${result.skipped} skipped (already assigned).`
+        : `${result.distributed} inquiries distributed to ${sp.name}.`;
+      Alert.alert("Done", msg);
+      fetchInquiries();
+    } else {
+      Alert.alert("Error", result.message || "Failed to distribute.");
+    }
+  }, [selectedIds, bulkDistribute, exitSelectMode, fetchInquiries]);
 
   // ── Filter drawer state ────────────────────────────────────
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -200,68 +243,89 @@ export default function InquiryListScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
-      {/* FAB — Add new inquiry */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("CreateInquiry")}
-        activeOpacity={0.85}
-      >
-        <Icon name="plus" size={26} color={COLORS.white} />
-      </TouchableOpacity>
-
-      {/* ── Search + Filter button row ─────────────────────── */}
-      <View style={styles.searchRow}>
-        {/* Search input */}
-        <View style={styles.searchWrap}>
-          <Icon
-            name="magnify"
-            size={20}
-            color={COLORS.textMuted}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search inq code, description, mobile…"
-            placeholderTextColor={COLORS.textMuted}
-            value={filters.search}
-            onChangeText={(v) => setFilters({ search: v })}
-            returnKeyType="search"
-            onSubmitEditing={onSearchSubmit}
-          />
-          {filters.search.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setFilters({ search: "" });
-                fetchInquiries();
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Icon name="close-circle" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Filter button */}
+      {/* FAB — Add new inquiry (hidden in select mode) */}
+      {!selectMode && (
         <TouchableOpacity
-          style={[
-            styles.filterBtn,
-            activeFilterCount > 0 && styles.filterBtnActive,
-          ]}
-          onPress={openDrawer}
-          activeOpacity={0.8}
+          style={styles.fab}
+          onPress={() => navigation.navigate("CreateInquiry")}
+          activeOpacity={0.85}
         >
-          <Icon
-            name="tune-variant"
-            size={19}
-            color={activeFilterCount > 0 ? COLORS.white : COLORS.primary}
-          />
-          {activeFilterCount > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-            </View>
-          )}
+          <Icon name="plus" size={26} color={COLORS.white} />
         </TouchableOpacity>
-      </View>
+      )}
+
+      {/* ── Search + Filter row  /  Select-mode header ────── */}
+      {selectMode ? (
+        <View style={styles.selectHeader}>
+          <TouchableOpacity onPress={exitSelectMode} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Icon name="close" size={22} color={COLORS.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.selectHeaderText}>
+            {selectedIds.size} selected
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedIds(new Set(inquiries.map((i) => i.id)));
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.selectAllText}>Select All</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.searchRow}>
+          {/* Search input */}
+          <View style={styles.searchWrap}>
+            <Icon
+              name="magnify"
+              size={20}
+              color={COLORS.textMuted}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search inq code, description, mobile…"
+              placeholderTextColor={COLORS.textMuted}
+              value={filters.search}
+              onChangeText={(v) => setFilters({ search: v })}
+              returnKeyType="search"
+              onSubmitEditing={onSearchSubmit}
+            />
+            {filters.search.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setFilters({ search: "" });
+                  fetchInquiries();
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Icon name="close-circle" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Filter button */}
+          <TouchableOpacity
+            style={[
+              styles.filterBtn,
+              activeFilterCount > 0 && styles.filterBtnActive,
+            ]}
+            onPress={openDrawer}
+            activeOpacity={0.8}
+          >
+            <Icon
+              name="tune-variant"
+              size={19}
+              color={activeFilterCount > 0 ? COLORS.white : COLORS.primary}
+            />
+            {activeFilterCount > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* ── Filter-refresh loader ────────────────────────────── */}
       {isLoading && inquiries.length > 0 && (
@@ -279,9 +343,13 @@ export default function InquiryListScreen({ navigation, route }) {
         renderItem={({ item }) => (
           <InquiryRow
             inquiry={item}
-            onPress={() =>
-              navigation.navigate("InquiryDetail", { id: item.id })
-            }
+            onPress={() => {
+              if (selectMode) { toggleSelect(item.id); return; }
+              navigation.navigate("InquiryDetail", { id: item.id });
+            }}
+            onLongPress={() => enterSelectMode(item.id)}
+            selectable={selectMode}
+            selected={selectedIds.has(item.id)}
           />
         )}
         refreshing={isRefreshing}
@@ -377,28 +445,126 @@ export default function InquiryListScreen({ navigation, route }) {
         }}
       />
 
-      {/* ── Salesperson picker modal ────────────────────────── */}
+      {/* ── Bulk distribute action bar ──────────────────────── */}
+      {selectMode && (
+        <View style={styles.actionBar}>
+          <Text style={styles.actionBarCount}>
+            {selectedIds.size} inquir{selectedIds.size !== 1 ? "ies" : "y"} selected
+          </Text>
+          <TouchableOpacity
+            style={[styles.actionBarBtn, selectedIds.size === 0 && styles.actionBarBtnDisabled]}
+            onPress={() => setBulkSpPickerVisible(true)}
+            disabled={selectedIds.size === 0 || isMutating}
+            activeOpacity={0.85}
+          >
+            {isMutating
+              ? <ActivityIndicator size="small" color={COLORS.white} />
+              : <Icon name="account-arrow-right-outline" size={18} color={COLORS.white} />
+            }
+            <Text style={styles.actionBarBtnText}>Distribute</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Bulk distribute — salesperson picker ────────────── */}
+      <Modal
+        visible={bulkSpPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setBulkSpPickerVisible(false); setBulkSpSearch(""); }}
+      >
+        <View style={styles.spModalContainer}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => { setBulkSpPickerVisible(false); setBulkSpSearch(""); }}
+          />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Distribute to Salesperson</Text>
+              <TouchableOpacity onPress={() => { setBulkSpPickerVisible(false); setBulkSpSearch(""); }}>
+                <Icon name="close" size={22} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalSearch}>
+              <Icon name="magnify" size={18} color={COLORS.textMuted} style={{ marginRight: 6 }} />
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search salesperson…"
+                placeholderTextColor={COLORS.textMuted}
+                value={bulkSpSearch}
+                onChangeText={setBulkSpSearch}
+                autoFocus
+              />
+              {bulkSpSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setBulkSpSearch("")}>
+                  <Icon name="close-circle" size={16} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <FlatList
+              data={salespersons.filter(
+                (sp) => !bulkSpSearch || sp.name?.toLowerCase().includes(bulkSpSearch.toLowerCase())
+              )}
+              keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => {
+                const initials = item.name
+                  ? item.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+                  : "?";
+                return (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => handleBulkDistribute(item)}
+                  >
+                    <View style={styles.modalAvatar}>
+                      <Text style={styles.modalAvatarText}>{initials}</Text>
+                    </View>
+                    <View style={styles.modalItemInfo}>
+                      <Text style={styles.modalItemName}>{item.name}</Text>
+                      {item.email ? (
+                        <Text style={styles.modalItemSub} numberOfLines={1}>{item.email}</Text>
+                      ) : null}
+                    </View>
+                    <Icon name="chevron-right" size={18} color={COLORS.textMuted} />
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyText}>No salesperson found</Text>
+                </View>
+              }
+              contentContainerStyle={{ paddingBottom: 32 }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Filter salesperson picker modal ──────────────────── */}
       <Modal
         visible={spPickerVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => {
           setSpPickerVisible(false);
           setSpSearch("");
         }}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => {
-            setSpPickerVisible(false);
-            setSpSearch("");
-          }}
-        />
-        <View style={styles.modalSheet}>
-          <View style={styles.modalHandle} />
+        <View style={styles.spModalContainer}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => {
+              setSpPickerVisible(false);
+              setSpSearch("");
+            }}
+          />
+          <View style={styles.modalSheet}>
 
-          <View style={styles.modalHeader}>
+            <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Salesperson</Text>
             <TouchableOpacity
               onPress={() => {
@@ -527,6 +693,7 @@ export default function InquiryListScreen({ navigation, route }) {
             }
             contentContainerStyle={{ paddingBottom: 32 }}
           />
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -552,32 +719,22 @@ function FilterDrawer({
   onOpenSpPicker,
   onClearSp,
 }) {
-  const insets = useSafeAreaInsets();
-
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
-      {/* Dim overlay — tap to close without applying */}
-      <TouchableOpacity
-        style={styles.drawerOverlay}
-        activeOpacity={1}
-        onPress={onClose}
-      />
+      <View style={styles.drawerContainer}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View style={styles.drawerSheet}>
 
-      <View
-        style={[
-          styles.drawerSheet,
-          { paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
-        {/* Drag handle */}
-        <View style={styles.drawerHandle} />
-
-        {/* Header */}
+          {/* Header */}
         <View style={styles.drawerHeader}>
           <Text style={styles.drawerTitle}>Filters</Text>
           <TouchableOpacity
@@ -769,6 +926,8 @@ function FilterDrawer({
             <Text style={styles.applyBtnText}>Apply Filters</Text>
           </TouchableOpacity>
         </View>
+
+        </View>
       </View>
     </Modal>
   );
@@ -792,7 +951,7 @@ function DrawerDivider() {
 }
 
 // ─── InquiryRow ───────────────────────────────────────────────
-function InquiryRow({ inquiry, onPress }) {
+function InquiryRow({ inquiry, onPress, onLongPress, selectable, selected }) {
   const {
     description,
     title,
@@ -841,10 +1000,21 @@ function InquiryRow({ inquiry, onPress }) {
 
   return (
     <TouchableOpacity
-      style={[styles.card, isUrgent && styles.cardUrgent]}
+      style={[styles.card, isUrgent && styles.cardUrgent, selected && styles.cardSelected]}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
       activeOpacity={0.72}
     >
+      {/* Checkbox overlay in select mode */}
+      {selectable && (
+        <View style={styles.checkbox}>
+          {selected
+            ? <Icon name="check-circle" size={22} color={COLORS.primary} />
+            : <Icon name="checkbox-blank-circle-outline" size={22} color={COLORS.textMuted} />
+          }
+        </View>
+      )}
       <View style={[styles.cardAccent, { backgroundColor: pc.text }]} />
 
       <View style={styles.cardBody}>
@@ -1113,30 +1283,23 @@ const styles = StyleSheet.create({
   // ══════════════════════════════════════════════════════════════
   //  Filter Drawer
   // ══════════════════════════════════════════════════════════════
-  drawerOverlay: {
+  drawerContainer: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
   drawerSheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 20,
+    width: "92%",
     maxHeight: SCREEN_H * 0.82,
-    // shadow on iOS
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 16,
-  },
-  drawerHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.border,
-    alignSelf: "center",
-    marginTop: 10,
-    marginBottom: 4,
+    overflow: "hidden",
   },
   drawerHeader: {
     flexDirection: "row",
@@ -1290,6 +1453,7 @@ const styles = StyleSheet.create({
   drawerFooter: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
+    paddingBottom: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
   },
@@ -1316,25 +1480,18 @@ const styles = StyleSheet.create({
   // ══════════════════════════════════════════════════════════════
   //  Salesperson picker modal (shared)
   // ══════════════════════════════════════════════════════════════
-  modalOverlay: {
+  spModalContainer: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   modalSheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 20,
+    width: "92%",
     maxHeight: SCREEN_H * 0.75,
-    paddingTop: 4,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.border,
-    alignSelf: "center",
-    marginTop: 8,
-    marginBottom: 4,
+    overflow: "hidden",
   },
   modalHeader: {
     flexDirection: "row",
@@ -1587,4 +1744,71 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   timeText: { fontSize: FONT_SIZE.xs, fontFamily: FONTS.medium, color: COLORS.textMuted },
+
+  // ── Select mode ──────────────────────────────────────────────
+  selectHeader: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.sm,
+    gap:             SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  selectHeaderText: {
+    flex:       1,
+    fontSize:   FONT_SIZE.md,
+    fontFamily: FONTS.bold,
+    color:      COLORS.textPrimary,
+  },
+  selectAllText: {
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
+    color:      COLORS.primary,
+  },
+  cardSelected: {},
+  checkbox: {
+    position: 'absolute',
+    top:   SPACING.sm,
+    right: SPACING.sm,
+    zIndex: 2,
+  },
+
+  // ── Bulk action bar ──────────────────────────────────────────
+  actionBar: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.sm,
+    backgroundColor: COLORS.surface,
+    borderTopWidth:  1,
+    borderTopColor:  COLORS.divider,
+    shadowColor:     '#000',
+    shadowOffset:    { width: 0, height: -2 },
+    shadowOpacity:   0.06,
+    shadowRadius:    4,
+    elevation:       6,
+  },
+  actionBarCount: {
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.medium,
+    color:      COLORS.textSecondary,
+  },
+  actionBarBtn: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             6,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical:   10,
+    borderRadius:    BORDER_RADIUS.full,
+  },
+  actionBarBtnDisabled: { opacity: 0.5 },
+  actionBarBtnText: {
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.bold,
+    color:      COLORS.white,
+  },
 });

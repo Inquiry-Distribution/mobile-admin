@@ -71,6 +71,15 @@ export const userApi = {
     client.patch(`/users/${id}/admin-password`, { password }),
 
   /**
+   * Set salesperson availability.
+   * Payload: { availability: 'open' | 'active' }
+   * 'open'   = locked out of all inquiry & message data
+   * 'active' = normal access (default)
+   */
+  setAvailability: (id, availability) =>
+    client.patch(`/users/${id}/availability`, { availability }),
+
+  /**
    * Permanently delete a user (superuser only).
    */
   remove: (id) => client.delete(`/users/${id}`),

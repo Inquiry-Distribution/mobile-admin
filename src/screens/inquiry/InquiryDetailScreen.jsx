@@ -462,6 +462,12 @@ export default function InquiryDetailScreen({ route, navigation }) {
         inqCode: data.inqCode || "",
         description: data.description || "",
         source: data.source || "",
+        // client info
+        clientName: data.clientName || "",
+        clientMobile: data.clientMobile || "",
+        clientEmail: data.clientEmail || "",
+        clientAddress: data.clientAddress || "",
+        // CRM-only fields
         workOrderNumber: data.workOrderNumber || "",
         company: data.company || "",
         price: data.price != null ? String(data.price) : "",
@@ -1578,6 +1584,66 @@ export default function InquiryDetailScreen({ route, navigation }) {
                         placeholderTextColor={COLORS.textMuted}
                         multiline={multiline}
                         numberOfLines={multiline ? 3 : 1}
+                        onFocus={() => scrollToField(key)}
+                      />
+                    </View>
+                  ))}
+
+                  {/* Client info */}
+                  <Text style={styles.crmFieldGroup}>Client Info</Text>
+                  {[
+                    {
+                      key: "clientName",
+                      label: "Client Name *",
+                      placeholder: "Customer name",
+                      multiline: false,
+                      keyboardType: "default",
+                    },
+                    {
+                      key: "clientMobile",
+                      label: "Mobile Number *",
+                      placeholder: "Mobile number",
+                      multiline: false,
+                      keyboardType: "phone-pad",
+                    },
+                    {
+                      key: "clientEmail",
+                      label: "Email",
+                      placeholder: "client@example.com",
+                      multiline: false,
+                      keyboardType: "email-address",
+                    },
+                    {
+                      key: "clientAddress",
+                      label: "Address",
+                      placeholder: "Street, city, state…",
+                      multiline: true,
+                      keyboardType: "default",
+                    },
+                  ].map(({ key, label, placeholder, multiline, keyboardType }) => (
+                    <View
+                      key={key}
+                      style={styles.crmFieldWrap}
+                      ref={(r) => {
+                        crmFieldRefs.current[key] = r;
+                      }}
+                    >
+                      <Text style={styles.crmFieldLabel}>{label}</Text>
+                      <TextInput
+                        style={[
+                          styles.crmFieldInput,
+                          multiline && styles.crmFieldInputMulti,
+                        ]}
+                        value={crmForm[key] || ""}
+                        onChangeText={(v) =>
+                          setCrmForm((f) => ({ ...f, [key]: v }))
+                        }
+                        placeholder={placeholder}
+                        placeholderTextColor={COLORS.textMuted}
+                        multiline={multiline}
+                        numberOfLines={multiline ? 3 : 1}
+                        keyboardType={keyboardType}
+                        autoCapitalize={keyboardType === "email-address" ? "none" : "sentences"}
                         onFocus={() => scrollToField(key)}
                       />
                     </View>

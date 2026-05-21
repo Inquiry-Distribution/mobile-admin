@@ -123,6 +123,13 @@ export const inquiryApi = {
     client.post(`/inquiries/${id}/distribute`, payload),
 
   /**
+   * Bulk distribute multiple inquiries to one salesperson.
+   * Payload: { inquiryIds: string[], salesPersonId: string }
+   */
+  bulkDistribute: (payload) =>
+    client.post('/inquiries/bulk-distribute', payload),
+
+  /**
    * Reassign an already-assigned inquiry to another salesperson.
    * Payload: { salespersonId, reason? }
    */

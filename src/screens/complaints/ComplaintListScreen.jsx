@@ -5,7 +5,8 @@
  * Filter by type (complaint / suggestion) and status (pending / reviewed / resolved).
  * Tap a row to open ComplaintDetailScreen.
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, FlatList, StyleSheet,
   TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator,
@@ -45,7 +46,11 @@ export default function ComplaintListScreen({ navigation }) {
     selectById,
   } = useComplaintStore();
 
-  useEffect(() => { fetchRecords(); }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchRecords();
+    }, [])
+  );
 
   const pendingCount = records.filter((r) => r.status === 'pending').length;
 

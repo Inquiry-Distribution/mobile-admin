@@ -118,16 +118,17 @@ export default function GroupMembersScreen({ route, navigation }) {
       <Modal
         visible={addVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setAddVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.overlay}
-          activeOpacity={1}
-          onPress={() => { setAddVisible(false); setSearch(''); setSelected([]); }}
-        />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHeader}>
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => { setAddVisible(false); setSearch(''); setSelected([]); }}
+          />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Add Members</Text>
             <TouchableOpacity onPress={() => { setAddVisible(false); setSearch(''); setSelected([]); }}>
               <Icon name="close" size={22} color={COLORS.textSecondary} />
@@ -195,6 +196,7 @@ export default function GroupMembersScreen({ route, navigation }) {
                 </Text>
             }
           </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -250,13 +252,18 @@ const styles = StyleSheet.create({
   emptyText:  { ...TYPOGRAPHY.body, color: COLORS.textMuted },
 
   // Modal
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
   sheet: {
-    backgroundColor:      COLORS.surface,
-    borderTopLeftRadius:  20,
-    borderTopRightRadius: 20,
-    maxHeight:            '78%',
-    paddingTop:           4,
+    backgroundColor: COLORS.surface,
+    borderRadius:    20,
+    width:           '92%',
+    maxHeight:       '78%',
+    overflow:        'hidden',
   },
   sheetHeader: {
     flexDirection:     'row',

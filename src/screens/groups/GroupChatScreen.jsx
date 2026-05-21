@@ -518,16 +518,17 @@ export default function GroupChatScreen({ route, navigation }) {
       <Modal
         visible={pickerOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setPickerOpen(false)}
       >
-        <TouchableOpacity
-          style={styles.overlay}
-          activeOpacity={1}
-          onPress={() => setPickerOpen(false)}
-        />
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerHeader}>
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setPickerOpen(false)}
+          />
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
             <Text style={styles.pickerTitle}>Send privately to…</Text>
             <TouchableOpacity onPress={() => setPickerOpen(false)}>
               <Icon name="close" size={22} color={COLORS.textSecondary} />
@@ -567,6 +568,7 @@ export default function GroupChatScreen({ route, navigation }) {
             }
             contentContainerStyle={{ paddingBottom: 40 }}
           />
+          </View>
         </View>
       </Modal>
 
@@ -574,17 +576,17 @@ export default function GroupChatScreen({ route, navigation }) {
       <Modal
         visible={attachOpen}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setAttachOpen(false)}
       >
-        <TouchableOpacity
-          style={styles.overlay}
-          activeOpacity={1}
-          onPress={() => setAttachOpen(false)}
-        />
-        <View style={styles.attachSheet}>
-          <View style={styles.attachSheetHandle} />
-          <Text style={styles.attachSheetTitle}>Send Image</Text>
+        <View style={styles.modalContainer}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setAttachOpen(false)}
+          />
+          <View style={styles.attachSheet}>
+            <Text style={styles.attachSheetTitle}>Send Attachment</Text>
           <View style={styles.attachOptions}>
             <TouchableOpacity style={styles.attachOption} onPress={() => pickImage('camera')}>
               <View style={[styles.attachOptionIcon, { backgroundColor: COLORS.primary + '18' }]}>
@@ -608,6 +610,7 @@ export default function GroupChatScreen({ route, navigation }) {
           <TouchableOpacity style={styles.attachCancel} onPress={() => setAttachOpen(false)}>
             <Text style={styles.attachCancelText}>Cancel</Text>
           </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -1013,18 +1016,10 @@ const styles = StyleSheet.create({
   // Attach picker sheet
   attachSheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius:  20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34,
-  },
-  attachSheetHandle: {
-    width:           40,
-    height:          4,
-    backgroundColor: COLORS.border,
-    borderRadius:    2,
-    alignSelf:       'center',
-    marginTop:       10,
-    marginBottom:    8,
+    borderRadius: 20,
+    width: '92%',
+    overflow: 'hidden',
+    paddingBottom: SPACING.md,
   },
   attachSheetTitle: {
     ...TYPOGRAPHY.bodyMedium,
@@ -1112,12 +1107,19 @@ const styles = StyleSheet.create({
   fileLabelMe: { color: 'rgba(255,255,255,0.65)' },
 
 
-  // Picker modal
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  // Picker / attach modal container
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
   pickerSheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    maxHeight: '60%', paddingTop: 4,
+    borderRadius: 20,
+    width: '92%',
+    maxHeight: '70%',
+    overflow: 'hidden',
   },
   pickerHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
