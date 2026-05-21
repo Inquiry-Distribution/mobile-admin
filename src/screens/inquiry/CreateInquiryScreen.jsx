@@ -114,6 +114,7 @@ export default function CreateInquiryScreen({ navigation }) {
   const { refreshInquiries, fetchUnassigned, bumpSummaryRefresh } = useInquiryStore();
 
   // Form fields
+  const [title,       setTitle]       = useState('');
   const [description, setDescription] = useState('');
   const [mobile,      setMobile]      = useState('');
   const [inquiryTime, setInquiryTime] = useState(currentTime);  // auto-fill current time
@@ -413,6 +414,7 @@ export default function CreateInquiryScreen({ navigation }) {
   // ─── Reset form ──────────────────────────────────────────────
   const resetForm = () => {
     editorRef.current?.setContentHTML('');
+    setTitle('');
     setDescription('');
     setMobile('');
     setInquiryTime(currentTime());
@@ -433,14 +435,8 @@ export default function CreateInquiryScreen({ navigation }) {
 
   // ─── Submit ──────────────────────────────────────────────────
   const handleSubmit = async () => {
-    const descText = stripHtml(description).trim();
-    if (!descText && !mobile.trim()) {
-      Alert.alert('Required', 'Please enter a description or mobile number.');
-      if (!descText) {
-        editorRef.current?.focusContentEditor();
-      } else {
-        mobileRef.current?.focus();
-      }
+    if (!title.trim() && !mobile.trim()) {
+      Alert.alert('Required', 'Please enter a title or mobile number.');
       return;
     }
 
@@ -453,6 +449,7 @@ export default function CreateInquiryScreen({ navigation }) {
 
       // 2. Create inquiry
       const res     = await inquiryApi.create({
+        title:        title.trim()        || undefined,
         description:  stripHtml(description).trim() ? description.trim() : undefined,
         mobile:       mobile.trim()       || undefined,
         inquiryTime:  inquiryTime         || undefined,
@@ -511,6 +508,19 @@ export default function CreateInquiryScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+
+          {/* ── Title ───────────────────────────────────── */}
+          <View style={styles.card}>
+            <TextInput
+              style={[styles.input, styles.titleInput]}
+              placeholder="Enter inquiry title"
+              placeholderTextColor={COLORS.textMuted}
+              value={title}
+              onChangeText={setTitle}
+              returnKeyType="next"
+              maxLength={150}
+            />
+          </View>
 
           {/* ── Upload Photos + Files ────────────────────── */}
           <View style={styles.card}>
@@ -1382,6 +1392,13 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     color:           COLORS.textPrimary,
     justifyContent:  'center',
+  },
+
+  // Title input — overrides body fontFamily+fontWeight so placeholder
+  // renders correctly with the custom font on Android
+  titleInput: {
+    fontFamily: FONTS.medium,
+    fontWeight: undefined,
   },
 
   // Time

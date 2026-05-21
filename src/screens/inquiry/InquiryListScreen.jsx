@@ -284,7 +284,7 @@ export default function InquiryListScreen({ navigation, route }) {
             />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search inq code, description, mobile…"
+              placeholder="Search inq code, title, description, mobile…"
               placeholderTextColor={COLORS.textMuted}
               value={filters.search}
               onChangeText={(v) => setFilters({ search: v })}
@@ -1045,9 +1045,9 @@ function InquiryRow({ inquiry, onPress, onLongPress, selectable, selected }) {
           </View>
         ) : null}
 
-        {/* Row 3: Description */}
-        <Text style={styles.cardDesc} numberOfLines={2}>
-          {stripHtml(description || title) || "No description provided."}
+        {/* Row 3: Title (if set) else Description */}
+        <Text style={title ? styles.cardTitle : styles.cardDesc} numberOfLines={2}>
+          {title || stripHtml(description)}
         </Text>
 
         {/* Row 3: Meta chips */}
@@ -1643,10 +1643,17 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     letterSpacing: 0.3,
   },
+  cardTitle: {
+    fontSize: FONT_SIZE.sm,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+    lineHeight: 20,
+    letterSpacing: 0.1,
+  },
   cardDesc: {
     fontSize: FONT_SIZE.sm,
     fontFamily: FONTS.medium,
-    color: COLORS.textPrimary,
+    color: COLORS.textSecondary,
     lineHeight: 21,
     letterSpacing: 0.1,
   },

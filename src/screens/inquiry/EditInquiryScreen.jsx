@@ -104,6 +104,7 @@ export default function EditInquiryScreen({ route, navigation }) {
   const { refreshInquiries, selectInquiry } = useInquiryStore();
 
   // Pre-fill from existing inquiry
+  const [title,       setTitle]       = useState(inquiry.title ?? '');
   const [description, setDescription] = useState(inquiry.description ?? '');
   const [mobile,      setMobile]      = useState(inquiry.mobile ?? '');
   const [inquiryTime, setInquiryTime] = useState(extractTime(inquiry.inquiryTime));
@@ -273,8 +274,8 @@ export default function EditInquiryScreen({ route, navigation }) {
 
   // ─── Submit ──────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!stripHtml(description).trim() && !mobile.trim()) {
-      Alert.alert('Required', 'Please enter a description or mobile number.');
+    if (!title.trim() && !mobile.trim()) {
+      Alert.alert('Required', 'Please enter a title or mobile number.');
       return;
     }
 
@@ -282,6 +283,7 @@ export default function EditInquiryScreen({ route, navigation }) {
     try {
       // 1. Update inquiry fields
       await inquiryApi.update(inquiry.id, {
+        title:        title.trim()         || undefined,
         description:  stripHtml(description).trim() ? description.trim() : undefined,
         mobile:       mobile.trim()        || undefined,
         inquiryTime:  inquiryTime          || undefined,
@@ -329,6 +331,19 @@ export default function EditInquiryScreen({ route, navigation }) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+
+          {/* ── Title ───────────────────────────────────── */}
+          <View style={styles.card}>
+            <TextInput
+              style={[styles.input, styles.titleInput]}
+              placeholder="Enter inquiry title (optional)"
+              placeholderTextColor={COLORS.textMuted}
+              value={title}
+              onChangeText={setTitle}
+              returnKeyType="next"
+              maxLength={150}
+            />
+          </View>
 
           {/* ── Photos + Files ───────────────────────────── */}
           <View style={styles.card}>
@@ -894,6 +909,13 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.body,
     color:             COLORS.textPrimary,
     justifyContent:    'center',
+  },
+
+  // Title input — overrides body fontFamily+fontWeight so placeholder
+  // renders correctly with the custom font on Android
+  titleInput: {
+    fontFamily:  FONTS.medium,
+    fontWeight:  undefined,
   },
 
   // Time

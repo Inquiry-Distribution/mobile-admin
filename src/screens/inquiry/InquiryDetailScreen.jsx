@@ -677,11 +677,15 @@ export default function InquiryDetailScreen({ route, navigation }) {
                 </View>
               ) : null}
 
+              {/* Title */}
+              {title ? (
+                <Text style={styles.heroTitle}>{title}</Text>
+              ) : null}
+
               {/* Description */}
               <RichContent
-                html={description || title}
+                html={description}
                 textStyle={styles.heroDesc}
-                emptyText="No description provided."
               />
 
               {/* Contact */}
@@ -1908,6 +1912,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: COLORS.primary,
     letterSpacing: 0.3,
+  },
+  heroTitle: {
+    fontSize: FONT_SIZE.md,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+    lineHeight: 24,
   },
   heroDesc: {
     fontSize: FONT_SIZE.sm,

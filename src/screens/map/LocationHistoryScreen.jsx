@@ -41,7 +41,10 @@ const TODAY = dayjs().format('YYYY-MM-DD');
 function normCoord(pt) {
   const lat = pt.lat ?? pt.latitude  ?? pt.lastLat ?? null;
   const lng = pt.lng ?? pt.longitude ?? pt.lastLng ?? null;
-  return lat != null && lng != null ? { latitude: lat, longitude: lng } : null;
+  if (lat == null || lng == null) return null;
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  return !isNaN(latNum) && !isNaN(lngNum) ? { latitude: latNum, longitude: lngNum } : null;
 }
 
 /** Total polyline distance in km */
