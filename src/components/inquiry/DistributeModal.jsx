@@ -120,7 +120,7 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
         <View style={styles.inquirySummary}>
           <Text style={styles.summaryLabel}>Assigning</Text>
           <Text style={styles.summaryDesc} numberOfLines={2}>
-            {stripHtml(inquiry?.description || inquiry?.title || '').trim() || 'No description'}
+            {inquiry?.title?.trim() || stripHtml(inquiry?.description || '').trim()}
           </Text>
           {inquiry?.mobile ? (
             <View style={styles.summaryMeta}>

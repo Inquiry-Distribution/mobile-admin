@@ -89,7 +89,7 @@ export default function TrashScreen() {
   // ── Row ───────────────────────────────────────────────────────
   const renderItem = useCallback(({ item }) => {
     const priorityColor = PRIORITY_COLORS[item.priority]?.text ?? COLORS.textMuted;
-    const desc = stripHtml(item.description || item.title) || 'No description';
+    const desc = item.title?.trim() || stripHtml(item.description) || '';
 
     return (
       <View style={styles.card}>

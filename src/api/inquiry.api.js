@@ -183,6 +183,9 @@ export const inquiryApi = {
   /** Push a converted inquiry to the CRM platform with edited form data. */
   pushToCrm: (id, formData) => client.post(`/inquiries/${id}/push-to-crm`, formData),
 
+  /** Upload selected photos/files to CRM after push. fileIds: string[] */
+  uploadFilesToCrm: (id, fileIds) => client.post(`/inquiries/${id}/push-to-crm/upload`, { fileIds }),
+
   // ─── AI Analysis ────────────────────────────────────────────
 
   /**

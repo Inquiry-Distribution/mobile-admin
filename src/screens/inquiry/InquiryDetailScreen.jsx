@@ -62,6 +62,8 @@ import RNBlobUtil from "react-native-blob-util";
 import FileViewer from "react-native-file-viewer";
 import DistributeModal from "@components/inquiry/DistributeModal";
 import ReassignModal from "@components/inquiry/ReassignModal";
+import CrmFileUploadModal from "@components/inquiry/CrmFileUploadModal";
+import RichTextEditor from "@components/common/RichTextEditor";
 
 const MIME_TYPES = {
   pdf: "application/pdf",
@@ -106,9 +108,11 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const [crmModalVisible, setCrmModalVisible] = useState(false);
   const [crmPreviewLoading, setCrmPreviewLoading] = useState(false);
   const [crmPushLoading, setCrmPushLoading] = useState(false);
+  const [crmUploadModalVisible, setCrmUploadModalVisible] = useState(false);
   const [crmForm, setCrmForm] = useState(null); // editable form state
   const crmScrollRef = useRef(null); // ScrollView inside CRM modal
   const crmFieldRefs = useRef({}); // per-field View refs for scroll-to-field
+  const crmEditorRef = useRef(null); // RichEditor ref for description
 
   // ── Audio playback ────────────────────────────────────────────
   const audioPlayer = useRef(new AudioRecorderPlayer()).current;
@@ -456,11 +460,12 @@ export default function InquiryDetailScreen({ route, navigation }) {
     try {
       const res = await inquiryApi.getCrmPreview(selectedInquiry?.id);
       const data = res.data ?? res;
+      const descriptionHTML = data.description || "";
       setCrmForm({
         title: data.title || "",
         orderDate: data.orderDate || "",
         inqCode: data.inqCode || "",
-        description: data.description || "",
+        description: descriptionHTML,
         source: data.source || "",
         // client info
         clientName: data.clientName || "",
@@ -479,6 +484,10 @@ export default function InquiryDetailScreen({ route, navigation }) {
         assignedTo: data.assignedTo || null,
         assignedUsers: data.assignedUsers || [],
       });
+      // Inject HTML into the rich editor after it renders
+      setTimeout(() => {
+        crmEditorRef.current?.setContentHTML(descriptionHTML);
+      }, 300);
     } catch (err) {
       setCrmModalVisible(false);
       Alert.alert("Error", err?.message || "Failed to load CRM preview.");
@@ -494,13 +503,22 @@ export default function InquiryDetailScreen({ route, navigation }) {
       await inquiryApi.pushToCrm(selectedInquiry?.id, crmForm);
       setCrmModalVisible(false);
       await refetch();
-      Alert.alert("Success", "Inquiry pushed to CRM successfully.");
+      // If inquiry has uploadable files, open file selector
+      const uploadableImages = (selectedInquiry?.images || []).filter(img => {
+        const ext = ((img.filename || img.url || '').split('.').pop() || '').toLowerCase();
+        return ['jpg','jpeg','png','webp','pdf','doc','docx','xls','xlsx','csv','ppt','pptx','txt'].includes(ext);
+      });
+      if (uploadableImages.length > 0) {
+        setCrmUploadModalVisible(true);
+      } else {
+        Alert.alert("Success", "Inquiry pushed to CRM successfully.");
+      }
     } catch (err) {
       Alert.alert("Error", err?.message || "Failed to push to CRM.");
     } finally {
       setCrmPushLoading(false);
     }
-  }, [selectedInquiry?.id, crmForm]);
+  }, [selectedInquiry?.id, selectedInquiry?.images, crmForm]);
 
   // Scroll CRM form so the focused field is visible above the keyboard
   const scrollToField = useCallback((key) => {
@@ -1400,13 +1418,30 @@ export default function InquiryDetailScreen({ route, navigation }) {
           {status !== "unassigned" && status !== "assigned" && (
             <View style={[styles.section, { marginBottom: SPACING.md }]}>
               {inquiry.crmPushed ? (
-                <View style={styles.crmSyncedBtn}>
-                  <Icon name="check-circle" size={18} color="#16A34A" />
-                  <Text style={styles.crmSyncedText}>Synced to CRM</Text>
-                  {inquiry.crmPushedAt && (
-                    <Text style={styles.crmSyncedDate}>
-                      {dayjs(inquiry.crmPushedAt).format("DD MMM, hh:mm A")}
-                    </Text>
+                <View style={styles.crmSyncedRow}>
+                  <View style={styles.crmSyncedBtn}>
+                    <Icon name="check-circle" size={18} color="#16A34A" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.crmSyncedText}>Synced to CRM</Text>
+                      {inquiry.crmPushedAt && (
+                        <Text style={styles.crmSyncedDate}>
+                          {dayjs(inquiry.crmPushedAt).format("DD MMM, hh:mm A")}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  {(inquiry.images || []).some(img => {
+                    const ext = ((img.filename || img.url || '').split('.').pop() || '').toLowerCase();
+                    return ['jpg','jpeg','png','webp','pdf','doc','docx','xls','xlsx','csv','ppt','pptx','txt'].includes(ext);
+                  }) && (
+                    <TouchableOpacity
+                      style={styles.crmUploadFilesBtn}
+                      onPress={() => setCrmUploadModalVisible(true)}
+                      activeOpacity={0.85}
+                    >
+                      <Icon name="paperclip" size={16} color={COLORS.primary} />
+                      <Text style={styles.crmUploadFilesBtnText}>Upload Files</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
               ) : (
@@ -1440,6 +1475,23 @@ export default function InquiryDetailScreen({ route, navigation }) {
         inquiry={inquiry}
         onClose={() => setShowReassign(false)}
         onSuccess={refetch}
+      />
+
+      {/* ── CRM File Upload Modal ─────────────────────── */}
+      <CrmFileUploadModal
+        visible={crmUploadModalVisible}
+        onClose={() => {
+          setCrmUploadModalVisible(false);
+          Alert.alert("Success", "Inquiry pushed to CRM successfully.");
+        }}
+        onUploaded={(count) => {
+          setCrmUploadModalVisible(false);
+          Alert.alert("Success", `Inquiry pushed and ${count} file${count !== 1 ? 's' : ''} uploaded to CRM.`);
+        }}
+        inquiryId={selectedInquiry?.id}
+        inqCode={selectedInquiry?.inqCode}
+        images={selectedInquiry?.images || []}
+        apiUpload={inquiryApi.uploadFilesToCrm}
       />
 
       {/* ── CRM Push Modal ────────────────────────────── */}
@@ -1553,45 +1605,39 @@ export default function InquiryDetailScreen({ route, navigation }) {
                   </View>
                   {/* Inquiry fields */}
                   <Text style={styles.crmFieldGroup}>Inquiry Fields</Text>
-                  {[
-                    {
-                      key: "title",
-                      label: "Title *",
-                      placeholder: "Order title",
-                      multiline: false,
-                    },
-                    {
-                      key: "description",
-                      label: "Description",
-                      placeholder: "Description",
-                      multiline: true,
-                    },
-                  ].map(({ key, label, placeholder, multiline }) => (
-                    <View
-                      key={key}
-                      style={styles.crmFieldWrap}
-                      ref={(r) => {
-                        crmFieldRefs.current[key] = r;
-                      }}
-                    >
-                      <Text style={styles.crmFieldLabel}>{label}</Text>
-                      <TextInput
-                        style={[
-                          styles.crmFieldInput,
-                          multiline && styles.crmFieldInputMulti,
-                        ]}
-                        value={crmForm[key] || ""}
-                        onChangeText={(v) =>
-                          setCrmForm((f) => ({ ...f, [key]: v }))
-                        }
-                        placeholder={placeholder}
-                        placeholderTextColor={COLORS.textMuted}
-                        multiline={multiline}
-                        numberOfLines={multiline ? 3 : 1}
-                        onFocus={() => scrollToField(key)}
-                      />
-                    </View>
-                  ))}
+
+                  {/* Title */}
+                  <View
+                    style={styles.crmFieldWrap}
+                    ref={(r) => { crmFieldRefs.current["title"] = r; }}
+                  >
+                    <Text style={styles.crmFieldLabel}>Title *</Text>
+                    <TextInput
+                      style={styles.crmFieldInput}
+                      value={crmForm["title"] || ""}
+                      onChangeText={(v) => setCrmForm((f) => ({ ...f, title: v }))}
+                      placeholder="Order title"
+                      placeholderTextColor={COLORS.textMuted}
+                      onFocus={() => scrollToField("title")}
+                    />
+                  </View>
+
+                  {/* Description — Rich Text Editor */}
+                  <View
+                    style={styles.crmFieldWrap}
+                    ref={(r) => { crmFieldRefs.current["description"] = r; }}
+                  >
+                    <Text style={styles.crmFieldLabel}>Description</Text>
+                    <RichTextEditor
+                      ref={crmEditorRef}
+                      initialHTML={crmForm["description"] || ""}
+                      onChange={(html) => setCrmForm((f) => ({ ...f, description: html }))}
+                      placeholder="Description"
+                      minHeight={120}
+                      editorBg={COLORS.surface}
+                      style={styles.crmRichEditor}
+                    />
+                  </View>
 
                   {/* Client info */}
                   <Text style={styles.crmFieldGroup}>Client Info</Text>
@@ -2058,22 +2104,43 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: COLORS.white,
   },
-  crmSyncedBtn: {
+  crmSyncedRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.xs,
+    alignItems:    "center",
+    gap:           SPACING.sm,
+  },
+  crmSyncedBtn: {
+    flex:            1,
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             SPACING.xs,
     backgroundColor: "#F0FDF4",
-    borderRadius: BORDER_RADIUS.md,
+    borderRadius:    BORDER_RADIUS.md,
     paddingVertical: 12,
     paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
+    borderWidth:     1,
+    borderColor:     "#BBF7D0",
   },
   crmSyncedText: {
-    fontSize: FONT_SIZE.sm,
+    fontSize:   FONT_SIZE.sm,
     fontFamily: FONTS.bold,
-    color: "#16A34A",
-    flex: 1,
+    color:      "#16A34A",
+  },
+  crmUploadFilesBtn: {
+    flexDirection:   "row",
+    alignItems:      "center",
+    gap:             SPACING.xs,
+    borderRadius:    BORDER_RADIUS.md,
+    paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
+    borderWidth:     1,
+    borderColor:     COLORS.primaryMid,
+    backgroundColor: COLORS.primaryLight,
+  },
+  crmUploadFilesBtnText: {
+    fontSize:   FONT_SIZE.sm,
+    fontFamily: FONTS.bold,
+    color:      COLORS.primary,
   },
   crmSyncedDate: {
     fontSize: FONT_SIZE.xs,
@@ -2115,6 +2182,15 @@ const styles = StyleSheet.create({
   crmDetailDivider: {
     height: 1,
     backgroundColor: COLORS.divider,
+  },
+  crmDetailBlock: {
+    paddingVertical: 6,
+  },
+  crmDetailDescText: {
+    fontSize: FONT_SIZE.sm,
+    fontFamily: FONTS.regular,
+    color: COLORS.textPrimary,
+    lineHeight: 20,
   },
   crmDetailLabel: {
     fontSize: FONT_SIZE.xs,
@@ -2230,6 +2306,10 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   crmFieldInputMulti: { minHeight: 72, textAlignVertical: "top" },
+  crmRichEditor: {
+    borderRadius: BORDER_RADIUS.sm,
+    overflow: 'hidden',
+  },
   crmFieldReadOnly: {
     backgroundColor: COLORS.background,
     borderWidth: 1,

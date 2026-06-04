@@ -374,9 +374,10 @@ function ActivityRow({ log }) {
   const meta       = log.metadata;
   const summary    = getMetaSummary(log.type, meta);
   const hasDetail  = !!meta && Object.keys(meta).length > 0;
-  const inquirySnippet = inquiry?.description
-    ? stripHtml(inquiry.description).slice(0, 60)
-    : inquiry?.mobile ?? null;
+  const inquirySnippet = inquiry?.title?.trim()
+    || (inquiry?.description ? stripHtml(inquiry.description).slice(0, 60) : null)
+    || inquiry?.mobile
+    || null;
 
   return (
     <TouchableOpacity style={styles.row} onPress={toggle} activeOpacity={0.85}>

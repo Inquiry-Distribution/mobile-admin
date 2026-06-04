@@ -189,8 +189,7 @@ function buildHTML({ placeholder, initialHTML, minHeight, editorBg }) {
 
   function setContent(html) {
     editor.innerHTML = html || '';
-    lastContent = html || '';
-    send({ type: 'change', html: lastContent });
+    lastContent = editor.innerHTML; // track normalized version for change detection
     setTimeout(sendHeight, 50);
   }
 
@@ -257,13 +256,13 @@ const RichTextEditor = forwardRef(function RichTextEditor(
 
   useImperativeHandle(ref, () => ({
     setContentHTML: (html) => {
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'setContent', html }));
+      webViewRef.current?.injectJavaScript(`setContent(${JSON.stringify(html)}); true;`);
     },
     focusContentEditor: () => {
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'focus' }));
+      webViewRef.current?.injectJavaScript(`editor.focus(); true;`);
     },
     clearContentEditor: () => {
-      webViewRef.current?.postMessage(JSON.stringify({ type: 'clear' }));
+      webViewRef.current?.injectJavaScript(`setContent(''); true;`);
     },
   }));
 

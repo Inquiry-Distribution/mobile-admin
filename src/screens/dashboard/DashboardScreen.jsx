@@ -638,7 +638,7 @@ function UnassignedRow({ inquiry, onPress, onDistribute }) {
 
       <View style={styles.unassignedBody}>
         <Text style={styles.unassignedDesc} numberOfLines={1}>
-          {stripHtml(inquiry.description || inquiry.title) || 'No description'}
+          {inquiry.title?.trim() || stripHtml(inquiry.description)}
         </Text>
         <View style={styles.unassignedMeta}>
           {/* {inquiry.mobile ? (
