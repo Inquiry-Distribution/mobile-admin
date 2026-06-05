@@ -7,7 +7,7 @@
  *  • App info — version, API
  *  • Session — Logout
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import RNBlobUtil from 'react-native-blob-util';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -28,6 +30,64 @@ import useAuthStore from '@store/auth.store';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout, isSuperuser } = useAuthStore();
+
+  const [updateStatus, setUpdateStatus]     = useState('idle'); // idle | checking | upToDate | available | downloading
+  const [latestRelease, setLatestRelease]   = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  const checkForUpdate = async () => {
+    setUpdateStatus('checking');
+    try {
+      const res  = await fetch('https://api.github.com/repos/Inquiry-Distribution/mobile-admin/releases/latest');
+      const data = await res.json();
+      const latestCode  = parseInt(data.tag_name.replace(/[^0-9]/g, ''), 10);
+      const currentCode = parseInt(DeviceInfo.getVersion().split('.')[0], 10);
+      if (latestCode > currentCode) {
+        setLatestRelease(data);
+        setUpdateStatus('available');
+      } else {
+        setUpdateStatus('upToDate');
+      }
+    } catch (_) {
+      setUpdateStatus('idle');
+      Alert.alert('Error', 'Could not check for updates. Try again later.');
+    }
+  };
+
+  const startUpdate = async () => {
+    if (!latestRelease) return;
+    const apks  = latestRelease.assets.filter(a => a.name.endsWith('.apk'));
+    const arm64 = apks.find(a => a.name.includes('arm64-v8a'));
+    const url   = (arm64 || apks[0])?.browser_download_url;
+    if (!url) return;
+
+    setUpdateStatus('downloading');
+    setDownloadProgress(0);
+    try {
+      const destPath = `${RNBlobUtil.fs.dirs.DownloadDir}/inquiry-admin-update-${latestRelease.tag_name}.apk`;
+      const res = await RNBlobUtil.config({
+        fileCache: true,
+        path:      destPath,
+        indicator: true,
+        overwrite: true,
+      })
+        .fetch('GET', url)
+        .progress((received, total) => {
+          setDownloadProgress(Math.round((received / total) * 100));
+        });
+
+      await RNBlobUtil.android.actionViewIntent(
+        res.path(),
+        'application/vnd.android.package-archive',
+      );
+      setUpdateStatus('available');
+      setDownloadProgress(0);
+    } catch (_) {
+      setUpdateStatus('available');
+      setDownloadProgress(0);
+      Alert.alert('Error', 'Download failed. Please try again.');
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -108,7 +168,53 @@ export default function ProfileScreen({ navigation }) {
 
         {/* ── App ───────────────────────────────────── */}
         <SectionCard title="App">
-          <ProfileRow icon="information-outline" label="Version" value={`v${DeviceInfo.getVersion()}`} />
+          <View style={styles.profileRow}>
+            <View style={styles.profileRowIconWrap}>
+              <Icon name="information-outline" size={18} color={COLORS.textMuted} />
+            </View>
+            <View style={styles.profileRowTexts}>
+              <Text style={styles.profileRowLabel}>Version</Text>
+              <Text style={styles.profileRowValue}>{`v${DeviceInfo.getVersion()}`}</Text>
+            </View>
+
+            {updateStatus === 'available' && (
+              <TouchableOpacity style={styles.updateBtn} onPress={startUpdate} activeOpacity={0.8}>
+                <Icon name="download-outline" size={13} color={COLORS.white} />
+                <Text style={styles.updateBtnText}>{latestRelease?.tag_name} — Install</Text>
+              </TouchableOpacity>
+            )}
+
+            {updateStatus === 'downloading' && (
+              <View style={styles.progressWrap}>
+                <View style={[styles.progressBar, { width: `${downloadProgress}%` }]} />
+                <Text style={styles.progressText}>{downloadProgress}%</Text>
+              </View>
+            )}
+
+            {(updateStatus === 'idle' || updateStatus === 'checking' || updateStatus === 'upToDate') && (
+              <TouchableOpacity
+                style={[styles.checkBtn, updateStatus === 'upToDate' && styles.checkBtnSuccess]}
+                onPress={updateStatus === 'upToDate' ? null : checkForUpdate}
+                activeOpacity={0.8}
+                disabled={updateStatus === 'checking'}
+              >
+                {updateStatus === 'checking' ? (
+                  <ActivityIndicator size={11} color={COLORS.primary} />
+                ) : (
+                  <Icon
+                    name={updateStatus === 'upToDate' ? 'check-circle-outline' : 'refresh'}
+                    size={13}
+                    color={updateStatus === 'upToDate' ? COLORS.success : COLORS.primary}
+                  />
+                )}
+                <Text style={[styles.checkBtnText, updateStatus === 'upToDate' && { color: COLORS.success }]}>
+                  {updateStatus === 'checking' ? 'Checking…'
+                    : updateStatus === 'upToDate' ? 'Up to date'
+                    : 'Update?'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </SectionCard>
 
         {/* ── Session ───────────────────────────────── */}
@@ -280,6 +386,64 @@ const styles = StyleSheet.create({
   profileRowValue: {
     ...TYPOGRAPHY.body,
     color: COLORS.textPrimary,
+  },
+
+  // ── Update ────────────────────────────────────────────────
+  progressWrap: {
+    height:          20,
+    flex:            1,
+    backgroundColor: COLORS.border,
+    borderRadius:    BORDER_RADIUS.full,
+    overflow:        'hidden',
+    justifyContent:  'center',
+  },
+  progressBar: {
+    position:        'absolute',
+    left:            0,
+    top:             0,
+    bottom:          0,
+    backgroundColor: COLORS.primary,
+    borderRadius:    BORDER_RADIUS.full,
+  },
+  progressText: {
+    fontSize:   10,
+    color:      COLORS.white,
+    fontFamily: FONTS.bold,
+    textAlign:  'center',
+  },
+  updateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  updateBtnText: {
+    fontSize: 11,
+    color: COLORS.white,
+    fontFamily: FONTS.bold,
+    fontWeight: '700',
+  },
+  checkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  checkBtnSuccess: {
+    borderColor: COLORS.success,
+  },
+  checkBtnText: {
+    fontSize: 11,
+    color: COLORS.primary,
+    fontFamily: FONTS.bold,
+    fontWeight: '700',
   },
 
   // ── Logout ────────────────────────────────────────────────

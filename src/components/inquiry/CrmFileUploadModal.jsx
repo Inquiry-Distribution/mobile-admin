@@ -169,7 +169,7 @@ export default function CrmFileUploadModal({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
@@ -267,16 +267,17 @@ export default function CrmFileUploadModal({
 
 const styles = StyleSheet.create({
   overlay: {
-    flex:            1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent:  'flex-end',
+    flex:              1,
+    backgroundColor:   'rgba(0,0,0,0.45)',
+    justifyContent:    'center',
+    paddingHorizontal: SPACING.lg,
   },
   sheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius:  BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
-    paddingBottom:   SPACING.xl,
-    maxHeight:       '80%',
+    borderRadius:    BORDER_RADIUS.xl,
+    paddingBottom:   SPACING.md,
+    maxHeight:       '75%',
+    ...SHADOW.lg,
   },
 
   // Header

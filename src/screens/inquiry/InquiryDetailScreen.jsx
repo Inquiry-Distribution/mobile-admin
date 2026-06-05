@@ -109,6 +109,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
   const [crmPreviewLoading, setCrmPreviewLoading] = useState(false);
   const [crmPushLoading, setCrmPushLoading] = useState(false);
   const [crmUploadModalVisible, setCrmUploadModalVisible] = useState(false);
+  const [uploadSource, setUploadSource] = useState(null); // 'push' | 'manual'
   const [crmForm, setCrmForm] = useState(null); // editable form state
   const crmScrollRef = useRef(null); // ScrollView inside CRM modal
   const crmFieldRefs = useRef({}); // per-field View refs for scroll-to-field
@@ -509,6 +510,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
         return ['jpg','jpeg','png','webp','pdf','doc','docx','xls','xlsx','csv','ppt','pptx','txt'].includes(ext);
       });
       if (uploadableImages.length > 0) {
+        setUploadSource('push');
         setCrmUploadModalVisible(true);
       } else {
         Alert.alert("Success", "Inquiry pushed to CRM successfully.");
@@ -1436,7 +1438,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
                   }) && (
                     <TouchableOpacity
                       style={styles.crmUploadFilesBtn}
-                      onPress={() => setCrmUploadModalVisible(true)}
+                      onPress={() => { setUploadSource('manual'); setCrmUploadModalVisible(true); }}
                       activeOpacity={0.85}
                     >
                       <Icon name="paperclip" size={16} color={COLORS.primary} />
@@ -1482,11 +1484,15 @@ export default function InquiryDetailScreen({ route, navigation }) {
         visible={crmUploadModalVisible}
         onClose={() => {
           setCrmUploadModalVisible(false);
-          Alert.alert("Success", "Inquiry pushed to CRM successfully.");
+          if (uploadSource === 'push') {
+            Alert.alert('Success', 'Inquiry pushed to CRM successfully.');
+          }
+          setUploadSource(null);
         }}
         onUploaded={(count) => {
           setCrmUploadModalVisible(false);
-          Alert.alert("Success", `Inquiry pushed and ${count} file${count !== 1 ? 's' : ''} uploaded to CRM.`);
+          setUploadSource(null);
+          Alert.alert('Success', `${count} file${count !== 1 ? 's' : ''} uploaded to CRM.`);
         }}
         inquiryId={selectedInquiry?.id}
         inqCode={selectedInquiry?.inqCode}
