@@ -23,7 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { COLORS, ROLE_COLORS }               from '@constants/colors';
 import { TYPOGRAPHY, FONTS, FONT_SIZE }        from '@constants/typography';
-import { SPACING, BORDER_RADIUS, SHADOW }     from '@constants/config';
+import { SPACING, BORDER_RADIUS, SHADOW, CONFIG } from '@constants/config';
 import { getInitials, formatDateTime }        from '@utils/helpers';
 import DeviceInfo  from 'react-native-device-info';
 import useAuthStore from '@store/auth.store';
@@ -38,9 +38,10 @@ export default function ProfileScreen({ navigation }) {
   const checkForUpdate = async () => {
     setUpdateStatus('checking');
     try {
-      const res  = await fetch('https://api.github.com/repos/Inquiry-Distribution/mobile-admin/releases/latest');
-      const data = await res.json();
-      const latestCode  = parseInt(data.tag_name.replace(/[^0-9]/g, ''), 10);
+      const res  = await fetch(`${CONFIG.API_BASE_URL}/system-config/app-version?app=mobile-admin`);
+      const json = await res.json();
+      const data = json.data;
+      const latestCode  = data.versionCode;
       const currentCode = parseInt(DeviceInfo.getVersion().split('.')[0], 10);
       if (latestCode > currentCode) {
         setLatestRelease(data);
@@ -56,15 +57,13 @@ export default function ProfileScreen({ navigation }) {
 
   const startUpdate = async () => {
     if (!latestRelease) return;
-    const apks  = latestRelease.assets.filter(a => a.name.endsWith('.apk'));
-    const arm64 = apks.find(a => a.name.includes('arm64-v8a'));
-    const url   = (arm64 || apks[0])?.browser_download_url;
+    const url = latestRelease.apkUrl;
     if (!url) return;
 
     setUpdateStatus('downloading');
     setDownloadProgress(0);
     try {
-      const destPath = `${RNBlobUtil.fs.dirs.DownloadDir}/inquiry-admin-update-${latestRelease.tag_name}.apk`;
+      const destPath = `${RNBlobUtil.fs.dirs.DownloadDir}/inquiry-admin-update-${latestRelease.version}.apk`;
       const res = await RNBlobUtil.config({
         fileCache: true,
         path:      destPath,
@@ -180,7 +179,7 @@ export default function ProfileScreen({ navigation }) {
             {updateStatus === 'available' && (
               <TouchableOpacity style={styles.updateBtn} onPress={startUpdate} activeOpacity={0.8}>
                 <Icon name="download-outline" size={13} color={COLORS.white} />
-                <Text style={styles.updateBtnText}>{latestRelease?.tag_name} — Install</Text>
+                <Text style={styles.updateBtnText}>{latestRelease?.version} — Install</Text>
               </TouchableOpacity>
             )}
 

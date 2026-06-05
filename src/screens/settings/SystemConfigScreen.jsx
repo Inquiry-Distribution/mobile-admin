@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  Switch, TouchableOpacity, ActivityIndicator,
+  Switch, TouchableOpacity, ActivityIndicator, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon  from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -37,13 +37,25 @@ export default function SystemConfigScreen() {
   const [workEndMinute,   setWorkEndMinute]   = useState(0);
   const [lateGraceMinute, setLateGraceMinute] = useState(15);
 
+  // GitHub token fields
+  const [mobileTokenMasked,   setMobileTokenMasked]   = useState('');
+  const [adminTokenMasked,    setAdminTokenMasked]     = useState('');
+  const [mobileTokenSet,      setMobileTokenSet]       = useState(false);
+  const [adminTokenSet,       setAdminTokenSet]        = useState(false);
+  const [mobileTokenInput,    setMobileTokenInput]     = useState('');
+  const [adminTokenInput,     setAdminTokenInput]      = useState('');
+  const [mobileTokenVisible,  setMobileTokenVisible]   = useState(false);
+  const [adminTokenVisible,   setAdminTokenVisible]    = useState(false);
+  const [tokenSaving,         setTokenSaving]          = useState(null); // 'mobile' | 'mobile-admin' | null
+
   // ── Fetch ─────────────────────────────────────────────────
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const [loginRes, attendRes] = await Promise.all([
+      const [loginRes, attendRes, tokenRes] = await Promise.all([
         systemConfigApi.getLoginLimit(),
         systemConfigApi.getAttendanceHours(),
+        systemConfigApi.getGithubToken(),
       ]);
       const lc = loginRes.data;
       setEnabled(lc.enabled);
@@ -56,6 +68,12 @@ export default function SystemConfigScreen() {
       setWorkEndHour(ac.workEndHour     ?? 18);
       setWorkEndMinute(ac.workEndMinute   ?? 0);
       setLateGraceMinute(ac.lateGraceMinute ?? 15);
+
+      const tc = tokenRes.data;
+      setMobileTokenSet(tc.mobileTokenSet);
+      setMobileTokenMasked(tc.mobileTokenMasked);
+      setAdminTokenSet(tc.adminTokenSet);
+      setAdminTokenMasked(tc.adminTokenMasked);
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Failed to load config', text2: e.message });
     } finally {
@@ -64,6 +82,31 @@ export default function SystemConfigScreen() {
   }, []);
 
   useEffect(() => { fetchConfig(); }, [fetchConfig]);
+
+  // ── Save GitHub token ─────────────────────────────────────
+  const handleSaveToken = async (app) => {
+    const input = app === 'mobile' ? mobileTokenInput : adminTokenInput;
+    if (!input.trim()) {
+      Toast.show({ type: 'error', text1: 'Token cannot be empty.' });
+      return;
+    }
+    setTokenSaving(app);
+    try {
+      const res = await systemConfigApi.updateGithubToken({ app, token: input.trim() });
+      const tc  = res.data;
+      setMobileTokenSet(tc.mobileTokenSet);
+      setMobileTokenMasked(tc.mobileTokenMasked);
+      setAdminTokenSet(tc.adminTokenSet);
+      setAdminTokenMasked(tc.adminTokenMasked);
+      if (app === 'mobile')       setMobileTokenInput('');
+      if (app === 'mobile-admin') setAdminTokenInput('');
+      Toast.show({ type: 'success', text1: `${app} token updated` });
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'Save failed', text2: e.message });
+    } finally {
+      setTokenSaving(null);
+    }
+  };
 
   // ── Save login limit ───────────────────────────────────────
   const handleSaveLogin = async () => {
@@ -279,6 +322,111 @@ export default function SystemConfigScreen() {
             </>
           )}
         </TouchableOpacity>
+
+        {/* ── GitHub Token section ── */}
+        <SectionHeader icon="github" title="App Update Tokens" color="#1F2328" />
+
+        <View style={styles.card}>
+
+          {/* Mobile token */}
+          <View style={[styles.row, styles.rowBorder]}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Mobile App Token</Text>
+              <Text style={styles.rowSub}>
+                {mobileTokenSet
+                  ? `Current: ${mobileTokenMasked}`
+                  : 'Not set — update check will fail'}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.tokenInputRow, styles.rowBorder]}>
+            <TextInput
+              style={styles.tokenInput}
+              value={mobileTokenInput}
+              onChangeText={setMobileTokenInput}
+              placeholder="Paste new GitHub token…"
+              placeholderTextColor={COLORS.textMuted}
+              secureTextEntry={!mobileTokenVisible}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={styles.tokenEyeBtn}
+              onPress={() => setMobileTokenVisible(v => !v)}
+            >
+              <Icon
+                name={mobileTokenVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={18}
+                color={COLORS.textMuted}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tokenSaveBtn, (!mobileTokenInput.trim() || tokenSaving === 'mobile') && styles.tokenSaveBtnDisabled]}
+              onPress={() => handleSaveToken('mobile')}
+              disabled={!mobileTokenInput.trim() || tokenSaving === 'mobile'}
+              activeOpacity={0.8}
+            >
+              {tokenSaving === 'mobile'
+                ? <ActivityIndicator size={14} color={COLORS.white} />
+                : <Icon name="content-save-outline" size={16} color={COLORS.white} />
+              }
+            </TouchableOpacity>
+          </View>
+
+          {/* Mobile-admin token */}
+          <View style={[styles.row, styles.rowBorder]}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Admin App Token</Text>
+              <Text style={styles.rowSub}>
+                {adminTokenSet
+                  ? `Current: ${adminTokenMasked}`
+                  : 'Not set — update check will fail'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.tokenInputRow}>
+            <TextInput
+              style={styles.tokenInput}
+              value={adminTokenInput}
+              onChangeText={setAdminTokenInput}
+              placeholder="Paste new GitHub token…"
+              placeholderTextColor={COLORS.textMuted}
+              secureTextEntry={!adminTokenVisible}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={styles.tokenEyeBtn}
+              onPress={() => setAdminTokenVisible(v => !v)}
+            >
+              <Icon
+                name={adminTokenVisible ? 'eye-off-outline' : 'eye-outline'}
+                size={18}
+                color={COLORS.textMuted}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tokenSaveBtn, (!adminTokenInput.trim() || tokenSaving === 'mobile-admin') && styles.tokenSaveBtnDisabled]}
+              onPress={() => handleSaveToken('mobile-admin')}
+              disabled={!adminTokenInput.trim() || tokenSaving === 'mobile-admin'}
+              activeOpacity={0.8}
+            >
+              {tokenSaving === 'mobile-admin'
+                ? <ActivityIndicator size={14} color={COLORS.white} />
+                : <Icon name="content-save-outline" size={16} color={COLORS.white} />
+              }
+            </TouchableOpacity>
+          </View>
+
+        </View>
+
+        <View style={[styles.summaryPill, { backgroundColor: '#1F232818' }]}>
+          <Icon name="information-outline" size={13} color="#1F2328" />
+          <Text style={[styles.summaryText, { color: '#1F2328' }]}>
+            Tokens are stored securely in the database and masked in the UI.
+            Generate a fine-grained token with Contents: Read-only permission on GitHub.
+          </Text>
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -524,6 +672,44 @@ const styles = StyleSheet.create({
     minWidth:    52,
     textAlign:   'center',
     paddingHorizontal: 4,
+  },
+
+  // Token input row
+  tokenInputRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical:   SPACING.sm,
+    gap:               SPACING.xs,
+  },
+  tokenInput: {
+    flex:              1,
+    height:            40,
+    borderWidth:       1,
+    borderColor:       COLORS.border,
+    borderRadius:      BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.sm,
+    backgroundColor:   COLORS.background,
+    color:             COLORS.textPrimary,
+    fontSize:          13,
+    fontFamily:        FONTS.regular,
+  },
+  tokenEyeBtn: {
+    width:          36,
+    height:         40,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  tokenSaveBtn: {
+    width:           40,
+    height:          40,
+    borderRadius:    BORDER_RADIUS.md,
+    backgroundColor: COLORS.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  tokenSaveBtnDisabled: {
+    backgroundColor: COLORS.primaryMid || COLORS.border,
   },
 
   // Save button

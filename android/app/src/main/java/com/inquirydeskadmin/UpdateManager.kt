@@ -6,7 +6,6 @@ import android.app.ProgressDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -18,11 +17,8 @@ import java.net.URL
 
 object UpdateManager {
 
-    private const val GITHUB_OWNER = "Inquiry-Distribution"
-    private const val GITHUB_REPO  = "mobile-admin"
-    private const val GITHUB_TOKEN = "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"
-    private const val API_URL =
-        "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
+    private val API_URL =
+        "${BuildConfig.API_BASE_URL}/system-config/app-version?app=mobile-admin"
 
     // Request code used with startActivityForResult when opening unknown-sources settings
     const val REQUEST_INSTALL_PERMISSION = 1001
@@ -66,44 +62,28 @@ object UpdateManager {
     private fun fetchLatestRelease(currentVersionCode: Int): ReleaseInfo? {
         return try {
             val connection = URL(API_URL).openConnection() as HttpURLConnection
-            connection.setRequestProperty("Authorization", "token $GITHUB_TOKEN")
-            connection.setRequestProperty("Accept", "application/vnd.github.v3+json")
             connection.connectTimeout = 10_000
-            connection.readTimeout = 10_000
+            connection.readTimeout    = 10_000
             connection.connect()
 
             if (connection.responseCode != 200) return null
 
-            val json = JSONObject(connection.inputStream.bufferedReader().readText())
-            val tagName = json.getString("tag_name") // e.g. "v2"
+            // Backend returns: { data: { version, versionCode, apkUrl, notes } }
+            val root       = JSONObject(connection.inputStream.bufferedReader().readText())
+            val json       = root.getJSONObject("data")
+            val tagName    = json.getString("version")
+            val remoteCode = json.optInt("versionCode", -1)
+            val apkUrl     = json.optString("apkUrl", "")
+            val notes      = json.optString("notes", "")
 
-            val remoteVersionCode = tagName.removePrefix("v").toIntOrNull() ?: -1
-            if (remoteVersionCode <= currentVersionCode) return null
-
-            val assets = json.getJSONArray("assets")
-            val preferredAbi = if (Build.SUPPORTED_ABIS.contains("arm64-v8a")) "arm64-v8a" else "armeabi-v7a"
-            var assetApiUrl = ""
-            var fallbackUrl = ""
-
-            for (i in 0 until assets.length()) {
-                val asset = assets.getJSONObject(i)
-                val name = asset.getString("name")
-                if (!name.endsWith(".apk")) continue
-                val url = asset.getString("url") // API URL, required for private repos
-                when {
-                    name.contains(preferredAbi) -> { assetApiUrl = url; break }
-                    fallbackUrl.isEmpty()        -> fallbackUrl = url
-                }
-            }
-
-            if (assetApiUrl.isEmpty()) assetApiUrl = fallbackUrl
-            if (assetApiUrl.isEmpty()) return null
+            if (remoteCode <= currentVersionCode) return null
+            if (apkUrl.isEmpty()) return null
 
             ReleaseInfo(
-                tagName = tagName,
-                versionCode = remoteVersionCode,
-                assetApiUrl = assetApiUrl,
-                releaseNotes = json.optString("body", "").take(300)
+                tagName      = tagName,
+                versionCode  = remoteCode,
+                assetApiUrl  = apkUrl,
+                releaseNotes = notes.take(300)
             )
         } catch (e: Exception) {
             null
@@ -164,22 +144,8 @@ object UpdateManager {
         onProgress: (Int) -> Unit
     ): Boolean {
         return try {
-            // Step 1: hit GitHub asset API URL → redirects to S3
-            val apiConn = URL(assetApiUrl).openConnection() as HttpURLConnection
-            apiConn.setRequestProperty("Authorization", "token $GITHUB_TOKEN")
-            apiConn.setRequestProperty("Accept", "application/octet-stream")
-            apiConn.instanceFollowRedirects = false
-            apiConn.connectTimeout = 10_000
-            apiConn.connect()
-
-            // Step 2: follow redirect to actual S3/CDN URL (no auth needed there)
-            val downloadUrl = if (apiConn.responseCode in 301..302) {
-                apiConn.getHeaderField("Location")
-            } else {
-                assetApiUrl
-            }
-
-            val dlConn = URL(downloadUrl).openConnection() as HttpURLConnection
+            // apkUrl is already a public browser_download_url — no auth needed
+            val dlConn = URL(assetApiUrl).openConnection() as HttpURLConnection
             dlConn.connectTimeout = 15_000
             dlConn.readTimeout = 60_000
             dlConn.connect()
