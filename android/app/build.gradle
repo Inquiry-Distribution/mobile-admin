@@ -10,7 +10,7 @@ project.ext.vectoricons_fontnames = ["MaterialCommunityIcons"]
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 
 // ── Firebase Google Services ───────────────────────────────────────────────────
-// Reads android/app/google-services.json  (download from Firebase Console)
+// Reads android/app/google-services.json (committed for private-repo CI builds)
 apply plugin: "com.google.gms.google-services"
 
 react {

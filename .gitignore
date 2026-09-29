@@ -51,8 +51,7 @@ buck-out/
 .env.production
 .env.staging
 
-# Firebase — NEVER commit these
-android/app/google-services.json
+# Firebase iOS plist (Android google-services.json is committed for private-repo CI)
 ios/InquiryDeskAdmin/GoogleService-Info.plist
 
 # Release keystore credentials
