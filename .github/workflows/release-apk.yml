@@ -101,7 +101,7 @@ jobs:
           echo ".env written (secrets redacted)"
 
       - name: Install JS dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Read version from package.json
         id: ver
