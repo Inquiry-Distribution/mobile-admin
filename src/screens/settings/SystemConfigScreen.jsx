@@ -424,7 +424,8 @@ export default function SystemConfigScreen() {
           <Icon name="information-outline" size={13} color="#1F2328" />
           <Text style={[styles.summaryText, { color: '#1F2328' }]}>
             Tokens are stored securely in the database and masked in the UI.
-            Generate a fine-grained token with Contents: Read-only permission on GitHub.
+            Generate a fine-grained token with Contents: Read access on the private
+            GitHub repo (mobile / mobile-admin). Required for private-repo auto-update.
           </Text>
         </View>
 

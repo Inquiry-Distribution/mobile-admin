@@ -1,7 +1,7 @@
 {
   "name": "mobile-admin",
   "displayName": "Inquiry Desk Admin",
-  "version": "1.0.0",
+  "version": "15.0.1",
   "private": true,
   "scripts": {
     "android": "react-native run-android",

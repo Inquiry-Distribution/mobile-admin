@@ -1,0 +1,162 @@
+# Build + publish Android release APKs on merge to main.
+# Single version source: package.json "version" (e.g. "16.0.0").
+# Tag = v{major} (16.0.0 → v16). Skips if that tag already exists — bump package.json before merge.
+#
+# Required secrets:
+#   GOOGLE_MAPS_API_KEY — written into .env for the release build
+#
+# Optional secrets (recommended for production signing):
+#   RELEASE_KEYSTORE_BASE64  — base64 of the .keystore / .jks file
+#   RELEASE_STORE_PASSWORD
+#   RELEASE_KEY_ALIAS
+#   RELEASE_KEY_PASSWORD
+# Without keystore secrets, the debug keystore fallback in build.gradle is used.
+
+name: Release APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-admin-release-apk
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Write .env for release build
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          SOCKET_URL: ${{ secrets.SOCKET_URL }}
+        run: |
+          API_BASE_URL_VALUE="${API_BASE_URL:-http://145.223.102.253:5001/api/v1}"
+          SOCKET_URL_VALUE="${SOCKET_URL:-http://145.223.102.253:5001}"
+          cat > .env <<EOF
+          API_BASE_URL=${API_BASE_URL_VALUE}
+          SOCKET_URL=${SOCKET_URL_VALUE}
+          GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-}
+          APP_ENV=production
+          EOF
+          # Strip accidental leading spaces from heredoc
+          sed -i 's/^[[:space:]]*//' .env
+          echo ".env written (secrets redacted)"
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Read version from package.json
+        id: ver
+        run: |
+          NAME=$(node -p "require('./package.json').version.replace(/^v/i,'')")
+          CODE=$(node -p "String(require('./package.json').version.replace(/^v/i,'')).split('.')[0]")
+          if ! [[ "$CODE" =~ ^[0-9]+$ ]]; then
+            echo "package.json version major must be an integer (got '$NAME')"
+            exit 1
+          fi
+          echo "version_code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "version_name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=v$CODE" >> "$GITHUB_OUTPUT"
+          echo "Parsed versionCode=$CODE versionName=$NAME tag=v$CODE"
+
+      - name: Check if tag already exists
+        id: tagcheck
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ steps.ver.outputs.tag }}" | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.ver.outputs.tag }} already exists — skipping release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare signing (optional release keystore)
+        if: steps.tagcheck.outputs.exists == 'false'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$GITHUB_WORKSPACE/android/app/ci-release.keystore"
+            {
+              echo "INQUIRYADMIN_STORE_FILE=$GITHUB_WORKSPACE/android/app/ci-release.keystore"
+              echo "INQUIRYADMIN_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
+              echo "INQUIRYADMIN_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+              echo "INQUIRYADMIN_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+            } >> "$GITHUB_WORKSPACE/android/gradle.properties"
+            echo "Using CI release keystore"
+          else
+            echo "No RELEASE_KEYSTORE_BASE64 secret — signing with debug keystore fallback"
+          fi
+
+      - name: Build release APKs
+        if: steps.tagcheck.outputs.exists == 'false'
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon \
+            -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+
+      - name: Collect APK artifacts
+        if: steps.tagcheck.outputs.exists == 'false'
+        run: |
+          mkdir -p release-apks
+          find android/app/build/outputs/apk/release -name '*.apk' -print
+          # Prefer ABI splits; include universal if present
+          cp android/app/build/outputs/apk/release/*.apk release-apks/
+          COUNT=$(find release-apks -name '*.apk' | wc -l)
+          if [ "$COUNT" -lt 1 ]; then
+            echo "No APKs found under android/app/build/outputs/apk/release"
+            exit 1
+          fi
+          ls -lh release-apks
+
+      - name: Publish GitHub Release
+        if: steps.tagcheck.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: Version ${{ steps.ver.outputs.version_code }}
+          body: |
+            ## Inquiry Desk Admin ${{ steps.ver.outputs.version_name }}
+
+            - **versionCode:** ${{ steps.ver.outputs.version_code }}
+            - **tag:** `${{ steps.ver.outputs.tag }}`
+            - Built automatically on merge to `main`.
+
+            Install the `arm64-v8a` APK on modern devices (preferred by in-app auto-update).
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: release-apks/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
