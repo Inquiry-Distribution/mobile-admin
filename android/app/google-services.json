@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "674925229189",
+    "project_id": "inquiry-desk-admin",
+    "storage_bucket": "inquiry-desk-admin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:674925229189:android:d899cbcc56b022210425ec",
+        "android_client_info": {
+          "package_name": "com.evytechno.inquirydeskadmin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAbdLkws14ZQCW0qbu5CKOdnKrm_rEdlA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
