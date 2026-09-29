@@ -144,7 +144,7 @@ object UpdateManager {
         onProgress: (Int) -> Unit
     ): Boolean {
         return try {
-            // apkUrl is already a public browser_download_url — no auth needed
+            // apkUrl is a backend proxy URL (private GitHub releases cannot be fetched anonymously)
             val dlConn = URL(assetApiUrl).openConnection() as HttpURLConnection
             dlConn.connectTimeout = 15_000
             dlConn.readTimeout = 60_000
