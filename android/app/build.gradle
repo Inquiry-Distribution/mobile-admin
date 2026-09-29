@@ -26,7 +26,7 @@ def enableProguardInReleaseBuilds = true
 def packageJson = new groovy.json.JsonSlurper().parseText(
     file("$rootDir/../package.json").getText('UTF-8')
 )
-def appVersionName = (packageJson.version ?: '0.0.0').toString().replaceFirst(/^v/i, '')
+def appVersionName = (packageJson.version ?: '0.0.0').toString().replaceFirst('(?i)^v', '')
 def appVersionCode = {
     def major = appVersionName.tokenize('.')[0]
     if (!(major ==~ /^\d+$/)) {
