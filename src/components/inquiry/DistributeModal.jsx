@@ -30,6 +30,8 @@ import useUserStore    from '@store/user.store';
 import useInquiryStore from '@store/inquiry.store';
 import { reportApi }   from '@api/report.api';
 import { stripHtml }   from '@utils/helpers';
+import { showErrorToast } from '@utils/errorHandler';
+import { requireOnline } from '@utils/offline';
 
 import SalespersonRow from './shared/SalespersonRow';
 import StatsCard      from './shared/StatsCard';
@@ -89,12 +91,13 @@ export default function DistributeModal({ visible, inquiry, onClose, onSuccess }
       Alert.alert('Select Salesperson', 'Please select a salesperson to assign this inquiry.');
       return;
     }
+    if (!requireOnline('Connect to distribute this inquiry.')) return;
     const result = await distribute(inquiry.id, { salesPersonId: selected.id });
     if (result.success) {
       onSuccess?.();
       onClose();
     } else {
-      Alert.alert('Error', result.message ?? 'Failed to distribute inquiry.');
+      showErrorToast(result.message ?? 'Failed to distribute inquiry.');
     }
   };
 

@@ -9,18 +9,37 @@ import dayjs from 'dayjs';
 import { COLORS }                         from '@constants/colors';
 import { TYPOGRAPHY, FONTS, FONT_SIZE }   from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
-import Loader     from '@components/common/Loader';
 import EmptyState from '@components/common/EmptyState';
+import ErrorState from '@components/common/ErrorState';
+import { ListSkeleton } from '@components/common/Skeleton';
 import useGroupStore from '@store/group.store';
 import useAuthStore  from '@store/auth.store';
 
 export default function GroupListScreen({ navigation }) {
-  const { groups, isLoading, fetchGroups } = useGroupStore();
+  const { groups, isLoading, error, fetchGroups } = useGroupStore();
   const isSuperuser = useAuthStore((s) => s.isSuperuser?.() ?? false);
 
   useEffect(() => { fetchGroups(); }, []);
 
-  if (isLoading && groups.length === 0) return <Loader />;
+  if (isLoading && groups.length === 0 && !error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ListSkeleton count={4} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && groups.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ErrorState
+          title="Could not load groups"
+          message={error}
+          onAction={() => fetchGroups()}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -54,6 +73,12 @@ export default function GroupListScreen({ navigation }) {
             icon="forum-outline"
             title="No groups yet"
             message={isSuperuser ? 'Tap + to create a group.' : 'No groups assigned yet.'}
+            actionLabel={isSuperuser ? 'Create group' : 'Retry'}
+            onAction={
+              isSuperuser
+                ? () => navigation.navigate('CreateGroup')
+                : () => fetchGroups()
+            }
           />
         }
         contentContainerStyle={groups.length === 0 ? styles.emptyContent : styles.listContent}

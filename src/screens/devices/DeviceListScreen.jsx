@@ -21,6 +21,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -30,10 +31,13 @@ import { COLORS, DEVICE_STATUS_COLORS } from '@constants/colors';
 import { TYPOGRAPHY, FONT_SIZE, FONTS }  from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { formatDateTime } from '@utils/helpers';
+import { showErrorToast, showSuccessToast } from '@utils/errorHandler';
+import { requireOnline } from '@utils/offline';
 
 import useDeviceStore from '@store/device.store';
-import Loader         from '@components/common/Loader';
 import EmptyState     from '@components/common/EmptyState';
+import ErrorState     from '@components/common/ErrorState';
+import { ListSkeleton } from '@components/common/Skeleton';
 
 // ── Filter config ─────────────────────────────────────────────
 const STATUS_CHIPS = [
@@ -51,6 +55,7 @@ export default function DeviceListScreen({ navigation }) {
     isLoading,
     isRefreshing,
     isLoadingMore,
+    error,
     fetchDevices,
     refreshDevices,
     loadMore,
@@ -62,6 +67,9 @@ export default function DeviceListScreen({ navigation }) {
     resetBySalesperson,
     isMutating,
   } = useDeviceStore();
+
+  const [blockTarget, setBlockTarget] = useState(null);
+  const [blockReason, setBlockReason] = useState('');
 
   useEffect(() => {
     fetchDevices();
@@ -79,47 +87,47 @@ export default function DeviceListScreen({ navigation }) {
     if (!isLoadingMore) loadMore();
   };
 
-  // ── Block ────────────────────────────────────────────────
-  const handleBlock = (device) => {
-    Alert.prompt(
-      'Block Device',
-      `Enter a reason for blocking ${device.salesperson?.name ?? device.deviceId}'s device:`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async (reason) => {
-            const result = await block(device.id, reason?.trim() || undefined);
-            if (!result.success) {
-              Alert.alert('Error', result.message ?? 'Failed to block device.');
-            }
-          },
-        },
-      ],
-      'plain-text',
-    );
+  const confirmBlock = async () => {
+    if (!blockTarget) return;
+    if (!requireOnline('Connect to block a device.')) return;
+    const result = await block(blockTarget.id, blockReason.trim() || undefined);
+    setBlockTarget(null);
+    setBlockReason('');
+    if (!result.success) {
+      showErrorToast(result.message ?? 'Failed to block device.');
+    } else {
+      showSuccessToast('Device blocked');
+    }
   };
 
-  // Android doesn't have Alert.prompt — fallback
-  const handleBlockAndroid = (device) => {
-    Alert.alert(
-      'Block Device',
-      `Block ${device.salesperson?.name ?? 'this device'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await block(device.id);
-            if (!result.success) {
-              Alert.alert('Error', result.message ?? 'Failed to block device.');
-            }
+  // ── Block (iOS prompt / Android modal with reason) ─────────
+  const handleBlock = (device) => {
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Block Device',
+        `Enter a reason for blocking ${device.salesperson?.name ?? device.deviceId}'s device:`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Block',
+            style: 'destructive',
+            onPress: async (reason) => {
+              if (!requireOnline('Connect to block a device.')) return;
+              const result = await block(device.id, reason?.trim() || undefined);
+              if (!result.success) {
+                showErrorToast(result.message ?? 'Failed to block device.');
+              } else {
+                showSuccessToast('Device blocked');
+              }
+            },
           },
-        },
-      ],
-    );
+        ],
+        'plain-text',
+      );
+    } else {
+      setBlockReason('');
+      setBlockTarget(device);
+    }
   };
 
   const handleUnblock = (device) => {
@@ -131,9 +139,12 @@ export default function DeviceListScreen({ navigation }) {
         {
           text: 'Unblock',
           onPress: async () => {
+            if (!requireOnline('Connect to unblock a device.')) return;
             const result = await unblock(device.id);
             if (!result.success) {
-              Alert.alert('Error', result.message ?? 'Failed to unblock device.');
+              showErrorToast(result.message ?? 'Failed to unblock device.');
+            } else {
+              showSuccessToast('Device unblocked');
             }
           },
         },
@@ -151,9 +162,12 @@ export default function DeviceListScreen({ navigation }) {
           text: 'Reset',
           style: 'destructive',
           onPress: async () => {
+            if (!requireOnline('Connect to reset a device.')) return;
             const result = await resetBySalesperson(device.salespersonId);
             if (!result.success) {
-              Alert.alert('Error', result.message ?? 'Failed to reset device.');
+              showErrorToast(result.message ?? 'Failed to reset device.');
+            } else {
+              showSuccessToast('Device reset');
             }
           },
         },
@@ -161,7 +175,25 @@ export default function DeviceListScreen({ navigation }) {
     );
   };
 
-  if (isLoading && devices.length === 0) return <Loader />;
+  if (isLoading && devices.length === 0 && !error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ListSkeleton count={5} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && devices.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <ErrorState
+          title="Could not load devices"
+          message={error}
+          onAction={() => fetchDevices()}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -233,9 +265,7 @@ export default function DeviceListScreen({ navigation }) {
           <DeviceRow
             device={item}
             isMutating={isMutating}
-            onBlock={() =>
-              Platform.OS === 'ios' ? handleBlock(item) : handleBlockAndroid(item)
-            }
+            onBlock={() => handleBlock(item)}
             onUnblock={() => handleUnblock(item)}
             onReset={() => handleReset(item)}
           />
@@ -268,6 +298,12 @@ export default function DeviceListScreen({ navigation }) {
                   ? 'Try adjusting your filters.'
                   : 'No devices registered yet.'
               }
+              actionLabel={search || blockedFilter !== null ? 'Clear filters' : 'Retry'}
+              onAction={
+                search || blockedFilter !== null
+                  ? () => { clearFilters(); fetchDevices(); }
+                  : () => fetchDevices()
+              }
             />
           )
         }
@@ -281,6 +317,42 @@ export default function DeviceListScreen({ navigation }) {
         contentContainerStyle={devices.length === 0 ? styles.emptyContent : styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Android block-reason modal */}
+      <Modal
+        visible={!!blockTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setBlockTarget(null); setBlockReason(''); }}
+      >
+        <View style={styles.blockModalOverlay}>
+          <View style={styles.blockModalCard}>
+            <Text style={styles.blockModalTitle}>Block Device</Text>
+            <Text style={styles.blockModalMsg}>
+              {`Enter a reason for blocking ${blockTarget?.salesperson?.name ?? 'this device'}:`}
+            </Text>
+            <TextInput
+              style={styles.blockModalInput}
+              placeholder="Reason (optional)"
+              placeholderTextColor={COLORS.textMuted}
+              value={blockReason}
+              onChangeText={setBlockReason}
+              autoFocus
+            />
+            <View style={styles.blockModalActions}>
+              <TouchableOpacity
+                style={styles.blockModalCancel}
+                onPress={() => { setBlockTarget(null); setBlockReason(''); }}
+              >
+                <Text style={styles.blockModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.blockModalConfirm} onPress={confirmBlock}>
+                <Text style={styles.blockModalConfirmText}>Block</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -568,4 +640,61 @@ const styles = StyleSheet.create({
   loadingMore:  { paddingVertical: SPACING.lg, alignItems: 'center' },
   listContent:  { paddingBottom: SPACING.xxl },
   emptyContent: { flexGrow: 1 },
+
+  blockModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  blockModalCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+  },
+  blockModalTitle: {
+    ...TYPOGRAPHY.h4,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.bold,
+    marginBottom: SPACING.xs,
+  },
+  blockModalMsg: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+  },
+  blockModalInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  blockModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: SPACING.sm,
+  },
+  blockModalCancel: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 10,
+  },
+  blockModalCancelText: {
+    ...TYPOGRAPHY.smallMedium,
+    color: COLORS.textSecondary,
+    fontFamily: FONTS.medium,
+  },
+  blockModalConfirm: {
+    backgroundColor: COLORS.error,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  blockModalConfirmText: {
+    ...TYPOGRAPHY.smallMedium,
+    color: COLORS.white,
+    fontFamily: FONTS.bold,
+  },
 });

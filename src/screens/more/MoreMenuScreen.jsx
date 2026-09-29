@@ -27,14 +27,16 @@ import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 
 import useAuthStore from '@store/auth.store';
+import useNotificationStore from '@store/notification.store';
 
 export default function MoreMenuScreen({ navigation }) {
   const { user, isSuperuser } = useAuthStore();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   const roleColor = ROLE_COLORS[user?.role] ?? { bg: COLORS.primaryLight, text: COLORS.primary };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {/* ── Mini profile card ──────────────────────── */}
@@ -60,9 +62,9 @@ export default function MoreMenuScreen({ navigation }) {
           <Icon name="chevron-right" size={20} color={COLORS.border} />
         </TouchableOpacity>
 
-        {/* ── Menu items ────────────────────────────── */}
+        {/* ── Menu — grouped for discoverability ─────────── */}
+        <Text style={styles.sectionLabel}>Operations</Text>
         <View style={styles.menu}>
-
           <MenuItem
             icon="map-marker-multiple-outline"
             label="Live Map"
@@ -70,7 +72,6 @@ export default function MoreMenuScreen({ navigation }) {
             color="#059669"
             onPress={() => navigation.navigate('LiveMap')}
           />
-
           <MenuItem
             icon="chart-bar"
             label="Reports"
@@ -78,26 +79,26 @@ export default function MoreMenuScreen({ navigation }) {
             color="#7C3AED"
             onPress={() => navigation.navigate('Reports')}
           />
-
-
-          {isSuperuser() && (
-            <MenuItem
-              icon="shield-lock-outline"
-              label="Audit Log"
-              subtitle="Full system action history"
-              color="#D97706"
-              onPress={() => navigation.navigate('AuditLog')}
-            />
-          )}
-
+          <MenuItem
+            icon="bell-outline"
+            label="Notifications"
+            subtitle="Alerts & system messages"
+            color="#EA580C"
+            badge={unreadCount}
+            onPress={() => navigation.navigate('Notifications')}
+          />
           <MenuItem
             icon="chart-timeline-variant"
             label="Activity Log"
             subtitle="Salesperson interaction history"
             color="#7C3AED"
             onPress={() => navigation.navigate('ActivityLog')}
+            last
           />
+        </View>
 
+        <Text style={styles.sectionLabel}>People & places</Text>
+        <View style={styles.menu}>
           {isSuperuser() && (
             <MenuItem
               icon="message-alert-outline"
@@ -107,7 +108,6 @@ export default function MoreMenuScreen({ navigation }) {
               onPress={() => navigation.navigate('ComplaintList')}
             />
           )}
-
           <MenuItem
             icon="domain"
             label="Companies"
@@ -115,7 +115,6 @@ export default function MoreMenuScreen({ navigation }) {
             color="#0891B2"
             onPress={() => navigation.navigate('CompanyList')}
           />
-
           <MenuItem
             icon="map-marker-radius-outline"
             label="Office Locations"
@@ -123,18 +122,41 @@ export default function MoreMenuScreen({ navigation }) {
             color="#059669"
             onPress={() => navigation.navigate('BusinessLocationList')}
           />
-
+          <MenuItem
+            icon="calendar-star"
+            label="Holidays"
+            subtitle="Public / company holidays for attendance"
+            color="#7C3AED"
+            onPress={() => navigation.navigate('HolidayList')}
+            last={!isSuperuser()}
+          />
           {isSuperuser() && (
             <MenuItem
-              icon="cog-outline"
-              label="System Config"
-              subtitle="Login security & platform settings"
-              color="#64748B"
-              onPress={() => navigation.navigate('SystemConfig')}
+              icon="shield-lock-outline"
+              label="Audit Log"
+              subtitle="Full system action history"
+              color="#D97706"
+              onPress={() => navigation.navigate('AuditLog')}
+              last
             />
           )}
-
         </View>
+
+        {isSuperuser() && (
+          <>
+            <Text style={styles.sectionLabel}>System</Text>
+            <View style={styles.menu}>
+              <MenuItem
+                icon="cog-outline"
+                label="System Config"
+                subtitle="Login security & platform settings"
+                color="#64748B"
+                onPress={() => navigation.navigate('SystemConfig')}
+                last
+              />
+            </View>
+          </>
+        )}
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
@@ -143,9 +165,13 @@ export default function MoreMenuScreen({ navigation }) {
 }
 
 // ── Menu item ─────────────────────────────────────────────────
-function MenuItem({ icon, label, subtitle, color, badge, onPress }) {
+function MenuItem({ icon, label, subtitle, color, badge, onPress, last }) {
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.78}>
+    <TouchableOpacity
+      style={[styles.menuItem, last && styles.menuItemLast]}
+      onPress={onPress}
+      activeOpacity={0.78}
+    >
       <View style={[styles.menuIcon, { backgroundColor: color + '18' }]}>
         <Icon name={icon} size={22} color={color} />
       </View>
@@ -209,6 +235,16 @@ const styles = StyleSheet.create({
   },
 
   // Menu
+  sectionLabel: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    fontFamily: FONTS.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+  },
   menu: {
     backgroundColor:   COLORS.surface,
     borderRadius:      BORDER_RADIUS.xl,
@@ -225,6 +261,9 @@ const styles = StyleSheet.create({
     paddingVertical:   SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
   },
 
   menuIcon: {

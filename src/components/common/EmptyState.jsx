@@ -1,22 +1,30 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@constants/colors';
 import { TYPOGRAPHY, FONTS } from '@constants/typography';
-import { SPACING } from '@constants/config';
+import { SPACING, BORDER_RADIUS } from '@constants/config';
 
 export default function EmptyState({
-  icon    = 'inbox-outline',
-  title   = 'Nothing here',
+  icon = 'inbox-outline',
+  title = 'Nothing here',
   message = 'Pull down to refresh.',
+  actionLabel,
+  onAction,
+  compact = false,
 }) {
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, compact && styles.compact]}>
       <View style={styles.iconBox}>
-        <Icon name={icon} size={38} color={COLORS.primaryMid} />
+        <Icon name={icon} size={38} color={COLORS.primaryMid || COLORS.primary} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {message ? <Text style={styles.msg}>{message}</Text> : null}
+      {actionLabel && onAction ? (
+        <TouchableOpacity style={styles.btn} onPress={onAction} activeOpacity={0.85}>
+          <Text style={styles.btnText}>{actionLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -30,6 +38,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     gap: SPACING.sm,
   },
+  compact: { flex: 0, paddingVertical: SPACING.xl },
   iconBox: {
     width: 72,
     height: 72,
@@ -50,5 +59,17 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  btn: {
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  btnText: {
+    ...TYPOGRAPHY.smallMedium,
+    color: COLORS.white,
+    fontFamily: FONTS.bold,
   },
 });

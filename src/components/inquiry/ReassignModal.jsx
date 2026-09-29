@@ -31,6 +31,8 @@ import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useUserStore    from '@store/user.store';
 import useInquiryStore from '@store/inquiry.store';
 import { reportApi }   from '@api/report.api';
+import { showErrorToast } from '@utils/errorHandler';
+import { requireOnline } from '@utils/offline';
 
 import SalespersonRow from './shared/SalespersonRow';
 import StatsCard      from './shared/StatsCard';
@@ -98,6 +100,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
       Alert.alert('Select Salesperson', 'Choose the new salesperson to reassign to.');
       return;
     }
+    if (!requireOnline('Connect to reassign this inquiry.')) return;
     const payload = { salesPersonId: selected.id };
     if (reason.trim()) payload.reason = reason.trim();
 
@@ -106,7 +109,7 @@ export default function ReassignModal({ visible, inquiry, onClose, onSuccess }) 
       onSuccess?.();
       onClose();
     } else {
-      Alert.alert('Error', result.message ?? 'Failed to reassign inquiry.');
+      showErrorToast(result.message ?? 'Failed to reassign inquiry.');
     }
   };
 

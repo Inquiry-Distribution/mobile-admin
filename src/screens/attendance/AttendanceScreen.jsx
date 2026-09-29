@@ -32,6 +32,8 @@ import { formatTime, formatDuration, getInitials } from "@utils/helpers";
 
 import useAttendanceStore from "@store/attendance.store";
 import EmptyState from "@components/common/EmptyState";
+import ErrorState from "@components/common/ErrorState";
+import { ListSkeleton } from "@components/common/Skeleton";
 import StatusBadge from "@components/common/StatusBadge";
 
 // ── Filter chips ──────────────────────────────────────────────
@@ -54,6 +56,7 @@ export default function AttendanceScreen({ route, navigation }) {
     status,
     isLoading,
     isRefreshing,
+    error,
     fetchRecords,
     refreshRecords,
     goToPrevDate,
@@ -239,9 +242,14 @@ export default function AttendanceScreen({ route, navigation }) {
         }
         ListEmptyComponent={
           isLoading ? (
-            <View style={styles.loadingCenter}>
-              <ActivityIndicator color={COLORS.primary} />
-            </View>
+            <ListSkeleton count={5} />
+          ) : error ? (
+            <ErrorState
+              compact
+              title="Could not load attendance"
+              message={error}
+              onAction={() => fetchRecords()}
+            />
           ) : (
             <EmptyState
               icon="calendar-blank-outline"
@@ -252,6 +260,12 @@ export default function AttendanceScreen({ route, navigation }) {
                   : `No attendance data for ${dayjs(date).format(
                       "DD MMM YYYY",
                     )}.`
+              }
+              actionLabel={status ? "Clear filter" : "Retry"}
+              onAction={
+                status
+                  ? () => setStatus("")
+                  : () => fetchRecords()
               }
             />
           )

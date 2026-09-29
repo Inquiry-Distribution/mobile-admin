@@ -121,22 +121,25 @@ export default function OfflineBanner() {
         // → offline
         clearTimeout(lingerTimer.current);
         setIsOffline(true);
+        try { require('@store/network.store').default.getState().setOffline(true); } catch (_) {}
         setShowingOnline(false);
         resetOfflineBg();
         slideIn();
       } else {
         // → back online
         if (isOffline) {
-          // Only flash if we were previously offline
           setIsOffline(false);
+          try { require('@store/network.store').default.getState().setOffline(false); } catch (_) {}
           setShowingOnline(true);
           flashOnlineBg();
-          slideIn(); // ensure visible if it was animating out
+          slideIn();
 
           lingerTimer.current = setTimeout(() => {
             setShowingOnline(false);
             slideOut();
           }, ONLINE_LINGER);
+        } else {
+          try { require('@store/network.store').default.getState().setOffline(false); } catch (_) {}
         }
       }
     });

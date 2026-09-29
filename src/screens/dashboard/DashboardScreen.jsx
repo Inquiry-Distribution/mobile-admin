@@ -128,6 +128,7 @@ export default function DashboardScreen({ navigation }) {
   const [customPickerVisible, setCustomPickerVisible] = useState(false);
   const [customFrom,          setCustomFrom]          = useState(null);
   const [customTo,            setCustomTo]            = useState(null);
+  const [showMoreMetrics,     setShowMoreMetrics]     = useState(false);
 
   // Track whether this is the very first focus (to show full loader only on mount)
   const isFirstFocus = useRef(true);
@@ -352,7 +353,7 @@ export default function DashboardScreen({ navigation }) {
           )}
         </View>
 
-        {/* KPI cards — one card per status so counts always match the list */}
+        {/* KPI cards — primary metrics first; secondary under “More metrics” */}
         <View style={styles.statsGrid}>
           <StatCard compact
             label="Total"
@@ -374,18 +375,6 @@ export default function DashboardScreen({ navigation }) {
             }
           />
           <StatCard compact
-            label="Assigned"
-            value={s.assigned ?? '—'}
-            icon="account-check-outline"
-            color={COLORS.assigned}
-            onPress={() =>
-              navigation.navigate('Inquiries', {
-                screen: 'InquiryList',
-                params: { filterStatus: 'assigned' },
-              })
-            }
-          />
-          <StatCard compact
             label="In Progress"
             value={s.inProgress ?? '—'}
             icon="progress-clock"
@@ -394,30 +383,6 @@ export default function DashboardScreen({ navigation }) {
               navigation.navigate('Inquiries', {
                 screen: 'InquiryList',
                 params: { filterStatus: 'in_progress' },
-              })
-            }
-          />
-          <StatCard compact
-            label="Follow Up"
-            value={s.followUp ?? '—'}
-            icon="calendar-clock-outline"
-            color={COLORS.followUp}
-            onPress={() =>
-              navigation.navigate('Inquiries', {
-                screen: 'InquiryList',
-                params: { filterStatus: 'follow_up' },
-              })
-            }
-          />
-          <StatCard compact
-            label="Not Interested"
-            value={s.notInterested ?? '—'}
-            icon="close-circle-outline"
-            color={COLORS.notInterested}
-            onPress={() =>
-              navigation.navigate('Inquiries', {
-                screen: 'InquiryList',
-                params: { filterStatus: 'not_interested' },
               })
             }
           />
@@ -433,38 +398,93 @@ export default function DashboardScreen({ navigation }) {
               })
             }
           />
-
-          <StatCard compact
-            label="Closed"
-            value={s.closed ?? '—'}
-            icon="check-circle-outline"
-            color={COLORS.closed}
-            onPress={() =>
-              navigation.navigate('Inquiries', {
-                screen: 'InquiryList',
-                params: { filterStatus: 'closed' },
-              })
-            }
-          />
-          <StatCard compact
-            label="Devices"
-            value={s.totalDevices ?? '—'}
-            icon="cellphone-check"
-            color={COLORS.info}
-            onPress={() =>
-              goToTab('Team', [{ name: 'UserList' }, { name: 'DeviceList' }])
-            }
-          />
-          <StatCard compact
-            label="Blocked"
-            value={s.blockedDevices ?? '—'}
-            icon="cellphone-lock"
-            color={COLORS.error}
-            onPress={() =>
-              goToTab('Team', [{ name: 'UserList' }, { name: 'DeviceList' }])
-            }
-          />
         </View>
+
+        <TouchableOpacity
+          style={styles.moreMetricsBtn}
+          onPress={() => setShowMoreMetrics((v) => !v)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.moreMetricsText}>
+            {showMoreMetrics ? 'Hide extra metrics' : 'More metrics'}
+          </Text>
+          <Icon
+            name={showMoreMetrics ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color={COLORS.primary}
+          />
+        </TouchableOpacity>
+
+        {showMoreMetrics && (
+          <View style={styles.statsGrid}>
+            <StatCard compact
+              label="Assigned"
+              value={s.assigned ?? '—'}
+              icon="account-check-outline"
+              color={COLORS.assigned}
+              onPress={() =>
+                navigation.navigate('Inquiries', {
+                  screen: 'InquiryList',
+                  params: { filterStatus: 'assigned' },
+                })
+              }
+            />
+            <StatCard compact
+              label="Follow Up"
+              value={s.followUp ?? '—'}
+              icon="calendar-clock-outline"
+              color={COLORS.followUp}
+              onPress={() =>
+                navigation.navigate('Inquiries', {
+                  screen: 'InquiryList',
+                  params: { filterStatus: 'follow_up' },
+                })
+              }
+            />
+            <StatCard compact
+              label="Not Interested"
+              value={s.notInterested ?? '—'}
+              icon="close-circle-outline"
+              color={COLORS.notInterested}
+              onPress={() =>
+                navigation.navigate('Inquiries', {
+                  screen: 'InquiryList',
+                  params: { filterStatus: 'not_interested' },
+                })
+              }
+            />
+            <StatCard compact
+              label="Closed"
+              value={s.closed ?? '—'}
+              icon="check-circle-outline"
+              color={COLORS.closed}
+              onPress={() =>
+                navigation.navigate('Inquiries', {
+                  screen: 'InquiryList',
+                  params: { filterStatus: 'closed' },
+                })
+              }
+            />
+            <StatCard compact
+              label="Devices"
+              value={s.totalDevices ?? '—'}
+              icon="cellphone-check"
+              color={COLORS.info}
+              onPress={() =>
+                goToTab('Team', [{ name: 'UserList' }, { name: 'DeviceList' }])
+              }
+            />
+            <StatCard compact
+              label="Blocked"
+              value={s.blockedDevices ?? '—'}
+              icon="cellphone-lock"
+              color={COLORS.error}
+              onPress={() =>
+                goToTab('Team', [{ name: 'UserList' }, { name: 'DeviceList' }])
+              }
+            />
+          </View>
+        )}
 
         {/* ── Team Status ──────────────────────────────── */}
         {/* Improvement #4 — correct API field (totalSales) */}
@@ -880,6 +900,20 @@ const styles = StyleSheet.create({
     flexWrap:          'wrap',
     paddingHorizontal: SPACING.sm,
     marginBottom:      SPACING.xs,
+  },
+  moreMetricsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  moreMetricsText: {
+    ...TYPOGRAPHY.smallMedium,
+    color: COLORS.primary,
+    fontFamily: FONTS.medium,
   },
 
   // ── Quick actions ─────────────────────────────────────────────

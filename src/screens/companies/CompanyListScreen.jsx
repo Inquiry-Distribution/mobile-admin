@@ -20,11 +20,13 @@ import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useCompanyStore from '@store/company.store';
 import useAuthStore    from '@store/auth.store';
 import EmptyState      from '@components/common/EmptyState';
+import ErrorState      from '@components/common/ErrorState';
+import { ListSkeleton } from '@components/common/Skeleton';
 
 export default function CompanyListScreen({ navigation }) {
   const isSuperuser = useAuthStore((s) => s.isSuperuser());
   const {
-    companies, isLoading, isRefreshing, isMutating,
+    companies, isLoading, isRefreshing, isMutating, error,
     fetchCompanies, refreshCompanies, deleteCompany,
   } = useCompanyStore();
 
@@ -107,14 +109,28 @@ export default function CompanyListScreen({ navigation }) {
         }
         ListEmptyComponent={
           isLoading ? (
-            <View style={styles.loadingCenter}>
-              <ActivityIndicator color={COLORS.primary} />
-            </View>
+            <ListSkeleton count={4} />
+          ) : error ? (
+            <ErrorState
+              compact
+              title="Could not load companies"
+              message={error}
+              onAction={() => fetchCompanies()}
+            />
           ) : (
             <EmptyState
               icon="domain-off"
               title="No companies yet"
               message={isSuperuser ? 'Tap + to add the first company.' : 'No companies have been added.'}
+              actionLabel={isSuperuser ? 'Add company' : 'Retry'}
+              onAction={
+                isSuperuser
+                  ? () => {
+                      useCompanyStore.getState().clearSelected();
+                      navigation.navigate('CreateCompany');
+                    }
+                  : () => fetchCompanies()
+              }
             />
           )
         }

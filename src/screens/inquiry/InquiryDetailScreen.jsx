@@ -53,8 +53,12 @@ import useInquiryStore from "@store/inquiry.store";
 import { inquiryApi } from "@api/inquiry.api";
 
 import Loader from "@components/common/Loader";
+import ErrorState from "@components/common/ErrorState";
+import { ListSkeleton } from "@components/common/Skeleton";
 import StatusBadge from "@components/common/StatusBadge";
 import PriorityBadge from "@components/common/PriorityBadge";
+import { showSuccessToast, showErrorToast } from "@utils/errorHandler";
+import { requireOnline } from "@utils/offline";
 import { Menu } from "react-native-paper";
 
 import AudioRecorderPlayer from "react-native-audio-recorder-player";
@@ -92,6 +96,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
     selectInquiry,
     isLoading,
     isMutating,
+    error,
     deleteImage,
     deleteAudio,
   } = useInquiryStore();
@@ -564,8 +569,27 @@ export default function InquiryDetailScreen({ route, navigation }) {
     );
   }, [selectedInquiry?.mobile]);
 
-  if (isLoading || !selectedInquiry)
-    return <Loader message="Loading inquiry…" />;
+  if (isLoading && !selectedInquiry) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["bottom"]}>
+        <ListSkeleton count={4} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && !selectedInquiry) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["bottom"]}>
+        <ErrorState
+          title="Could not load inquiry"
+          message={error}
+          onAction={() => selectInquiry(id)}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (!selectedInquiry) return <Loader message="Loading inquiry…" />;
 
   const inquiry = selectedInquiry;
   const {
@@ -896,103 +920,7 @@ export default function InquiryDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* ── Admin action buttons ─────────────────────── */}
-          {(canDistribute || canReassign || canUnassign || canExtend) && (
-            <View style={styles.actionSection}>
-              {/* Primary — Distribute (full width) */}
-              {canDistribute && (
-                <TouchableOpacity
-                  style={styles.primaryBtn}
-                  onPress={() => setShowDistribute(true)}
-                  disabled={isMutating}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.primaryBtnIconWrap}>
-                    <Icon name="send-outline" size={20} color={COLORS.white} />
-                  </View>
-                  <View style={styles.primaryBtnBody}>
-                    <Text style={styles.primaryBtnText}>
-                      Distribute Inquiry
-                    </Text>
-                    <Text style={styles.primaryBtnSub}>
-                      Assign to a salesperson
-                    </Text>
-                  </View>
-                  <Icon
-                    name="chevron-right"
-                    size={20}
-                    color={COLORS.white}
-                    style={{ opacity: 0.6 }}
-                  />
-                </TouchableOpacity>
-              )}
-
-              {/* Secondary row — Reassign + Unassign */}
-              {(canReassign || canUnassign) && (
-                <View style={styles.secondaryRow}>
-                  {canReassign && (
-                    <TouchableOpacity
-                      style={styles.secondaryBtn}
-                      onPress={() => setShowReassign(true)}
-                      disabled={isMutating}
-                      activeOpacity={0.82}
-                    >
-                      <View
-                        style={[
-                          styles.secondaryBtnIcon,
-                          { backgroundColor: COLORS.primary + "18" },
-                        ]}
-                      >
-                        <Icon
-                          name="account-switch-outline"
-                          size={18}
-                          color={COLORS.primary}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.secondaryBtnText,
-                          { color: COLORS.primary },
-                        ]}
-                      >
-                        Reassign
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {canUnassign && (
-                    <TouchableOpacity
-                      style={[styles.secondaryBtn, styles.secondaryBtnDanger]}
-                      onPress={handleUnassign}
-                      disabled={unassignLoading || isMutating}
-                      activeOpacity={0.82}
-                    >
-                      <View
-                        style={[
-                          styles.secondaryBtnIcon,
-                          { backgroundColor: COLORS.error + "15" },
-                        ]}
-                      >
-                        <Icon
-                          name="account-remove-outline"
-                          size={18}
-                          color={COLORS.error}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.secondaryBtnText,
-                          { color: COLORS.error },
-                        ]}
-                      >
-                        Unassign
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-            </View>
-          )}
+          {/* ── Admin actions moved to sticky footer ─────── */}
 
           {/* ── Assignment info ──────────────────────────── */}
           <View style={styles.section}>
@@ -1463,6 +1391,45 @@ export default function InquiryDetailScreen({ route, navigation }) {
             </View>
           )}
         </ScrollView>
+
+        {/* Sticky primary actions — always reachable */}
+        {(canDistribute || canReassign || canUnassign) && (
+          <View style={styles.stickyActions}>
+            {canDistribute ? (
+              <TouchableOpacity
+                style={styles.stickyPrimary}
+                onPress={() => setShowDistribute(true)}
+                disabled={isMutating}
+                activeOpacity={0.85}
+              >
+                <Icon name="send-outline" size={18} color={COLORS.white} />
+                <Text style={styles.stickyPrimaryText}>Distribute</Text>
+              </TouchableOpacity>
+            ) : null}
+            {canReassign ? (
+              <TouchableOpacity
+                style={styles.stickySecondary}
+                onPress={() => setShowReassign(true)}
+                disabled={isMutating}
+                activeOpacity={0.85}
+              >
+                <Icon name="account-switch-outline" size={18} color={COLORS.primary} />
+                <Text style={styles.stickySecondaryText}>Reassign</Text>
+              </TouchableOpacity>
+            ) : null}
+            {canUnassign ? (
+              <TouchableOpacity
+                style={styles.stickyDanger}
+                onPress={handleUnassign}
+                disabled={unassignLoading || isMutating}
+                activeOpacity={0.85}
+              >
+                <Icon name="account-remove-outline" size={18} color={COLORS.error} />
+                <Text style={styles.stickyDangerText}>Unassign</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
       </SafeAreaView>
 
       {/* ── Modals ────────────────────────────────────── */}
@@ -2410,6 +2377,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
     gap: SPACING.xs + 2,
+  },
+  stickyActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    backgroundColor: COLORS.surface ?? COLORS.white,
+  },
+  stickyPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  stickyPrimaryText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.white,
+    fontFamily: FONTS.bold,
+  },
+  stickySecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primaryLight,
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  stickySecondaryText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.primary,
+    fontFamily: FONTS.bold,
+  },
+  stickyDanger: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FEE2E2',
+    paddingVertical: 12,
+    borderRadius: BORDER_RADIUS.full,
+  },
+  stickyDangerText: {
+    fontSize: FONT_SIZE.sm,
+    color: COLORS.error,
+    fontFamily: FONTS.bold,
   },
 
   // Primary (Distribute) — full-width solid card

@@ -100,11 +100,11 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* <KeyboardAvoidingView
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      > */}
+      >
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -250,7 +250,7 @@ export default function LoginScreen() {
             Contact your system administrator for access.
           </Text>
         </ScrollView>
-      {/* </KeyboardAvoidingView> */}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

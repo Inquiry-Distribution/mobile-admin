@@ -56,7 +56,6 @@ export const TYPOGRAPHY = {
     fontSize:   FONT_SIZE.md,
     fontFamily: FONTS.regular,
     lineHeight: LINE_HEIGHT.md,
-    fontWeight: '700',
   },
   bodyMedium: {
     fontSize:   FONT_SIZE.md,

@@ -19,7 +19,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -31,8 +30,11 @@ import { getInitials } from "@utils/helpers";
 
 import useUserStore from "@store/user.store";
 import { userApi } from "@api/user.api";
-import Loader from "@components/common/Loader";
 import EmptyState from "@components/common/EmptyState";
+import ErrorState from "@components/common/ErrorState";
+import { ListSkeleton } from "@components/common/Skeleton";
+import { showSuccessToast, showErrorToast } from "@utils/errorHandler";
+import { requireOnline } from "@utils/offline";
 
 // ── Filter config ─────────────────────────────────────────────
 const ROLE_CHIPS = [
@@ -55,6 +57,7 @@ export default function UserListScreen({ navigation }) {
     isLoading,
     isRefreshing,
     isLoadingMore,
+    error,
     fetchUsers,
     refreshUsers,
     loadMore,
@@ -82,17 +85,18 @@ export default function UserListScreen({ navigation }) {
 
   const handleSync = async () => {
     setMenuVisible(false);
+    if (!requireOnline('Connect to sync users.')) return;
     setIsSyncing(true);
     try {
       const res = await userApi.sync();
       const { created, updated, skipped, total: tot } = res.data ?? res;
-      Alert.alert(
-        "Sync Complete",
-        `Total: ${tot}  •  Created: ${created}  •  Updated: ${updated}  •  Skipped: ${skipped}`
+      showSuccessToast(
+        `Total: ${tot}  •  Created: ${created}  •  Updated: ${updated}  •  Skipped: ${skipped}`,
+        'Sync complete',
       );
       refreshUsers();
     } catch {
-      Alert.alert("Sync Failed", "Could not sync users. Please try again.");
+      showErrorToast('Could not sync users. Please try again.', 'Sync failed');
     } finally {
       setIsSyncing(false);
     }
@@ -115,7 +119,25 @@ export default function UserListScreen({ navigation }) {
     if (!isLoadingMore) loadMore();
   };
 
-  if (isLoading && users.length === 0) return <Loader />;
+  if (isLoading && users.length === 0 && !error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["bottom"]}>
+        <ListSkeleton count={6} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && users.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["bottom"]}>
+        <ErrorState
+          title="Could not load users"
+          message={error}
+          onAction={() => fetchUsers()}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
@@ -264,7 +286,20 @@ export default function UserListScreen({ navigation }) {
               message={
                 filters.search || filters.role || filters.isActive
                   ? "Try adjusting your filters."
-                  : "Pull down to refresh."
+                  : "Add a user or pull down to refresh."
+              }
+              actionLabel={
+                filters.search || filters.role || filters.isActive
+                  ? "Clear filters"
+                  : "Add user"
+              }
+              onAction={
+                filters.search || filters.role || filters.isActive
+                  ? () => {
+                      clearFilters();
+                      fetchUsers();
+                    }
+                  : () => navigation.navigate("CreateUser")
               }
             />
           )

@@ -20,6 +20,8 @@ import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { getInitials } from '@utils/helpers';
 import EmptyState from '@components/common/EmptyState';
+import ErrorState from '@components/common/ErrorState';
+import { ListSkeleton } from '@components/common/Skeleton';
 
 import useComplaintStore from '@store/complaint.store';
 
@@ -40,7 +42,7 @@ const STATUS_CHIPS = [{ label: 'All', value: '' }, { label: 'Pending', value: 'p
 export default function ComplaintListScreen({ navigation }) {
   const {
     records, total, typeFilter, statusFilter,
-    isLoading, isRefreshing, isLoadingMore, hasMore,
+    isLoading, isRefreshing, isLoadingMore, hasMore, error,
     fetchRecords, refreshRecords, loadMore,
     setTypeFilter, setStatusFilter,
     selectById,
@@ -58,6 +60,18 @@ export default function ComplaintListScreen({ navigation }) {
     await selectById(item.id);
     navigation.navigate('ComplaintDetail');
   };
+
+  if (error && records.length === 0 && !isLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ErrorState
+          title="Could not load submissions"
+          message={error}
+          onAction={() => fetchRecords()}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -125,8 +139,16 @@ export default function ComplaintListScreen({ navigation }) {
         )}
         ListEmptyComponent={
           isLoading
-            ? <View style={styles.loadCenter}><ActivityIndicator size="large" color={COLORS.primary} /></View>
-            : <EmptyState icon="message-alert-outline" title="No submissions" message="No complaints or suggestions yet." />
+            ? <ListSkeleton count={4} />
+            : (
+              <EmptyState
+                icon="message-alert-outline"
+                title="No submissions"
+                message="No complaints or suggestions yet."
+                actionLabel="Retry"
+                onAction={() => fetchRecords()}
+              />
+            )
         }
       />
     </SafeAreaView>

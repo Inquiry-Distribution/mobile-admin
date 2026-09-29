@@ -11,7 +11,7 @@
  *  • Badge showing total count
  *  • Tap row → InquiryDetail
  */
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -33,11 +32,14 @@ import { COLORS, PRIORITY_COLORS, STATUS_COLORS } from "@constants/colors";
 import { STATUS_LABEL, stripHtml } from "@utils/helpers";
 import { TYPOGRAPHY, FONTS, FONT_SIZE } from "@constants/typography";
 import { SPACING, BORDER_RADIUS } from "@constants/config";
+import { showSuccessToast, showErrorToast } from "@utils/errorHandler";
+import { requireOnline } from "@utils/offline";
 
 import useInquiryStore from "@store/inquiry.store";
 import useUserStore from "@store/user.store";
-import Loader from "@components/common/Loader";
 import EmptyState from "@components/common/EmptyState";
+import ErrorState from "@components/common/ErrorState";
+import { ListSkeleton } from "@components/common/Skeleton";
 import DateRangePickerModal from "@components/common/DateRangePickerModal";
 
 const { height: SCREEN_H } = Dimensions.get("window");
@@ -82,6 +84,7 @@ export default function InquiryListScreen({ navigation, route }) {
     isRefreshing,
     isLoadingMore,
     isMutating,
+    error,
     fetchInquiries,
     refreshInquiries,
     loadMore,
@@ -93,6 +96,7 @@ export default function InquiryListScreen({ navigation, route }) {
   } = useInquiryStore();
 
   const { salespersons, fetchSalespersons } = useUserStore();
+  const searchDebounce = useRef(null);
 
   // ── Salesperson picker state (filter drawer) ───────────────
   const [spPickerVisible, setSpPickerVisible] = useState(false);
@@ -123,6 +127,7 @@ export default function InquiryListScreen({ navigation, route }) {
   }, []);
 
   const handleBulkDistribute = useCallback(async (sp) => {
+    if (!requireOnline('Connect to distribute inquiries.')) return;
     setBulkSpPickerVisible(false);
     setBulkSpSearch("");
     const ids = Array.from(selectedIds);
@@ -132,10 +137,10 @@ export default function InquiryListScreen({ navigation, route }) {
       const msg = result.skipped > 0
         ? `${result.distributed} distributed. ${result.skipped} skipped (already assigned).`
         : `${result.distributed} inquiries distributed to ${sp.name}.`;
-      Alert.alert("Done", msg);
+      showSuccessToast(msg);
       fetchInquiries();
     } else {
-      Alert.alert("Error", result.message || "Failed to distribute.");
+      showErrorToast(result.message || "Failed to distribute.");
     }
   }, [selectedIds, bulkDistribute, exitSelectMode, fetchInquiries]);
 
@@ -231,15 +236,46 @@ export default function InquiryListScreen({ navigation, route }) {
     setSpSearch("");
   }, []);
 
-  // ── Search ─────────────────────────────────────────────────
-  const onSearchSubmit = () => fetchInquiries();
+  // ── Search (debounced) ─────────────────────────────────────
+  const onSearchChange = useCallback((v) => {
+    setFilters({ search: v });
+    clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => fetchInquiries(), 400);
+  }, [setFilters, fetchInquiries]);
+
+  const onSearchSubmit = () => {
+    clearTimeout(searchDebounce.current);
+    fetchInquiries();
+  };
 
   // ── Infinite scroll ────────────────────────────────────────
   const handleEndReached = () => {
     if (!isLoadingMore) loadMore();
   };
 
-  if (isLoading && inquiries.length === 0) return <Loader />;
+  const hasActiveFilters = !!(
+    filters.search || filters.status || filters.priority || filters.assignedToId || activePeriod !== 'all'
+  );
+
+  if (isLoading && inquiries.length === 0 && !error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["bottom"]}>
+        <ListSkeleton count={6} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && inquiries.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["bottom"]}>
+        <ErrorState
+          title="Could not load inquiries"
+          message={error}
+          onAction={() => fetchInquiries()}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
@@ -287,13 +323,14 @@ export default function InquiryListScreen({ navigation, route }) {
               placeholder="Search inq code, title, description, mobile…"
               placeholderTextColor={COLORS.textMuted}
               value={filters.search}
-              onChangeText={(v) => setFilters({ search: v })}
+              onChangeText={onSearchChange}
               returnKeyType="search"
               onSubmitEditing={onSearchSubmit}
             />
             {filters.search.length > 0 && (
               <TouchableOpacity
                 onPress={() => {
+                  clearTimeout(searchDebounce.current);
                   setFilters({ search: "" });
                   fetchInquiries();
                 }}
@@ -383,9 +420,18 @@ export default function InquiryListScreen({ navigation, route }) {
               icon="clipboard-text-off-outline"
               title="No inquiries found"
               message={
-                filters.search || filters.status || filters.priority
+                hasActiveFilters
                   ? "Try adjusting your filters."
-                  : "Pull down to refresh."
+                  : "Create an inquiry or pull down to refresh."
+              }
+              actionLabel={hasActiveFilters ? "Clear filters" : "Add inquiry"}
+              onAction={
+                hasActiveFilters
+                  ? () => {
+                      clearFilters();
+                      fetchInquiries();
+                    }
+                  : () => navigation.navigate("CreateInquiry")
               }
             />
           )

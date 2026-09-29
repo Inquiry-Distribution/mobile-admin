@@ -72,6 +72,8 @@ import CompanyListScreen           from '@screens/companies/CompanyListScreen';
 import CompanyFormScreen           from '@screens/companies/CompanyFormScreen';
 import BusinessLocationListScreen  from '@screens/settings/BusinessLocationListScreen';
 import BusinessLocationFormScreen  from '@screens/settings/BusinessLocationFormScreen';
+import HolidayListScreen           from '@screens/settings/HolidayListScreen';
+import HolidayFormScreen           from '@screens/settings/HolidayFormScreen';
 import SystemConfigScreen          from '@screens/settings/SystemConfigScreen';
 
 const Tab           = createBottomTabNavigator();
@@ -502,6 +504,22 @@ function MoreNavigator() {
         component={BusinessLocationFormScreen}
         options={{
           headerTitle: () => <HeaderTitle icon="map-marker-plus-outline" title="Location" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <MoreStack.Screen
+        name="HolidayList"
+        component={HolidayListScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="calendar-star" title="Holidays" />,
+          headerLeft:  () => <BackButton />,
+        }}
+      />
+      <MoreStack.Screen
+        name="HolidayForm"
+        component={HolidayFormScreen}
+        options={{
+          headerTitle: () => <HeaderTitle icon="calendar-plus" title="Holiday" />,
           headerLeft:  () => <BackButton />,
         }}
       />
