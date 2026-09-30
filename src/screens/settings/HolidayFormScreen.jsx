@@ -1,14 +1,12 @@
 /**
  * HolidayFormScreen — Add / Edit holiday
  *
- * route.params:
- *   { holiday: null }   → create
- *   { holiday: {...} }  → edit
+ * Android: system date picker when RNCDatePicker is in the native binary.
+ * Otherwise: JS calendar (no crash). Rebuild APK once to get native picker.
  *
- * Fields: date (YYYY-MM-DD), name
- * Sundays are blocked — they are auto week-off.
+ * Fields: date (YYYY-MM-DD), name — Sundays blocked (auto week-off).
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,8 +15,14 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
+  Platform,
+  NativeModules,
+  TurboModuleRegistry,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+} from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
@@ -27,10 +31,25 @@ import { COLORS } from '@constants/colors';
 import { TYPOGRAPHY, FONT_SIZE, FONTS } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { holidayApi } from '@api/holiday.api';
+import DatePickerModal from '@components/common/DatePickerModal';
+
+/** Use .get (not getEnforcing) so missing native module does not crash. */
+function hasNativeDatePicker() {
+  try {
+    if (NativeModules.RNCDatePicker) return true;
+    if (typeof TurboModuleRegistry?.get === 'function') {
+      return !!TurboModuleRegistry.get('RNCDatePicker');
+    }
+  } catch (_) {
+    // ignore
+  }
+  return false;
+}
 
 export default function HolidayFormScreen({ navigation, route }) {
   const existing = route.params?.holiday ?? null;
   const isEdit = !!existing;
+  const nativePickerAvailable = useMemo(() => hasNativeDatePicker(), []);
 
   const [dateStr, setDateStr] = useState(
     existing?.date ?? dayjs().format('YYYY-MM-DD'),
@@ -38,6 +57,8 @@ export default function HolidayFormScreen({ navigation, route }) {
   const [name, setName] = useState(existing?.name ?? '');
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showIosPicker, setShowIosPicker] = useState(false);
+  const [showJsPicker, setShowJsPicker] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -51,12 +72,56 @@ export default function HolidayFormScreen({ navigation, route }) {
     parsed.isValid() &&
     parsed.format('YYYY-MM-DD') === dateStr;
   const isSunday = isValidDate && parsed.day() === 0;
+  const pickerValue = isValidDate ? parsed.toDate() : new Date();
+
+  const applyDate = (next) => {
+    setDateStr(next);
+    if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
+  };
+
+  const openAndroidNativePicker = () => {
+    DateTimePickerAndroid.open({
+      value: pickerValue,
+      mode: 'date',
+      display: 'default',
+      onChange: (event, selectedDate) => {
+        if (event.type === 'dismissed') return;
+        if (!selectedDate) return;
+        applyDate(dayjs(selectedDate).format('YYYY-MM-DD'));
+      },
+    });
+  };
+
+  const onIosDateChange = (event, selectedDate) => {
+    if (event?.type === 'dismissed') {
+      setShowIosPicker(false);
+      return;
+    }
+    if (!selectedDate) return;
+    applyDate(dayjs(selectedDate).format('YYYY-MM-DD'));
+  };
+
+  const openDatePicker = () => {
+    if (Platform.OS === 'android') {
+      if (nativePickerAvailable) {
+        openAndroidNativePicker();
+      } else {
+        setShowJsPicker(true);
+      }
+      return;
+    }
+    if (nativePickerAvailable) {
+      setShowIosPicker(true);
+    } else {
+      setShowJsPicker(true);
+    }
+  };
 
   const validate = () => {
     const e = {};
     if (!name.trim()) e.name = 'Name is required.';
     if (!dateStr.trim()) e.date = 'Date is required.';
-    else if (!isValidDate) e.date = 'Use YYYY-MM-DD format.';
+    else if (!isValidDate) e.date = 'Pick a valid date.';
     else if (isSunday) e.date = 'Sunday is already week-off. Pick another day.';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -93,23 +158,48 @@ export default function HolidayFormScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          <Text style={styles.label}>Date (YYYY-MM-DD)</Text>
-          <TextInput
-            style={[styles.input, errors.date && styles.inputError]}
-            value={dateStr}
-            onChangeText={(t) => {
-              setDateStr(t.trim());
-              if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
-            }}
-            placeholder="2026-10-02"
-            placeholderTextColor={COLORS.textMuted}
-            autoCapitalize="none"
-            keyboardType="numbers-and-punctuation"
-          />
-          {isValidDate && !isSunday ? (
-            <Text style={styles.hint}>{parsed.format('dddd, DD MMMM YYYY')}</Text>
-          ) : null}
+          <Text style={styles.label}>Date</Text>
+          <TouchableOpacity
+            style={[styles.dateBtn, errors.date && styles.inputError]}
+            onPress={openDatePicker}
+            activeOpacity={0.75}
+          >
+            <Icon name="calendar" size={20} color={COLORS.primary} />
+            <View style={styles.dateBtnTextWrap}>
+              <Text style={styles.dateBtnValue}>{dateStr || 'Select date'}</Text>
+              {isValidDate && !isSunday ? (
+                <Text style={styles.dateBtnHint}>
+                  {parsed.format('dddd, DD MMMM YYYY')}
+                </Text>
+              ) : null}
+            </View>
+            <Icon name="chevron-down" size={20} color={COLORS.textMuted} />
+          </TouchableOpacity>
           {errors.date ? <Text style={styles.errorText}>{errors.date}</Text> : null}
+
+          {!nativePickerAvailable ? (
+            <Text style={styles.rebuildHint}>
+              Using in-app calendar until you rebuild the app (native Android picker).
+            </Text>
+          ) : null}
+
+          {Platform.OS === 'ios' && nativePickerAvailable && showIosPicker ? (
+            <>
+              <DateTimePicker
+                value={pickerValue}
+                mode="date"
+                display="spinner"
+                onChange={onIosDateChange}
+              />
+              <TouchableOpacity
+                style={styles.iosDoneBtn}
+                onPress={() => setShowIosPicker(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.iosDoneText}>Done</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
 
           {isSunday ? (
             <View style={styles.warnBox}>
@@ -153,6 +243,18 @@ export default function HolidayFormScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {!nativePickerAvailable ? (
+        <DatePickerModal
+          visible={showJsPicker}
+          value={dateStr}
+          onClose={() => setShowJsPicker(false)}
+          onSelect={(next) => {
+            applyDate(next);
+            setShowJsPicker(false);
+          }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -175,6 +277,45 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+  },
+  dateBtnTextWrap: { flex: 1 },
+  dateBtnValue: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.medium,
+  },
+  dateBtnHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.primary,
+    marginTop: 2,
+    fontFamily: FONTS.medium,
+  },
+  rebuildHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    marginTop: 6,
+  },
+  iosDoneBtn: {
+    alignSelf: 'flex-end',
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+  },
+  iosDoneText: {
+    color: COLORS.primary,
+    fontFamily: FONTS.bold,
+    fontSize: FONT_SIZE.sm,
+  },
   input: {
     backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.md,
@@ -186,12 +327,6 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   inputError: { borderColor: COLORS.error },
-  hint: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.primary,
-    marginTop: 4,
-    fontFamily: FONTS.medium,
-  },
   errorText: {
     ...TYPOGRAPHY.caption,
     color: COLORS.error,
