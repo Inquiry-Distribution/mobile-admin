@@ -34,9 +34,11 @@ export const CONFIG = {
 
   // ── MMKV storage keys ─────────────────────────────────────────
   STORAGE_KEYS: {
-    ACCESS_TOKEN:  'admin_access_token',
-    REFRESH_TOKEN: 'admin_refresh_token',
-    USER:          'admin_user',
+    ACCESS_TOKEN:      'admin_access_token',
+    REFRESH_TOKEN:     'admin_refresh_token',
+    USER:              'admin_user',
+    REMEMBER_EMAIL:    'admin_remember_email',
+    REMEMBER_PASSWORD: 'admin_remember_password',
   },
 };
 

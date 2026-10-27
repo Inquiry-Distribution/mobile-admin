@@ -1,12 +1,10 @@
 /**
  * HolidayFormScreen — Add / Edit holiday
  *
- * Android: system date picker when RNCDatePicker is in the native binary.
- * Otherwise: JS calendar (no crash). Rebuild APK once to get native picker.
- *
+ * Date picking uses the in-app calendar (no native module / rebuild required).
  * Fields: date (YYYY-MM-DD), name — Sundays blocked (auto week-off).
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,14 +13,8 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Platform,
-  NativeModules,
-  TurboModuleRegistry,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker, {
-  DateTimePickerAndroid,
-} from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import dayjs from 'dayjs';
@@ -33,23 +25,9 @@ import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import { holidayApi } from '@api/holiday.api';
 import DatePickerModal from '@components/common/DatePickerModal';
 
-/** Use .get (not getEnforcing) so missing native module does not crash. */
-function hasNativeDatePicker() {
-  try {
-    if (NativeModules.RNCDatePicker) return true;
-    if (typeof TurboModuleRegistry?.get === 'function') {
-      return !!TurboModuleRegistry.get('RNCDatePicker');
-    }
-  } catch (_) {
-    // ignore
-  }
-  return false;
-}
-
 export default function HolidayFormScreen({ navigation, route }) {
   const existing = route.params?.holiday ?? null;
   const isEdit = !!existing;
-  const nativePickerAvailable = useMemo(() => hasNativeDatePicker(), []);
 
   const [dateStr, setDateStr] = useState(
     existing?.date ?? dayjs().format('YYYY-MM-DD'),
@@ -57,8 +35,7 @@ export default function HolidayFormScreen({ navigation, route }) {
   const [name, setName] = useState(existing?.name ?? '');
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [showIosPicker, setShowIosPicker] = useState(false);
-  const [showJsPicker, setShowJsPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -72,49 +49,10 @@ export default function HolidayFormScreen({ navigation, route }) {
     parsed.isValid() &&
     parsed.format('YYYY-MM-DD') === dateStr;
   const isSunday = isValidDate && parsed.day() === 0;
-  const pickerValue = isValidDate ? parsed.toDate() : new Date();
 
   const applyDate = (next) => {
     setDateStr(next);
     if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
-  };
-
-  const openAndroidNativePicker = () => {
-    DateTimePickerAndroid.open({
-      value: pickerValue,
-      mode: 'date',
-      display: 'default',
-      onChange: (event, selectedDate) => {
-        if (event.type === 'dismissed') return;
-        if (!selectedDate) return;
-        applyDate(dayjs(selectedDate).format('YYYY-MM-DD'));
-      },
-    });
-  };
-
-  const onIosDateChange = (event, selectedDate) => {
-    if (event?.type === 'dismissed') {
-      setShowIosPicker(false);
-      return;
-    }
-    if (!selectedDate) return;
-    applyDate(dayjs(selectedDate).format('YYYY-MM-DD'));
-  };
-
-  const openDatePicker = () => {
-    if (Platform.OS === 'android') {
-      if (nativePickerAvailable) {
-        openAndroidNativePicker();
-      } else {
-        setShowJsPicker(true);
-      }
-      return;
-    }
-    if (nativePickerAvailable) {
-      setShowIosPicker(true);
-    } else {
-      setShowJsPicker(true);
-    }
   };
 
   const validate = () => {
@@ -161,7 +99,7 @@ export default function HolidayFormScreen({ navigation, route }) {
           <Text style={styles.label}>Date</Text>
           <TouchableOpacity
             style={[styles.dateBtn, errors.date && styles.inputError]}
-            onPress={openDatePicker}
+            onPress={() => setShowDatePicker(true)}
             activeOpacity={0.75}
           >
             <Icon name="calendar" size={20} color={COLORS.primary} />
@@ -176,30 +114,6 @@ export default function HolidayFormScreen({ navigation, route }) {
             <Icon name="chevron-down" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
           {errors.date ? <Text style={styles.errorText}>{errors.date}</Text> : null}
-
-          {!nativePickerAvailable ? (
-            <Text style={styles.rebuildHint}>
-              Using in-app calendar until you rebuild the app (native Android picker).
-            </Text>
-          ) : null}
-
-          {Platform.OS === 'ios' && nativePickerAvailable && showIosPicker ? (
-            <>
-              <DateTimePicker
-                value={pickerValue}
-                mode="date"
-                display="spinner"
-                onChange={onIosDateChange}
-              />
-              <TouchableOpacity
-                style={styles.iosDoneBtn}
-                onPress={() => setShowIosPicker(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.iosDoneText}>Done</Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
 
           {isSunday ? (
             <View style={styles.warnBox}>
@@ -244,17 +158,15 @@ export default function HolidayFormScreen({ navigation, route }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {!nativePickerAvailable ? (
-        <DatePickerModal
-          visible={showJsPicker}
-          value={dateStr}
-          onClose={() => setShowJsPicker(false)}
-          onSelect={(next) => {
-            applyDate(next);
-            setShowJsPicker(false);
-          }}
-        />
-      ) : null}
+      <DatePickerModal
+        visible={showDatePicker}
+        value={dateStr}
+        onClose={() => setShowDatePicker(false)}
+        onSelect={(next) => {
+          applyDate(next);
+          setShowDatePicker(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -299,22 +211,6 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginTop: 2,
     fontFamily: FONTS.medium,
-  },
-  rebuildHint: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textMuted,
-    marginTop: 6,
-  },
-  iosDoneBtn: {
-    alignSelf: 'flex-end',
-    marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 8,
-  },
-  iosDoneText: {
-    color: COLORS.primary,
-    fontFamily: FONTS.bold,
-    fontSize: FONT_SIZE.sm,
   },
   input: {
     backgroundColor: COLORS.background,

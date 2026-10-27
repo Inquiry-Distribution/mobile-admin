@@ -1,7 +1,8 @@
 /**
- * Simple JS-only month calendar — no native modules required.
+ * In-app month calendar date picker — no native modules required.
+ * Sundays are shown but not selectable (auto week-off).
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +22,12 @@ const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 export default function DatePickerModal({ visible, value, onSelect, onClose }) {
   const selected = dayjs(value).isValid() ? dayjs(value) : dayjs();
   const [cursor, setCursor] = useState(selected.startOf('month'));
+
+  useEffect(() => {
+    if (visible) {
+      setCursor(selected.startOf('month'));
+    }
+  }, [visible, value]);
 
   const days = useMemo(() => {
     const start = cursor.startOf('month');
@@ -71,8 +78,12 @@ export default function DatePickerModal({ visible, value, onSelect, onClose }) {
                 <TouchableOpacity
                   key={d.format('YYYY-MM-DD')}
                   style={styles.dayCell}
-                  onPress={() => onSelect(d.format('YYYY-MM-DD'))}
-                  activeOpacity={0.75}
+                  onPress={() => {
+                    if (isSunday) return;
+                    onSelect(d.format('YYYY-MM-DD'));
+                  }}
+                  activeOpacity={isSunday ? 1 : 0.75}
+                  disabled={isSunday}
                 >
                   <View
                     style={[
@@ -95,6 +106,8 @@ export default function DatePickerModal({ visible, value, onSelect, onClose }) {
               );
             })}
           </View>
+
+          <Text style={styles.sundayHint}>Sundays are week-off and cannot be selected.</Text>
 
           <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
             <Text style={styles.cancelText}>Cancel</Text>
@@ -178,8 +191,14 @@ const styles = StyleSheet.create({
   dayTextSunday: {
     color: COLORS.warning,
   },
+  sundayHint: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
+  },
   cancelBtn: {
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     alignItems: 'center',
     paddingVertical: 10,
   },
