@@ -63,7 +63,7 @@ export default function ProfileScreen({ navigation }) {
     setUpdateStatus('downloading');
     setDownloadProgress(0);
     try {
-      const destPath = `${RNBlobUtil.fs.dirs.DownloadDir}/inquiry-admin-update-${latestRelease.version}.apk`;
+      const destPath = `${RNBlobUtil.fs.dirs.CacheDir}/inquiry-admin-update-${latestRelease.version}.apk`;
       const res = await RNBlobUtil.config({
         fileCache: true,
         path:      destPath,
