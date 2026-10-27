@@ -46,5 +46,20 @@ export const clearAuth = () => {
   removeUser();
 };
 
+export const getRememberedLogin = () => ({
+  email:    storage.getString(K.REMEMBER_EMAIL) || '',
+  password: storage.getString(K.REMEMBER_PASSWORD) || '',
+});
+
+export const setRememberedLogin = (email, password) => {
+  storage.set(K.REMEMBER_EMAIL, email);
+  storage.set(K.REMEMBER_PASSWORD, password);
+};
+
+export const clearRememberedLogin = () => {
+  storage.delete(K.REMEMBER_EMAIL);
+  storage.delete(K.REMEMBER_PASSWORD);
+};
+
 /** Wipe the entire MMKV instance (factory reset / QA) */
 export const clearAll = () => storage.clearAll();

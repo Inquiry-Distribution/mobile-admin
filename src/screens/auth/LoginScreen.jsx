@@ -25,12 +25,15 @@ import { COLORS }              from '@constants/colors';
 import { TYPOGRAPHY, FONTS, FONT_SIZE, LINE_HEIGHT } from '@constants/typography';
 import { SPACING, BORDER_RADIUS, SHADOW } from '@constants/config';
 import useAuthStore   from '@store/auth.store';
+import { getRememberedLogin, setRememberedLogin, clearRememberedLogin } from '@utils/storage';
 
 export default function LoginScreen() {
   const { login, isLoading, error, clearError } = useAuthStore();
+  const savedLogin = getRememberedLogin();
 
-  const [email,         setEmail]         = useState('');
-  const [password,      setPassword]      = useState('');
+  const [email,         setEmail]         = useState(savedLogin.email);
+  const [password,      setPassword]      = useState(savedLogin.password);
+  const [rememberMe,    setRememberMe]    = useState(Boolean(savedLogin.email));
   const [showPassword,  setShowPassword]  = useState(false);
   const [emailError,    setEmailError]    = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -93,7 +96,10 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validate()) return;
     passwordRef.current?.blur();
-    await login(email.trim().toLowerCase(), password);
+    const result = await login(email.trim().toLowerCase(), password);
+    if (!result?.success) return;
+    if (rememberMe) setRememberedLogin(email.trim().toLowerCase(), password);
+    else clearRememberedLogin();
   };
 
   const canLogin = email.trim().length > 0 && password.length > 0 && !isLoading;
@@ -224,6 +230,20 @@ export default function LoginScreen() {
                 <View style={styles.errorPH} />
               )}
             </View>
+
+            <TouchableOpacity
+              style={styles.rememberRow}
+              onPress={() => setRememberMe((v) => !v)}
+              activeOpacity={0.7}
+              disabled={isLoading}
+            >
+              <Icon
+                name={rememberMe ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                size={20}
+                color={rememberMe ? COLORS.primary : COLORS.textMuted}
+              />
+              <Text style={styles.rememberText}>Remember me</Text>
+            </TouchableOpacity>
 
             {/* Submit button */}
             {isLoading ? (
@@ -387,6 +407,19 @@ const styles = StyleSheet.create({
   },
   errorText: { ...TYPOGRAPHY.caption, color: COLORS.error },
   errorPH:   { height: 18 },
+
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           SPACING.xs,
+    marginTop:     SPACING.xs,
+    marginBottom:  SPACING.xs,
+  },
+  rememberText: {
+    ...TYPOGRAPHY.small,
+    color:      COLORS.textSecondary,
+    fontFamily: FONTS.medium,
+  },
 
   // ── Button ────────────────────────────────────────────────────
   loginBtn: {
